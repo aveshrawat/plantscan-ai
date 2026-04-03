@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Onescape · Plant Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#050e05;--bg2:#0b190b;--bg3:#101e10;--bg4:#141f14;
+  --bdr:#192d19;--bdr2:#243824;--bdr3:#2e4a2e;
+  --g:#22c55e;--gb:#4ade80;--gd:#166534;--gdd:#0d3d1a;
+  --gold:#c9973a;--goldb:#e6b54e;
+  --red:#ef4444;--redd:#7f1d1d;--reddd:#450a0a;
+  --amb:#f59e0b;--ambd:#78350f;
+  --org:#f97316;
+  --txt:#edfaed;--txt2:#7ea87e;--txt3:#3d5c3d;--txt4:#253a25;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:'Outfit',system-ui,sans-serif;
+  --mono:'JetBrains Mono','Courier New',monospace;
+  --rad:14px;--radsm:8px;--radlg:20px;
+}
+html,body{background:var(--bg);color:var(--txt);font-family:var(--sans);min-height:100vh}
+body{padding-bottom:60px}
+input,textarea,select,button{font-family:inherit}
+a{color:inherit}
+
+/* ── HEADER ── */
+.hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;height:66px;
+  background:rgba(5,14,5,.92);
+  border-bottom:1px solid var(--bdr);
+  position:sticky;top:0;z-index:200;
+  backdrop-filter:blur(12px);
+}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+.logo-mark{
+  width:40px;height:40px;border-radius:10px;
+  background:linear-gradient(145deg,var(--gdd),var(--g));
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+}
+.logo-name{font-family:var(--serif);font-size:19px;font-weight:400;letter-spacing:.5px;color:var(--txt)}
+.logo-tag{font-size:10px;color:var(--txt4);letter-spacing:3px;text-transform:uppercase;margin-top:1px}
+.nav{display:flex;gap:3px}
+.nav-btn{
+  padding:8px 16px;border-radius:var(--radsm);
+  font-size:13px;font-weight:500;letter-spacing:.3px;
+  background:transparent;border:1px solid transparent;
+  color:var(--txt3);cursor:pointer;transition:all .15s;
+}
+.nav-btn:hover{color:var(--txt2);border-color:var(--bdr)}
+.nav-btn.active{background:var(--bg2);border-color:var(--bdr2);color:var(--gb)}
+.hdr-right{display:flex;align-items:center;gap:16px}
+.online-pill{
+  font-size:11px;color:var(--g);letter-spacing:2px;
+  display:flex;align-items:center;gap:6px;
+}
+.pulse-dot{width:6px;height:6px;background:var(--g);border-radius:50%;animation:pdot 2s infinite}
+@keyframes pdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+
+/* ── VIEWS ── */
+.view{display:none;max-width:900px;margin:0 auto;padding:36px 20px}
+.view.active{display:block}
+
+/* ── SCAN VIEW ── */
+.scan-hero{margin-bottom:32px}
+.scan-eyebrow{
+  font-size:11px;color:var(--g);letter-spacing:3px;text-transform:uppercase;
+  margin-bottom:10px;
+}
+.scan-title{
+  font-family:var(--serif);font-size:46px;font-weight:300;
+  line-height:1.1;letter-spacing:-.5px;color:var(--txt);margin-bottom:10px;
+}
+.scan-title i{color:var(--gb);font-weight:300}
+.scan-sub{font-size:15px;color:var(--txt3);font-weight:300;letter-spacing:.3px}
+
+.meta-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
+@media(max-width:580px){.meta-row{grid-template-columns:1fr 1fr}}
+.meta-field{
+  background:var(--bg2);border:1px solid var(--bdr);
+  border-radius:var(--rad);padding:12px 14px;
+  transition:border-color .15s;
+}
+.meta-field:focus-within{border-color:var(--bdr3)}
+.mf-label{font-size:10px;color:var(--txt4);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.mf-input{
+  background:transparent;border:none;outline:none;
+  font-size:14px;color:var(--txt);width:100%;
+}
+.mf-input::placeholder{color:var(--txt4)}
+
+.upload-zone{
+  border:2px dashed var(--bdr);border-radius:var(--radlg);
+  min-height:200px;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:10px;cursor:pointer;
+  background:rgba(22,101,52,.03);transition:all .2s;
+  margin-bottom:16px;position:relative;overflow:hidden;
+}
+.upload-zone::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at center,rgba(34,197,94,.03) 0%,transparent 70%);
+  pointer-events:none;
+}
+.upload-zone:hover,.upload-zone.drag{
+  border-color:var(--g);background:rgba(34,197,94,.05);
+}
+.upload-zone.has-img{
+  min-height:auto;flex-direction:row;align-items:flex-start;
+  padding:16px;border-style:solid;border-color:var(--gd);
+}
+.uz-icon-wrap{
+  width:56px;height:56px;border-radius:14px;
+  background:var(--bg2);border:1px solid var(--bdr);
+  display:flex;align-items:center;justify-content:center;font-size:26px;
+  margin-bottom:4px;
+}
+.uz-title{font-family:var(--serif);font-size:20px;font-weight:300;color:var(--txt2)}
+.uz-sub{font-size:13px;color:var(--txt4)}
+.prev-img{width:100px;height:100px;object-fit:cover;border-radius:10px;border:1px solid var(--gd);flex-shrink:0}
+.prev-body{flex:1;padding-left:4px}
+.prev-ok{font-size:11px;color:var(--g);letter-spacing:2px;margin-bottom:4px}
+.prev-hint{font-size:12px;color:var(--txt4);margin-bottom:12px}
+
+.note-panel{
+  background:var(--bg2);border:1px solid var(--bdr);
+  border-radius:var(--rad);padding:16px;margin-bottom:16px;
+}
+.note-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.note-lbl{font-size:10px;color:var(--txt4);letter-spacing:2px;text-transform:uppercase}
+.note-controls{display:flex;gap:8px;align-items:center}
+.voice-btn{
+  display:flex;align-items:center;gap:5px;
+  padding:6px 12px;border-radius:var(--radsm);
+  border:1px solid var(--bdr);background:var(--bg3);
+  color:var(--txt3);font-size:12px;cursor:pointer;transition:all .15s;
+}
+.voice-btn:hover{border-color:var(--g);color:var(--g)}
+.voice-btn.rec{border-color:var(--red);color:var(--red);animation:recpulse 1s infinite}
+@keyframes recpulse{50%{opacity:.6}}
+.voice-mic{width:12px;height:12px;border-radius:50%;background:currentColor;display:inline-block}
+.voice-mic.rec{background:var(--red)}
+.lang-sw{display:flex;border:1px solid var(--bdr);border-radius:var(--radsm);overflow:hidden}
+.ls-btn{padding:5px 11px;font-size:11px;background:transparent;border:none;color:var(--txt4);cursor:pointer;transition:all .1s}
+.ls-btn.on{background:var(--bg4);color:var(--gb)}
+.note-ta{
+  width:100%;background:transparent;border:none;outline:none;
+  font-size:14px;color:var(--txt);resize:none;line-height:1.7;min-height:56px;
+}
+.note-ta::placeholder{color:var(--txt4)}
+
+.scan-btn{
+  width:100%;padding:18px 24px;
+  font-family:var(--serif);font-size:22px;font-weight:400;letter-spacing:2px;
+  border-radius:var(--rad);cursor:not-allowed;transition:all .25s;
+  background:var(--bg2);border:1px solid var(--bdr);color:var(--txt4);
+  margin-bottom:28px;
+}
+.scan-btn.rdy{
+  background:linear-gradient(135deg,var(--gdd),#0f4d20);
+  border-color:var(--g);color:var(--gb);cursor:pointer;
+}
+.scan-btn.rdy:hover{background:linear-gradient(135deg,#0f4d20,var(--gd))}
+.scan-btn.ld{background:var(--bg2);border-color:var(--gdd);color:var(--txt4);cursor:wait}
+
+.loading-wrap{text-align:center;padding:56px 0}
+.loading-ring{
+  width:72px;height:72px;margin:0 auto 20px;
+  border:2px solid var(--bdr);border-top-color:var(--g);
+  border-radius:50%;animation:spin .9s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-family:var(--serif);font-size:22px;font-weight:300;font-style:italic;color:var(--txt2)}
+.loading-step{font-size:13px;color:var(--txt4);margin-top:8px;letter-spacing:1px}
+
+/* ── RESULTS ── */
+.results-wrap{animation:slideup .4s cubic-bezier(.25,.46,.45,.94)}
+@keyframes slideup{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+.score-hero{
+  background:var(--bg2);border:1px solid var(--bdr);
+  border-radius:var(--radlg);padding:28px;
+  display:flex;align-items:center;gap:24px;
+  margin-bottom:14px;flex-wrap:wrap;
+  position:relative;overflow:hidden;
+}
+.score-hero::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--g),transparent);
+  opacity:.4;
+}
+.ring-wrap{flex-shrink:0;position:relative}
+.ring-svg{width:108px;height:108px}
+.ring-bg{fill:none;stroke:var(--bdr2);stroke-width:7}
+.ring-fg{
+  fill:none;stroke-width:7;stroke-linecap:round;
+  transform-origin:50% 50%;transform:rotate(-90deg);
+  transition:stroke-dashoffset 1.4s cubic-bezier(.25,.46,.45,.94);
+}
+.ring-score{
+  font-family:var(--mono);font-size:26px;font-weight:500;
+  fill:var(--txt);text-anchor:middle;dominant-baseline:central;
+}
+.ring-max{
+  font-family:var(--mono);font-size:11px;fill:var(--txt4);
+  text-anchor:middle;dominant-baseline:central;
+}
+.score-info{flex:1;min-width:200px}
+.plant-nm{
+  font-family:var(--serif);font-size:28px;font-weight:400;
+  color:var(--txt);line-height:1.2;margin-bottom:4px;
+}
+.plant-nm-hi{font-size:16px;color:var(--txt2);margin-bottom:12px;font-weight:300;display:none}
+.sev-badge{
+  display:inline-block;padding:4px 14px;border-radius:20px;
+  font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;
+  margin-bottom:10px;
+}
+.issue-summary{font-size:14px;color:var(--txt2);line-height:1.5}
+.ltr-wrap{display:flex;margin-left:auto;align-self:flex-start;flex-shrink:0}
+.ltr-grp{display:flex;border:1px solid var(--bdr);border-radius:var(--radsm);overflow:hidden}
+.ltr-btn{padding:6px 14px;font-size:12px;background:transparent;border:none;color:var(--txt4);cursor:pointer;transition:all .1s}
+.ltr-btn.on{background:var(--bg3);color:var(--gb)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:480px){.grid2{grid-template-columns:1fr}}
+.rcard{background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--rad);padding:18px}
+.rcard.full{grid-column:1/-1}
+.rcard.alert{
+  background:rgba(127,29,29,.15);
+  border-color:rgba(239,68,68,.35);
+  border-left:3px solid var(--red);
+}
+.rcard.safe{background:rgba(13,61,26,.2);border-color:rgba(34,197,94,.2)}
+.rc-lbl{font-size:10px;color:var(--txt4);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.rc-en{font-size:14px;color:var(--txt);line-height:1.65}
+.rc-hi{font-size:14px;color:var(--txt2);line-height:1.65;display:none}
+.hi-mode .rc-en{display:none}
+.hi-mode .rc-hi{display:block}
+.hi-mode .plant-nm{display:none}
+.hi-mode .plant-nm-hi{display:block}
+.sym-list{list-style:none;display:flex;flex-direction:column;gap:7px}
+.sym-list li{display:flex;gap:8px;font-size:13px;color:var(--txt2);line-height:1.5}
+.sym-list li::before{content:'◆';font-size:8px;color:var(--gold);flex-shrink:0;margin-top:4px}
+.step-row{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+.step-num{
+  width:26px;height:26px;border-radius:50%;
+  background:var(--gdd);color:var(--gb);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:500;flex-shrink:0;font-family:var(--mono);
+}
+.step-txt{font-size:13px;color:var(--txt);line-height:1.6;padding-top:4px}
+
+.save-btn{
+  width:100%;padding:15px;margin-top:14px;
+  background:transparent;border:1px solid var(--g);border-radius:var(--rad);
+  color:var(--gb);font-family:var(--serif);font-size:20px;font-weight:400;
+  letter-spacing:1px;cursor:pointer;transition:all .2s;
+}
+.save-btn:hover{background:rgba(34,197,94,.07)}
+.save-btn.done{border-color:var(--bdr);color:var(--txt4);cursor:default;font-family:var(--sans);font-size:14px}
+.reset-btn{
+  width:100%;padding:12px;margin-top:8px;
+  background:transparent;border:1px solid var(--bdr);border-radius:var(--rad);
+  color:var(--txt4);font-size:14px;cursor:pointer;transition:all .15s;
+}
+.reset-btn:hover{border-color:var(--bdr2);color:var(--txt3)}
+
+.err-box{
+  background:rgba(127,29,29,.2);border:1px solid var(--redd);
+  border-radius:var(--rad);padding:16px;color:var(--red);font-size:14px;margin-bottom:16px;
+}
+
+/* ── DASHBOARD ── */
+.dash-top{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  margin-bottom:28px;flex-wrap:wrap;gap:12px;
+}
+.dash-title{font-family:var(--serif);font-size:40px;font-weight:300;color:var(--txt)}
+.dash-title span{color:var(--gb);font-style:italic}
+.dash-sub{font-size:14px;color:var(--txt3);margin-top:4px;font-weight:300}
+.clear-btn{
+  padding:8px 16px;background:transparent;border:1px solid var(--redd);
+  border-radius:var(--radsm);color:var(--red);font-size:12px;cursor:pointer;
+  transition:all .15s;align-self:flex-end;
+}
+.clear-btn:hover{background:rgba(127,29,29,.2)}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+@media(max-width:580px){.stats-row{grid-template-columns:repeat(2,1fr)}}
+.stat{
+  background:var(--bg2);border:1px solid var(--bdr);
+  border-radius:var(--rad);padding:20px 16px;text-align:center;
+}
+.stat.crit-s{border-color:rgba(239,68,68,.35);background:rgba(127,29,29,.12)}
+.stat.warn-s{border-color:rgba(245,158,11,.3);background:rgba(120,53,15,.1)}
+.stat.good-s{border-color:rgba(34,197,94,.25);background:rgba(13,61,26,.15)}
+.stat-n{font-family:var(--mono);font-size:34px;font-weight:500;line-height:1;margin-bottom:5px}
+.stat-n.tn{color:var(--gold)}
+.stat-n.cn{color:var(--red)}
+.stat-n.wn{color:var(--amb)}
+.stat-n.gn{color:var(--g)}
+.stat-l{font-size:10px;color:var(--txt4);letter-spacing:2px;text-transform:uppercase}
+
+.filter-bar{display:flex;gap:10px;margin-bottom:22px;flex-wrap:wrap;align-items:center}
+.f-select{
+  background:var(--bg2);border:1px solid var(--bdr);border-radius:var(--radsm);
+  padding:8px 14px;color:var(--txt2);font-size:13px;cursor:pointer;outline:none;
+}
+.f-btn{
+  padding:8px 14px;background:var(--bg2);border:1px solid var(--bdr);
+  border-radius:var(--radsm);color:var(--txt4);font-size:12px;cursor:pointer;transition:all .15s;
+}
+.f-btn.on{border-color:var(--g);color:var(--g)}
+
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.pcard{
+  background:var(--bg2);border:1px solid var(--bdr);
+  border-radius:var(--rad);padding:18px;
+  cursor:pointer;transition:all .18s;
+}
+.pcard:hover{border-color:var(--bdr3);transform:translateY(-2px)}
+.pcard.c-crit{border-color:rgba(239,68,68,.4);background:rgba(127,29,29,.1)}
+.pcard.c-warn{border-color:rgba(245,158,11,.3);background:rgba(120,53,15,.07)}
+.pcard.c-good{border-color:rgba(34,197,94,.2)}
+.pcard-top{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.mini-ring-wrap{flex-shrink:0}
+.pcard-info{flex:1;min-width:0}
+.pcard-name{
+  font-family:var(--serif);font-size:16px;font-weight:400;color:var(--txt);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.pcard-site{font-size:12px;color:var(--txt4);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard-issue{font-size:13px;color:var(--txt2);line-height:1.5;margin-bottom:12px}
+.pcard-foot{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-top:10px;border-top:1px solid var(--bdr);
+}
+.pcard-date{font-size:11px;color:var(--txt4)}
+.pbadge{font-size:10px;font-weight:600;letter-spacing:1.5px;padding:3px 10px;border-radius:20px;text-transform:uppercase}
+
+.empty{
+  text-align:center;padding:80px 20px;
+  border:1px dashed var(--bdr);border-radius:var(--radlg);
+}
+.empty-ico{font-size:44px;opacity:.25;margin-bottom:14px}
+.empty-t{font-family:var(--serif);font-size:26px;font-weight:300;color:var(--txt3);margin-bottom:8px}
+.empty-s{font-size:14px;color:var(--txt4)}
+.empty-cta{
+  margin-top:20px;padding:10px 24px;
+  background:var(--bg2);border:1px solid var(--bdr2);border-radius:var(--radsm);
+  color:var(--txt2);font-size:14px;cursor:pointer;
+}
+
+/* ── MODAL ── */
+.modal-bg{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.88);z-index:500;
+  overflow-y:auto;padding:20px;
+}
+.modal-bg.open{display:flex;align-items:flex-start;justify-content:center;padding-top:40px}
+.modal{
+  background:var(--bg2);border:1px solid var(--bdr);
+  border-radius:var(--radlg);max-width:620px;width:100%;
+  padding:28px;animation:slideup .25s ease;
+}
+.modal-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:12px}
+.modal-title{font-family:var(--serif);font-size:28px;font-weight:400;color:var(--txt);flex:1}
+.modal-sub{font-size:13px;color:var(--txt3);margin-top:3px}
+.modal-x{
+  width:34px;height:34px;border-radius:var(--radsm);
+  background:var(--bg3);border:1px solid var(--bdr);
+  color:var(--txt2);font-size:20px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.modal-score-row{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.modal-issue-box{
+  background:var(--bg3);border-radius:var(--radsm);padding:12px 16px;
+  margin-bottom:16px;border-left:3px solid;
+}
+.m-sec{margin-bottom:16px}
+.m-lbl{font-size:10px;color:var(--txt4);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.m-txt{font-size:14px;color:var(--txt);line-height:1.65}
+.m-note{
+  background:var(--bg3);border:1px solid var(--bdr);
+  border-radius:var(--radsm);padding:12px;
+  font-size:13px;color:var(--txt2);line-height:1.6;font-style:italic;
+}
+.sep{height:1px;background:var(--bdr);margin:16px 0}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:2px}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <a class="logo" href="#">
+    <div class="logo-mark">🌿</div>
+    <div>
+      <div class="logo-name">Onescape</div>
+      <div class="logo-tag">Plant Intelligence</div>
+    </div>
+  </a>
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showView('scan',this)">Scan</button>
+    <button class="nav-btn" onclick="showView('dash',this)">Dashboard</button>
+  </nav>
+  <div class="hdr-right">
+    <div class="online-pill"><div class="pulse-dot"></div> Online</div>
+  </div>
+</header>
+
+<!-- SCAN VIEW -->
+<div class="view active" id="view-scan">
+  <div class="scan-hero">
+    <div class="scan-eyebrow">Maintenance Diagnostic</div>
+    <h1 class="scan-title">Diagnose any plant<br><i>in 10 seconds</i></h1>
+    <p class="scan-sub">Upload a photo · Get AI diagnosis · Save to dashboard</p>
+  </div>
+
+  <div class="meta-row">
+    <div class="meta-field">
+      <div class="mf-label">Site Name</div>
+      <input class="mf-input" id="inp-site" placeholder="e.g. Taj Hotel" autocomplete="off">
+    </div>
+    <div class="meta-field">
+      <div class="mf-label">Location</div>
+      <input class="mf-input" id="inp-loc" placeholder="e.g. Lobby – Col. 3" autocomplete="off">
+    </div>
+    <div class="meta-field">
+      <div class="mf-label">Technician</div>
+      <input class="mf-input" id="inp-tech" placeholder="Your name" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="upload-zone" id="drop-zone">
+    <div class="uz-icon-wrap">📷</div>
+    <div class="uz-title">Upload plant photo</div>
+    <div class="uz-sub">Tap to select · Drag & drop · JPG, PNG, WEBP</div>
+  </div>
+  <input type="file" id="file-input" accept="image/*" style="display:none">
+
+  <div class="note-panel">
+    <div class="note-hdr">
+      <div class="note-lbl">Technician note</div>
+      <div class="note-controls">
+        <div class="lang-sw">
+          <button class="ls-btn on" id="lang-en-btn" onclick="setVoiceLang('en')">EN</button>
+          <button class="ls-btn" id="lang-hi-btn" onclick="setVoiceLang('hi')">हि</button>
+        </div>
+        <button class="voice-btn" id="voice-btn" onclick="toggleVoice()">
+          <span class="voice-mic" id="voice-mic"></span>
+          <span id="voice-label">Speak</span>
+        </button>
+      </div>
+    </div>
+    <textarea class="note-ta" id="note-ta" rows="3" placeholder="Add context — yellowing se pehle kab hua, AC ke paas hai, last week paani diya tha... (English, Hindi, or Hinglish)"></textarea>
+  </div>
+
+  <button class="scan-btn" id="scan-btn" disabled onclick="runScan()">
+    ✦ Run Diagnostic Scan
+  </button>
+
+  <div id="error-box" class="err-box" style="display:none"></div>
+  <div id="loading-wrap" class="loading-wrap" style="display:none">
+    <div class="loading-ring"></div>
+    <div class="loading-txt">Analysing plant health...</div>
+    <div class="loading-step" id="loading-step">Identifying species</div>
+  </div>
+  <div id="results-wrap" style="display:none"></div>
+</div>
+
+<!-- DASHBOARD VIEW -->
+<div class="view" id="view-dash">
+  <div class="dash-top">
+    <div>
+      <div class="dash-title">Plant <span>Intelligence</span></div>
+      <div class="dash-sub">All sites · All plants · Real-time health status</div>
+    </div>
+    <button class="clear-btn" onclick="clearHistory()">Clear All</button>
+  </div>
+
+  <div class="stats-row" id="stats-row">
+    <div class="stat"><div class="stat-n tn" id="st-total">0</div><div class="stat-l">Total Scans</div></div>
+    <div class="stat crit-s"><div class="stat-n cn" id="st-crit">0</div><div class="stat-l">Critical (&lt;6)</div></div>
+    <div class="stat warn-s"><div class="stat-n wn" id="st-warn">0</div><div class="stat-l">Monitor (6–7)</div></div>
+    <div class="stat good-s"><div class="stat-n gn" id="st-good">0</div><div class="stat-l">Healthy (&gt;7)</div></div>
+  </div>
+
+  <div class="filter-bar">
+    <select class="f-select" id="f-site" onchange="renderDash()">
+      <option value="">All Sites</option>
+    </select>
+    <button class="f-btn on" id="fb-all" onclick="setFilter('all',this)">All</button>
+    <button class="f-btn" id="fb-crit" onclick="setFilter('crit',this)" style="color:var(--red)">🔴 Critical</button>
+    <button class="f-btn" id="fb-warn" onclick="setFilter('warn',this)" style="color:var(--amb)">🟡 Monitor</button>
+    <button class="f-btn" id="fb-good" onclick="setFilter('good',this)" style="color:var(--g)">🟢 Healthy</button>
+  </div>
+
+  <div class="cards-grid" id="cards-grid"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal-bg" onclick="closeModal(event)">
+  <div class="modal" id="modal-inner"></div>
+</div>
+
+<script>
+const CIRC = 2 * Math.PI * 42;
+let imgBase64 = null;
+let currentResult = null;
+let currentScan = null;
+let voiceLang = 'en-IN';
+let recognition = null;
+let isRecording = false;
+let scanSaved = false;
+let filterMode = 'all';
+const STEPS = ['Identifying species…','Detecting symptoms…','Analysing root cause…','Generating treatment plan…','Translating to Hindi…'];
+
+function scoreColor(s){
+  const n = parseFloat(s);
+  if(n < 6) return '#ef4444';
+  if(n <= 7) return '#f59e0b';
+  return '#22c55e';
+}
+function scoreClass(s){
+  const n = parseFloat(s);
+  if(n < 6) return 'crit';
+  if(n <= 7) return 'warn';
+  return 'good';
+}
+function sevStyle(sev){
+  const m = {
+    CRITICAL:{bg:'rgba(127,29,29,.35)',color:'#f87171',border:'rgba(239,68,68,.4)'},
+    HIGH:{bg:'rgba(120,52,13,.35)',color:'#fb923c',border:'rgba(249,115,22,.4)'},
+    MEDIUM:{bg:'rgba(120,53,15,.3)',color:'#fcd34d',border:'rgba(245,158,11,.3)'},
+    LOW:{bg:'rgba(13,61,26,.4)',color:'#4ade80',border:'rgba(34,197,94,.3)'}
+  };
+  return m[sev] || m.LOW;
+}
+function fmtDate(ts){
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+}
+function ringPath(score, r=42){
+  const c = 2*Math.PI*r;
+  const n = Math.max(0,Math.min(10,parseFloat(score)));
+  return {c, offset: c*(1-n/10)};
+}
+
+function showView(id, btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='dash') renderDash();
+}
+
+function setVoiceLang(lang){
+  voiceLang = lang==='hi'?'hi-IN':'en-IN';
+  document.getElementById('lang-en-btn').classList.toggle('on',lang==='en');
+  document.getElementById('lang-hi-btn').classList.toggle('on',lang==='hi');
+}
+
+function toggleVoice(){
+  if(!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)){
+    alert('Voice not supported in this browser. Try Chrome on Android.');return;
+  }
+  if(isRecording){stopVoice();return;}
+  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = voiceLang;
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.onresult = e=>{
+    const t = e.results[0][0].transcript;
+    const ta = document.getElementById('note-ta');
+    ta.value = ta.value ? ta.value+' '+t : t;
+  };
+  recognition.onend = ()=>stopVoice();
+  recognition.onerror = ()=>stopVoice();
+  recognition.start();
+  isRecording = true;
+  document.getElementById('voice-btn').classList.add('rec');
+  document.getElementById('voice-mic').classList.add('rec');
+  document.getElementById('voice-label').textContent = 'Stop';
+}
+function stopVoice(){
+  if(recognition) try{recognition.stop()}catch(e){}
+  isRecording = false;
+  document.getElementById('voice-btn').classList.remove('rec');
+  document.getElementById('voice-mic').classList.remove('rec');
+  document.getElementById('voice-label').textContent = 'Speak';
+}
+
+const zone = document.getElementById('drop-zone');
+const fi = document.getElementById('file-input');
+zone.addEventListener('click',()=>fi.click());
+zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag')});
+zone.addEventListener('dragleave',()=>zone.classList.remove('drag'));
+zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag');handleFile(e.dataTransfer.files[0])});
+fi.addEventListener('change',e=>handleFile(e.target.files[0]));
+
+function handleFile(file){
+  if(!file||!file.type.startsWith('image/'))return;
+  resetResults();
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const src = e.target.result;
+    imgBase64 = src.split(',')[1];
+    const img = document.createElement('img');
+    img.src = src;img.className='prev-img';
+    const body = document.createElement('div');
+    body.className='prev-body';
+    const note = document.getElementById('note-ta');
+    body.innerHTML=`<div class="prev-ok">✓ IMAGE LOADED</div><div class="prev-hint">Tap to replace</div>`;
+    body.appendChild(note.parentElement?note:note);
+    zone.innerHTML='';zone.classList.add('has-img');
+    zone.appendChild(img);zone.appendChild(body);
+    body.appendChild(note);
+    updateScanBtn();
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateScanBtn(){
+  const btn = document.getElementById('scan-btn');
+  if(imgBase64){btn.classList.add('rdy');btn.disabled=false;}
+  else{btn.classList.remove('rdy');btn.disabled=true;}
+}
+
+function resetResults(){
+  document.getElementById('results-wrap').style.display='none';
+  document.getElementById('results-wrap').innerHTML='';
+  document.getElementById('error-box').style.display='none';
+  document.getElementById('loading-wrap').style.display='none';
+  currentResult=null;scanSaved=false;
+}
+
+async function runScan(){
+  if(!imgBase64)return;
+  stopVoice();
+  resetResults();
+  const btn = document.getElementById('scan-btn');
+  btn.classList.add('ld');btn.classList.remove('rdy');btn.disabled=true;
+  document.getElementById('loading-wrap').style.display='block';
+  let si=0;
+  const stepEl = document.getElementById('loading-step');
+  const interval = setInterval(()=>{si=(si+1)%STEPS.length;stepEl.textContent=STEPS[si]},1600);
+
+  const note = document.getElementById('note-ta').value;
+  const site = document.getElementById('inp-site').value;
+  const loc = document.getElementById('inp-loc').value;
+  const tech = document.getElementById('inp-tech').value;
+
+  try{
+    const res = await fetch('/api/diagnose',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({imageBase64:imgBase64,note,site,location:loc})
+    });
+    const data = await res.json();
+    if(data.error)throw new Error(data.error);
+    currentResult=data;
+    currentScan={id:Date.now(),ts:Date.now(),site,location:loc,tech,note,result:data};
+    document.getElementById('loading-wrap').style.display='none';
+    renderResults(data);
+  }catch(e){
+    document.getElementById('loading-wrap').style.display='none';
+    const eb = document.getElementById('error-box');
+    eb.textContent='⚠ '+(e.message||'Diagnosis failed. Please try again.');
+    eb.style.display='block';
+  }finally{
+    clearInterval(interval);
+    btn.classList.remove('ld');btn.classList.add('rdy');btn.disabled=false;
+  }
+}
+
+function renderResults(d){
+  const col = scoreColor(d.condition_score);
+  const ss = sevStyle(d.severity);
+  const {c,offset} = ringPath(d.condition_score);
+  const sym_en = (d.symptoms_observed||[]).map(s=>`<li><span class="rc-en">${s}</span><span class="rc-hi" style="display:none">${s}</span></li>`).join('');
+  const sym_hi = (d.symptoms_observed_hi||d.symptoms_observed||[]);
+  const symList_en = (d.symptoms_observed||[]).map(s=>`<li>${s}</li>`).join('');
+  const symList_hi = sym_hi.map(s=>`<li>${s}</li>`).join('');
+  const tp_en = (d.treatment_plan||[]).map((s,i)=>`<div class="step-row"><div class="step-num">${i+1}</div><div class="step-txt rc-en">${s}</div></div>`).join('');
+  const tp_hi = (d.treatment_plan_hi||d.treatment_plan||[]).map((s,i)=>`<div class="step-row"><div class="step-num">${i+1}</div><div class="step-txt rc-hi" style="display:none">${s}</div></div>`).join('');
+
+  const html = `
+  <div class="results-wrap">
+    <div class="score-hero">
+      <div class="ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 100 100">
+          <circle class="ring-bg" cx="50" cy="50" r="42"/>
+          <circle class="ring-fg" cx="50" cy="50" r="42"
+            stroke="${col}"
+            stroke-dasharray="${c} ${c}"
+            stroke-dashoffset="${c}"
+            id="ring-fg-el"/>
+          <text class="ring-score" x="50" y="46" fill="${col}">${d.condition_score}</text>
+          <text class="ring-max" x="50" y="62" fill="var(--txt4)">/ 10</text>
+        </svg>
+      </div>
+      <div class="score-info">
+        <div class="plant-nm" id="plant-nm-en">${d.plant_identified}</div>
+        <div class="plant-nm plant-nm-hi" id="plant-nm-hi">${d.plant_identified_hi||d.plant_identified}</div>
+        <div class="sev-badge" style="background:${ss.bg};color:${ss.color};border:1px solid ${ss.border}">${d.severity}</div>
+        <div class="issue-summary"><span class="rc-en">${d.issue_detected}</span><span class="rc-hi" style="display:none">${d.issue_detected_hi||d.issue_detected}</span></div>
+      </div>
+      <div class="ltr-wrap">
+        <div class="ltr-grp">
+          <button class="ltr-btn on" id="ltr-en" onclick="switchLang('en')">EN</button>
+          <button class="ltr-btn" id="ltr-hi" onclick="switchLang('hi')">हि</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="rcard">
+        <div class="rc-lbl">Root Cause</div>
+        <div class="rc-en" style="font-size:15px;color:var(--txt);line-height:1.6">🔍 ${d.root_cause}</div>
+        <div class="rc-hi" style="font-size:15px;color:var(--txt);line-height:1.6;display:none">🔍 ${d.root_cause_hi||d.root_cause}</div>
+      </div>
+      <div class="rcard">
+        <div class="rc-lbl">Follow Up</div>
+        <div style="font-size:15px;color:var(--txt)">📅 Check in ${d.follow_up_days} days</div>
+      </div>
+    </div>
+
+    <div class="rcard full" style="margin-bottom:12px">
+      <div class="rc-lbl">Symptoms Observed</div>
+      <ul class="sym-list rc-en">${symList_en}</ul>
+      <ul class="sym-list rc-hi" style="display:none">${symList_hi}</ul>
+    </div>
+
+    <div class="rcard alert full" style="margin-bottom:12px">
+      <div class="rc-lbl" style="color:var(--red)">⚡ Immediate Action — Next 24 hours</div>
+      <div class="rc-en" style="font-size:15px;color:#fca5a5;line-height:1.6">${d.immediate_action}</div>
+      <div class="rc-hi" style="font-size:15px;color:#fca5a5;line-height:1.6;display:none">${d.immediate_action_hi||d.immediate_action}</div>
+    </div>
+
+    <div class="rcard full" style="margin-bottom:12px">
+      <div class="rc-lbl">Treatment Plan</div>
+      <div class="rc-en">${tp_en}</div>
+      <div class="rc-hi" style="display:none">${tp_hi}</div>
+    </div>
+
+    <div class="rcard safe full" style="margin-bottom:12px">
+      <div class="rc-lbl" style="color:var(--gb)">🛡 Prevention</div>
+      <div class="rc-en" style="font-size:14px;color:var(--gb);line-height:1.6">${d.prevent_recurrence}</div>
+      <div class="rc-hi" style="font-size:14px;color:var(--gb);line-height:1.6;display:none">${d.prevent_recurrence_hi||d.prevent_recurrence}</div>
+    </div>
+
+    <button class="save-btn" id="save-btn" onclick="saveScan()">✦ Save to Dashboard</button>
+    <button class="reset-btn" onclick="resetScan()">+ Scan another plant</button>
+  </div>`;
+
+  const wrap = document.getElementById('results-wrap');
+  wrap.innerHTML = html;
+  wrap.style.display = 'block';
+  setTimeout(()=>{
+    const el = document.getElementById('ring-fg-el');
+    if(el){
+      const {c,offset}=ringPath(d.condition_score);
+      el.style.strokeDashoffset=offset;
+    }
+  },100);
+}
+
+function switchLang(lang){
+  const wrap = document.getElementById('results-wrap');
+  if(lang==='hi'){
+    wrap.querySelectorAll('.rc-en').forEach(e=>e.style.display='none');
+    wrap.querySelectorAll('.rc-hi').forEach(e=>e.style.display='block');
+    document.getElementById('plant-nm-en').style.display='none';
+    document.getElementById('plant-nm-hi').style.display='block';
+  }else{
+    wrap.querySelectorAll('.rc-en').forEach(e=>e.style.display='');
+    wrap.querySelectorAll('.rc-hi').forEach(e=>e.style.display='none');
+    document.getElementById('plant-nm-en').style.display='';
+    document.getElementById('plant-nm-hi').style.display='none';
+  }
+  document.getElementById('ltr-en').classList.toggle('on',lang==='en');
+  document.getElementById('ltr-hi').classList.toggle('on',lang==='hi');
+}
+
+function saveScan(){
+  if(!currentScan||scanSaved)return;
+  const scans = getScans();
+  scans.unshift(currentScan);
+  localStorage.setItem('onescape_scans',JSON.stringify(scans));
+  scanSaved=true;
+  const btn = document.getElementById('save-btn');
+  btn.textContent='✓ Saved to Dashboard';
+  btn.classList.add('done');
+}
+
+function resetScan(){
+  imgBase64=null;currentResult=null;currentScan=null;scanSaved=false;
+  zone.classList.remove('has-img');
+  zone.innerHTML=`<div class="uz-icon-wrap">📷</div><div class="uz-title">Upload plant photo</div><div class="uz-sub">Tap to select · Drag & drop · JPG, PNG, WEBP</div>`;
+  const newNote = document.createElement('textarea');
+  newNote.className='note-ta';newNote.id='note-ta';newNote.rows=3;
+  newNote.placeholder='Add context — yellowing se pehle kab hua, AC ke paas hai, last week paani diya tha... (English, Hindi, or Hinglish)';
+  document.querySelector('.note-panel').appendChild(newNote);
+  document.getElementById('results-wrap').innerHTML='';
+  document.getElementById('results-wrap').style.display='none';
+  document.getElementById('error-box').style.display='none';
+  document.getElementById('scan-btn').classList.remove('rdy');
+  document.getElementById('scan-btn').disabled=true;
+  fi.value='';
+}
+
+function getScans(){
+  try{return JSON.parse(localStorage.getItem('onescape_scans')||'[]')}catch{return []}
+}
+function clearHistory(){
+  if(!confirm('Clear all scan history? This cannot be undone.'))return;
+  localStorage.removeItem('onescape_scans');
+  renderDash();
+}
+
+let activeFilter = 'all';
+function setFilter(f, btn){
+  activeFilter=f;
+  document.querySelectorAll('.f-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderDash();
+}
+
+function renderDash(){
+  let scans = getScans();
+  const sites = [...new Set(scans.map(s=>s.site).filter(Boolean))];
+  const sel = document.getElementById('f-site');
+  const curSite = sel.value;
+  sel.innerHTML='<option value="">All Sites</option>'+sites.map(s=>`<option ${s===curSite?'selected':''} value="${s}">${s}</option>`).join('');
+
+  document.getElementById('st-total').textContent=scans.length;
+  document.getElementById('st-crit').textContent=scans.filter(s=>parseFloat(s.result?.condition_score)<6).length;
+  document.getElementById('st-warn').textContent=scans.filter(s=>{const n=parseFloat(s.result?.condition_score);return n>=6&&n<=7}).length;
+  document.getElementById('st-good').textContent=scans.filter(s=>parseFloat(s.result?.condition_score)>7).length;
+
+  if(curSite) scans=scans.filter(s=>s.site===curSite);
+  if(activeFilter==='crit') scans=scans.filter(s=>parseFloat(s.result?.condition_score)<6);
+  else if(activeFilter==='warn') scans=scans.filter(s=>{const n=parseFloat(s.result?.condition_score);return n>=6&&n<=7});
+  else if(activeFilter==='good') scans=scans.filter(s=>parseFloat(s.result?.condition_score)>7);
+  scans.sort((a,b)=>parseFloat(a.result?.condition_score)-parseFloat(b.result?.condition_score));
+
+  const grid = document.getElementById('cards-grid');
+  if(!scans.length){
+    grid.innerHTML=`<div class="empty" style="grid-column:1/-1">
+      <div class="empty-ico">🌿</div>
+      <div class="empty-t">No scans yet</div>
+      <div class="empty-s">Scan your first plant to start tracking</div>
+      <button class="empty-cta" onclick="showView('scan',document.querySelector('.nav-btn'))">Go to Scanner →</button>
+    </div>`;return;
+  }
+
+  grid.innerHTML = scans.map((sc,i)=>{
+    const r=sc.result;
+    const sc_n=parseFloat(r?.condition_score||5);
+    const col=scoreColor(sc_n);
+    const cls=sc_n<6?'c-crit':sc_n<=7?'c-warn':'c-good';
+    const ss=sevStyle(r?.severity||'MEDIUM');
+    const {c,offset}=ringPath(sc_n,28);
+    return `<div class="pcard ${cls}" onclick="openModal(${i})" data-idx="${i}">
+      <div class="pcard-top">
+        <div class="mini-ring-wrap">
+          <svg width="68" height="68" viewBox="0 0 68 68">
+            <circle cx="34" cy="34" r="28" fill="none" stroke="var(--bdr2)" stroke-width="5"/>
+            <circle cx="34" cy="34" r="28" fill="none" stroke="${col}" stroke-width="5"
+              stroke-linecap="round"
+              stroke-dasharray="${c} ${c}"
+              stroke-dashoffset="${offset}"
+              transform="rotate(-90 34 34)"/>
+            <text x="34" y="38" font-size="15" font-family="JetBrains Mono,monospace"
+              font-weight="500" fill="${col}" text-anchor="middle" dominant-baseline="central">${sc_n}</text>
+          </svg>
+        </div>
+        <div class="pcard-info">
+          <div class="pcard-name">${r?.plant_identified||'Unknown Plant'}</div>
+          <div class="pcard-site">${[sc.site,sc.location].filter(Boolean).join(' · ')||'No site recorded'}</div>
+        </div>
+      </div>
+      <div class="pcard-issue">${r?.issue_detected||'—'}</div>
+      <div class="pcard-foot">
+        <div class="pcard-date">${fmtDate(sc.ts)}</div>
+        <div class="pbadge" style="background:${ss.bg};color:${ss.color}">${r?.severity||'—'}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  window._dashScans = scans;
+}
+
+function openModal(idx){
+  const scans = window._dashScans || getScans();
+  const sc = scans[idx];
+  if(!sc)return;
+  const r=sc.result;
+  const col=scoreColor(r?.condition_score||5);
+  const ss=sevStyle(r?.severity||'MEDIUM');
+  const {c,offset}=ringPath(r?.condition_score||5,34);
+  const tp=(r?.treatment_plan||[]).map((s,i)=>`<div class="step-row"><div class="step-num">${i+1}</div><div class="step-txt">${s}</div></div>`).join('');
+  const sym=(r?.symptoms_observed||[]).map(s=>`<li>${s}</li>`).join('');
+
+  document.getElementById('modal-inner').innerHTML=`
+    <div class="modal-hdr">
+      <div>
+        <div class="modal-title">${r?.plant_identified||'Plant'}</div>
+        <div class="modal-sub">${[sc.site,sc.location].filter(Boolean).join(' · ')||'No site'} ${sc.tech?'· '+sc.tech:''}</div>
+      </div>
+      <button class="modal-x" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-score-row">
+      <svg width="72" height="72" viewBox="0 0 72 72" style="flex-shrink:0">
+        <circle cx="36" cy="36" r="30" fill="none" stroke="var(--bdr2)" stroke-width="6"/>
+        <circle cx="36" cy="36" r="30" fill="none" stroke="${col}" stroke-width="6"
+          stroke-linecap="round"
+          stroke-dasharray="${c} ${c}" stroke-dashoffset="${offset}"
+          transform="rotate(-90 36 36)"/>
+        <text x="36" y="40" font-size="16" font-family="JetBrains Mono,monospace" font-weight="500"
+          fill="${col}" text-anchor="middle" dominant-baseline="central">${r?.condition_score}</text>
+      </svg>
+      <div>
+        <div class="pbadge" style="background:${ss.bg};color:${ss.color};margin-bottom:8px">${r?.severity}</div>
+        <div style="font-size:14px;color:var(--txt2)">${r?.issue_detected||''}</div>
+      </div>
+    </div>
+    <div class="modal-issue-box" style="border-color:${col}">
+      <div class="m-lbl">Root Cause</div>
+      <div class="m-txt">🔍 ${r?.root_cause||'—'}</div>
+    </div>
+    ${sym?`<div class="m-sec"><div class="m-lbl">Symptoms</div><ul class="sym-list">${sym}</ul></div>`:''}
+    <div class="m-sec" style="background:rgba(127,29,29,.12);border:1px solid rgba(239,68,68,.3);border-radius:var(--rad);padding:14px">
+      <div class="m-lbl" style="color:var(--red)">⚡ Immediate Action</div>
+      <div class="m-txt" style="color:#fca5a5">${r?.immediate_action||'—'}</div>
+    </div>
+    ${tp?`<div class="m-sec" style="margin-top:12px"><div class="m-lbl">Treatment Plan</div>${tp}</div>`:''}
+    <div class="sep"></div>
+    <div class="m-lbl" style="color:var(--gb)">🛡 Prevention</div>
+    <div class="m-txt" style="color:var(--gb);margin-bottom:12px">${r?.prevent_recurrence||'—'}</div>
+    <div class="m-txt" style="color:var(--txt3);font-size:13px">📅 Follow up in ${r?.follow_up_days} days</div>
+    ${sc.note?`<div class="sep"></div><div class="m-lbl">Technician Note</div><div class="m-note">"${sc.note}"</div>`:''}
+    <div style="font-size:11px;color:var(--txt4);margin-top:16px;text-align:right">${fmtDate(sc.ts)}</div>
+  `;
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+function closeModal(e){
+  if(!e||e.target===document.getElementById('modal-bg'))
+    document.getElementById('modal-bg').classList.remove('open');
+}
+
+renderDash();
+</script>
+</body>
+</html>
