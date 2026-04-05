@@ -345,18 +345,32 @@ fi.addEventListener('change',e=>hf(e.target.files[0]));
 function hf(file){
   if(!file||!file.type.startsWith('image/'))return;
   resetR();
-  const r=new FileReader();
-  r.onload=e=>{
-    const src=e.target.result;img64=src.split(',')[1];
-    const img=document.createElement('img');img.src=src;img.className='pimg';
-    const body=document.createElement('div');body.className='pbody';
-    const ta=document.getElementById('noteta');
-    body.innerHTML='<div class="pok">✓ Image loaded</div><div class="phn">Tap to replace</div>';
-    body.appendChild(ta);uz.innerHTML='';uz.classList.add('hasimg');
-    uz.appendChild(img);uz.appendChild(body);
-    document.getElementById('scanbtn').classList.add('rdy');
-    document.getElementById('scanbtn').disabled=false;
-  };r.readAsDataURL(file);
+  const canvas=document.createElement('canvas');
+  const ctx=canvas.getContext('2d');
+  const imgEl=new Image();
+  const reader=new FileReader();
+  reader.onload=e=>{
+    imgEl.onload=()=>{
+      const MAX=1000;
+      let w=imgEl.width,h=imgEl.height;
+      if(w>h&&w>MAX){h=h*(MAX/w);w=MAX;}
+      else if(h>MAX){w=w*(MAX/h);h=MAX;}
+      canvas.width=w;canvas.height=h;
+      ctx.drawImage(imgEl,0,0,w,h);
+      const src=canvas.toDataURL('image/jpeg',0.82);
+      img64=src.split(',')[1];
+      const img=document.createElement('img');img.src=src;img.className='pimg';
+      const body=document.createElement('div');body.className='pbody';
+      const ta=document.getElementById('noteta');
+      body.innerHTML='<div class="pok">✓ Image loaded</div><div class="phn">Tap to replace</div>';
+      body.appendChild(ta);uz.innerHTML='';uz.classList.add('hasimg');
+      uz.appendChild(img);uz.appendChild(body);
+      document.getElementById('scanbtn').classList.add('rdy');
+      document.getElementById('scanbtn').disabled=false;
+    };
+    imgEl.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 function resetR(){
   ['reswrap','errbox','ldwrap'].forEach(id=>{const el=document.getElementById(id);el.style.display='none';if(id==='reswrap')el.innerHTML=''});
