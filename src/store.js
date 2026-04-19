@@ -2,6 +2,13 @@ import { APP, INITIAL_DB } from "./config.js";
 import { uid, nowIso } from "./utils.js";
 
 const clone = value => JSON.parse(JSON.stringify(value));
+function randomTicketNo(d) {
+  const used = new Set((d.tickets || []).map(t => String(t.ticketNo || "")));
+  let value = "";
+  do value = String(Math.floor(100000 + Math.random() * 900000));
+  while (used.has(value));
+  return value;
+}
 let db = load();
 
 function load() {
@@ -32,7 +39,7 @@ export function seedDemoData() {
         d.plants.push(plant);
         const createdAt = new Date(Date.now() - offsets[(i + sIndex) % offsets.length] * 86400000).toISOString();
         d.scans.push({ id: uid("scn"), plantId: plant.id, siteId, score, category: plant.latestCategory, diagnosis: score < 6 ? "Visible stress and decline pattern detected" : score < 7 ? "Mild stress, monitor closely" : "Plant appears stable", rootCause: score < 6 ? "Likely watering/light imbalance" : "Routine observation", instructions: score < 6 ? ["Isolate from AC draft", "Check soil moisture", "Remove damaged leaves", "Recheck within 48 hours"] : ["Continue scheduled maintenance"], image: "", createdAt, createdBy: "u-maint-1" });
-        if (score < 6) d.tickets.push({ id: uid("tkt"), plantId: plant.id, siteId, priority: score < 4.5 ? "P1" : "P2", status: i % 3 === 0 ? "In Progress" : "Open", source: "Auto Scan", issue: `Critical plant health: ${plant.type}`, assignedTo: "Maintenance Staff", createdAt, startedAt: i % 3 === 0 ? new Date(Date.now() - 18 * 36e5).toISOString() : null, closedAt: null, closureEvidence: "", closureRemark: "", createdBy: "system" });
+        if (score < 6) d.tickets.push({ id: uid("tkt"), ticketNo: randomTicketNo(d), plantId: plant.id, siteId, priority: score < 4.5 ? "P1" : "P2", status: i % 3 === 0 ? "In Progress" : "Open", source: "Auto Scan", issue: `Critical plant health: ${plant.type}`, assignedTo: "Maintenance Staff", createdAt, startedAt: i % 3 === 0 ? new Date(Date.now() - 18 * 36e5).toISOString() : null, closedAt: null, closureEvidence: "", closureRemark: "", createdBy: "system" });
       });
     });
     d.meta.seeded = true; return d;
