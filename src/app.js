@@ -10,6 +10,7 @@ const state = {
   role: sessionStorage.getItem(APP.sessionRoleKey) || ROLES.MAINTENANCE,
   tab: sessionStorage.getItem(APP.sessionTabKey) || "dashboard",
   scanImage: "",
+  scanDraft: { siteId: "", zone: "", plantType: "", note: "" },
   evidenceImage: {},
   filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" }
 };
@@ -137,20 +138,22 @@ function maintenanceView() {
 
 function scanView() {
   const { db } = dbx();
+  const draft = state.scanDraft;
+  const selectedSite = draft.siteId || db.sites[0]?.id || "";
   return `<div class="split">
     <section class="card">
       <div class="card-title"><h3>Scan Plant</h3><span class="pill good">LLM call only here</span></div>
       <form class="form" id="scanForm">
         <div class="grid grid-2">
-          <div class="field"><label>Site</label><select class="select" name="siteId" required>${db.sites.map(s => option(s.id, `${s.city} · ${s.name}`)).join("")}</select></div>
-          <div class="field"><label>Zone / Location</label><input class="input" name="zone" placeholder="Reception / Boardroom / Lobby" required /></div>
+          <div class="field"><label>Site</label><select class="select" name="siteId" required>${db.sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div>
+          <div class="field"><label>Zone / Location</label><input class="input" name="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Boardroom / Lobby" required /></div>
         </div>
-        <div class="field"><label>Plant type, if known</label><input class="input" name="plantType" placeholder="Areca Palm / ZZ / Peace Lily" /></div>
-        <div class="field"><label>Technician note</label><textarea class="textarea" name="note" placeholder="Leaves yellowing near AC vent, soil wet, etc."></textarea></div>
+        <div class="field"><label>Plant type, if known</label><input class="input" name="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily" /></div>
+        <div class="field"><label>Technician note</label><textarea class="textarea" name="note" placeholder="Leaves yellowing near AC vent, soil wet, etc.">${escapeHtml(draft.note)}</textarea></div>
         <div class="filebox">
           <strong>Upload plant image</strong><br><span class="small muted">Compressed locally before diagnosis/storage</span>
-          <input type="file" accept="image/*" data-scan-image required />
-          ${state.scanImage ? `<img src="${state.scanImage}" class="preview" alt="Plant preview" />` : ""}
+          <input type="file" accept="image/*" data-scan-image />
+          ${state.scanImage ? `<div class="image-ready"><span class="pill good">Plant image ready</span><button class="mini-btn" type="button" data-action="clear-scan-image">Remove image</button></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted">No image selected yet.</div>`}
         </div>
         <button class="btn" type="submit" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button>
       </form>
@@ -160,7 +163,6 @@ function scanView() {
       <li><strong>Healthy:</strong> score 7+</li><li><strong>Monitor:</strong> score 6–6.9</li><li><strong>Critical:</strong> score below 6 creates automatic ticket</li><li><strong>Close ticket:</strong> blocked unless picture evidence exists</li></ul></section>
   </div>`;
 }
-
 function supervisorView() {
   const { scans, tickets } = visibleRecords();
   if (state.tab === "tickets") return `<section class="card">${filterPanel()}${ticketBoard(tickets, { scope: "supervisor" })}</section>`;
@@ -279,7 +281,7 @@ async function diagnose(form) {
   createScanRecord({ siteId: fd.get("siteId"), zone: fd.get("zone"), plantType: fd.get("plantType") }, data, state.scanImage);
   const category = data.condition_score >= 7 ? "Healthy" : data.condition_score >= 6 ? "Monitor" : "Critical";
   out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><span class="pill ${healthClass(category)}">${category} · ${data.condition_score}/10</span></div><p><strong>${escapeHtml(data.issue_detected)}</strong></p><p class="muted">Root cause: ${escapeHtml(data.root_cause)}</p><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${category === "Critical" ? `<p class="danger-text">Automatic ticket created with SLA timer.</p>` : ""}</div>`;
-  state.scanImage = ""; toast("Diagnosis saved. Dashboard updated.");
+  state.scanImage = ""; state.scanDraft = { siteId: "", zone: "", plantType: "", note: "" }; toast("Diagnosis saved. Dashboard updated.");
 }
 
 function bindEvents() {
@@ -289,14 +291,15 @@ function bindEvents() {
     const action = e.target.closest("[data-action]")?.dataset.action; const id = e.target.closest("[data-id]")?.dataset.id;
     try {
       if (action === "seed") { seedDemoData(); toast("Demo data seeded."); render(); }
-      if (action === "reset" && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; toast("Local data reset."); render(); }
+      if (action === "reset" && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = { siteId:"", zone:"", plantType:"", note:"" }; state.scanImage = ""; toast("Local data reset."); render(); }
       if (action === "download-report") exportCsvReport(getDb(), roleFilter(getDb()));
+      if (action === "clear-scan-image") { state.scanImage = ""; toast("Plant image removed."); render(); }
       if (action === "progress") { markInProgress(id); toast("Ticket moved to In Progress."); render(); }
       if (action === "close") {
         const ticket = getDb().tickets.find(t => t.id === id);
         if (!ticket) throw new Error("Ticket not found.");
         if (!ticket.closureEvidence) throw new Error("Upload picture evidence before closing this ticket.");
-        const remark = prompt("Closure remark:", "Issue resolved and evidence uploaded.") || "Closed with evidence";
+        const remark = "Issue resolved and evidence uploaded.";
         closeTicket(id, remark);
         toast("Ticket closed with resolution time captured.");
         render();
@@ -305,8 +308,12 @@ function bindEvents() {
   });
   document.addEventListener("change", async e => {
     if (e.target.matches("[data-filter]")) { state.filters[e.target.dataset.filter] = e.target.value; if (["clientId","city"].includes(e.target.dataset.filter)) state.filters.siteId = "all"; render(); }
-    if (e.target.matches("[data-scan-image]")) { state.scanImage = await imageToDataUrl(e.target.files[0]); render(); }
+    if (e.target.closest("#scanForm") && e.target.name) state.scanDraft[e.target.name] = e.target.value;
+    if (e.target.matches("[data-scan-image]")) { state.scanImage = await imageToDataUrl(e.target.files[0]); toast("Plant image ready for diagnosis."); render(); }
     if (e.target.matches("[data-evidence]")) { const id = e.target.dataset.evidence; const img = await imageToDataUrl(e.target.files[0], 900, .7); attachEvidence(id, img); toast("Evidence attached. You can now close the ticket."); render(); }
+  });
+  document.addEventListener("input", e => {
+    if (e.target.closest("#scanForm") && e.target.name) state.scanDraft[e.target.name] = e.target.value;
   });
   document.addEventListener("submit", async e => {
     e.preventDefault();
