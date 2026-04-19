@@ -8,6 +8,14 @@ export function priorityForScan(score) {
   if (Number(score) < 6) return PRIORITY.P2;
   return PRIORITY.P3;
 }
+function ticketNumber(d) {
+  const used = new Set((d.tickets || []).map(t => String(t.ticketNo || "")));
+  let value = "";
+  do value = String(Math.floor(100000 + Math.random() * 900000));
+  while (used.has(value));
+  return value;
+}
+
 export function createScanRecord(input, diagnosis, image) {
   return tx(d => {
     const score = Number(diagnosis.condition_score ?? diagnosis.score ?? 5);
@@ -21,13 +29,13 @@ export function createScanRecord(input, diagnosis, image) {
     const scan = { id: uid("scn"), plantId: plant.id, siteId: input.siteId, score, category, diagnosis: diagnosis.issue_detected || "Diagnosis captured", rootCause: diagnosis.root_cause || "Root cause not specified", instructions: diagnosis.treatment_plan || [diagnosis.immediate_action || "Follow maintenance SOP"], image, createdAt: nowIso(), createdBy: "u-maint-1", raw: diagnosis };
     d.scans.push(scan);
     if (category === HEALTH.CRITICAL) {
-      d.tickets.push({ id: uid("tkt"), plantId: plant.id, siteId: input.siteId, priority: priorityForScan(score), status: STATUS.OPEN, source: "Auto Scan", issue: `Critical plant health: ${plant.type}`, assignedTo: "Unassigned", createdAt: nowIso(), startedAt: null, closedAt: null, closureEvidence: "", closureRemark: "", createdBy: "system" });
+      d.tickets.push({ id: uid("tkt"), ticketNo: ticketNumber(d), plantId: plant.id, siteId: input.siteId, priority: priorityForScan(score), status: STATUS.OPEN, source: "Auto Scan", issue: `Critical plant health: ${plant.type}`, assignedTo: "Unassigned", createdAt: nowIso(), startedAt: null, closedAt: null, closureEvidence: "", closureRemark: "", createdBy: "system" });
     }
     return d;
   });
 }
 export function createClientTicket({ siteId, plantId = "", issue, description }) {
-  return tx(d => { d.tickets.push({ id: uid("tkt"), plantId, siteId, priority: PRIORITY.P1, status: STATUS.OPEN, source: "Client", issue: issue || "Client-raised concern", description: description || "", assignedTo: "Unassigned", createdAt: nowIso(), startedAt: null, closedAt: null, closureEvidence: "", closureRemark: "", createdBy: "client" }); return d; });
+  return tx(d => { d.tickets.push({ id: uid("tkt"), ticketNo: ticketNumber(d), plantId, siteId, priority: PRIORITY.P1, status: STATUS.OPEN, source: "Client", issue: issue || "Client-raised concern", description: description || "", assignedTo: "Unassigned", createdAt: nowIso(), startedAt: null, closedAt: null, closureEvidence: "", closureRemark: "", createdBy: "client" }); return d; });
 }
 export function updateTicket(id, patch) {
   return tx(d => { const t = d.tickets.find(x => x.id === id); if (t) Object.assign(t, patch); return d; });

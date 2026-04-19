@@ -142,27 +142,59 @@ function scanView() {
   const selectedSite = draft.siteId || db.sites[0]?.id || "";
   return `<div class="split">
     <section class="card">
-      <div class="card-title"><h3>Scan Plant</h3><span class="pill good">LLM call only here</span></div>
-      <form class="form" id="scanForm">
+      <div class="card-title"><h3>Scan Plant</h3><span class="pill good">AI Diagnosis</span></div>
+      <div class="form" id="scanPanel">
         <div class="grid grid-2">
-          <div class="field"><label>Site</label><select class="select" name="siteId" required>${db.sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div>
-          <div class="field"><label>Zone / Location</label><input class="input" name="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Boardroom / Lobby" required /></div>
+          <div class="field"><label>Site</label><select class="select" data-scan-field="siteId">${db.sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div>
+          <div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Boardroom / Lobby" /></div>
         </div>
-        <div class="field"><label>Plant type, if known</label><input class="input" name="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily" /></div>
-        <div class="field"><label>Technician note</label><textarea class="textarea" name="note" placeholder="Leaves yellowing near AC vent, soil wet, etc.">${escapeHtml(draft.note)}</textarea></div>
+        <div class="field"><label>Plant type, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily" /></div>
+        <div class="field"><label>Technician note</label><textarea class="textarea" data-scan-field="note" placeholder="Leaves yellowing near AC vent, soil wet, etc.">${escapeHtml(draft.note)}</textarea></div>
         <div class="filebox">
-          <strong>Upload plant image</strong><br><span class="small muted">Compressed locally before diagnosis/storage</span>
-          <input type="file" accept="image/*" data-scan-image />
-          ${state.scanImage ? `<div class="image-ready"><span class="pill good">Plant image ready</span><button class="mini-btn" type="button" data-action="clear-scan-image">Remove image</button></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted">No image selected yet.</div>`}
+          <strong>Upload plant image</strong><br><span class="small muted">Image is saved locally for this scan.</span>
+          <div class="btn-row" style="justify-content:center;margin-top:12px">
+            <label class="mini-btn">Choose image<input class="hidden" type="file" accept="image/*" data-scan-image /></label>
+            <button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button>
+          </div>
+          <div id="scanImageState">${scanImageMarkup()}</div>
         </div>
-        <button class="btn" type="submit" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button>
-      </form>
+        <button class="btn" id="runDiagnosisBtn" type="button" data-action="run-diagnosis" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button>
+      </div>
       <div id="scanOutput"></div>
     </section>
-    <section class="card soft"><h3>Auto ITSM rules</h3><p class="subtitle">After scan, score is cached. Dashboards never call AI again.</p><ul class="instruction-list">
-      <li><strong>Healthy:</strong> score 7+</li><li><strong>Monitor:</strong> score 6–6.9</li><li><strong>Critical:</strong> score below 6 creates automatic ticket</li><li><strong>Close ticket:</strong> blocked unless picture evidence exists</li></ul></section>
+    <section class="card soft"><h3>Health Categories</h3><div class="grid">
+      <div class="ticket-card"><div class="ticket-head"><strong>Healthy</strong><span class="pill good">7+</span></div></div>
+      <div class="ticket-card"><div class="ticket-head"><strong>Monitor</strong><span class="pill monitor">6–6.9</span></div></div>
+      <div class="ticket-card"><div class="ticket-head"><strong>Critical</strong><span class="pill critical">Below 6</span></div></div>
+    </div></section>
   </div>`;
 }
+
+function scanImageMarkup() {
+  return state.scanImage
+    ? `<div class="image-ready" style="margin-top:12px"><span class="pill good">Plant image ready</span></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />`
+    : `<div class="small muted" style="margin-top:12px">No image selected yet.</div>`;
+}
+
+function syncScanDraftFromDom() {
+  const panel = document.querySelector("#scanPanel");
+  if (!panel) return;
+  const next = { ...state.scanDraft };
+  panel.querySelectorAll("[data-scan-field]").forEach(el => {
+    next[el.dataset.scanField] = el.value || "";
+  });
+  state.scanDraft = next;
+}
+
+function updateScanImageUi() {
+  const box = document.querySelector("#scanImageState");
+  if (box) box.innerHTML = scanImageMarkup();
+  const btn = document.querySelector("#runDiagnosisBtn");
+  if (btn) btn.disabled = !state.scanImage;
+  const removeBtn = document.querySelector('[data-action="clear-scan-image"]');
+  if (removeBtn) removeBtn.classList.toggle("hidden", !state.scanImage);
+}
+
 function supervisorView() {
   const { scans, tickets } = visibleRecords();
   if (state.tab === "tickets") return `<section class="card">${filterPanel()}${ticketBoard(tickets, { scope: "supervisor" })}</section>`;
@@ -224,13 +256,21 @@ function healthBuckets(scans) {
 }
 function bucket(label, value, total, cls) { return `<div class="metric ${cls}"><span>${label}</span><strong>${value}</strong><div class="health-bar"><span style="width:${Math.round(value / total * 100)}%"></span></div></div>`; }
 
+function ticketDisplayId(t) {
+  if (t.ticketNo) return String(t.ticketNo).padStart(6, "0").slice(-6);
+  const raw = String(t.id || "");
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) hash = ((hash << 5) - hash + raw.charCodeAt(i)) >>> 0;
+  return String(100000 + (hash % 900000));
+}
+
 function ticketCards(tickets) {
   if (!tickets.length) return `<div class="empty">No tickets in this queue.</div>`;
   return `<div class="grid">${tickets.map(t => ticketCard(t)).join("")}</div>`;
 }
 function ticketCard(t) {
   const { siteMap, plantMap } = dbx(); const s = slaState(t); const plant = plantMap[t.plantId]; const site = siteMap[t.siteId];
-  return `<div class="ticket-card"><div class="ticket-head"><strong>${escapeHtml(t.issue)}</strong><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></div><div class="ticket-meta"><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span></div><div class="small muted">${escapeHtml(site?.city)} · ${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</div></div>`;
+  return `<div class="ticket-card"><div class="ticket-head"><strong>${escapeHtml(t.issue)}</strong><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></div><div class="ticket-meta"><span class="pill">#${ticketDisplayId(t)}</span><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span></div><div class="small muted">${escapeHtml(site?.city)} · ${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</div></div>`;
 }
 
 function ticketBoard(tickets, { scope = "supervisor", compact = false } = {}) {
@@ -239,7 +279,7 @@ function ticketBoard(tickets, { scope = "supervisor", compact = false } = {}) {
   if (compact) return ticketCards(tickets);
   return `<div class="table-wrap"><table><thead><tr><th>Ticket</th><th>Location</th><th>Priority</th><th>Status</th><th>SLA</th><th>Evidence / Action</th></tr></thead><tbody>${tickets.map(t => {
     const s = slaState(t); const site = siteMap[t.siteId]; const plant = plantMap[t.plantId];
-    return `<tr><td><strong>${escapeHtml(t.issue)}</strong><br><span class="small muted">${t.id}<br>${fmtDate(t.createdAt)}</span></td><td>${escapeHtml(site?.city)}<br><span class="small muted">${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</span></td><td><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></td><td><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><br><span class="small muted">Resolution: ${resolutionTime(t)}</span></td><td><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span><br><span class="small muted">Age ${s.ageLabel}; closure SLA ${s.closureHours}h</span></td><td>${ticketActions(t, scope)}</td></tr>`;
+    return `<tr><td><strong>${escapeHtml(t.issue)}</strong><br><span class="small muted">Ticket #${ticketDisplayId(t)}<br>${fmtDate(t.createdAt)}</span></td><td>${escapeHtml(site?.city)}<br><span class="small muted">${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</span></td><td><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></td><td><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><br><span class="small muted">Resolution: ${resolutionTime(t)}</span></td><td><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span><br><span class="small muted">Age ${s.ageLabel}; closure SLA ${s.closureHours}h</span></td><td>${ticketActions(t, scope)}</td></tr>`;
   }).join("")}</tbody></table></div>`;
 }
 
@@ -272,16 +312,40 @@ function drawCharts() {
   });
 }
 
-async function diagnose(form) {
-  const fd = new FormData(form); const { db } = dbx(); const site = db.sites.find(s => s.id === fd.get("siteId"));
-  const payload = { imageBase64: dataUrlToBase64(state.scanImage), note: fd.get("note"), site: site?.name, location: fd.get("zone"), plantType: fd.get("plantType") };
-  const out = $("#scanOutput"); out.innerHTML = `<div class="card soft"><strong>Analysing plant...</strong><p class="subtitle">Only this step calls the LLM. Result will be cached locally.</p></div>`;
-  const res = await fetch(APP.diagnosisEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  const data = await res.json(); if (!res.ok) throw new Error(data.error || "Diagnosis failed");
-  createScanRecord({ siteId: fd.get("siteId"), zone: fd.get("zone"), plantType: fd.get("plantType") }, data, state.scanImage);
+async function diagnoseFromState() {
+  syncScanDraftFromDom();
+  const { db } = dbx();
+  const draft = { ...state.scanDraft };
+  const siteId = draft.siteId || db.sites[0]?.id || "";
+  const site = db.sites.find(s => s.id === siteId);
+
+  if (!siteId) throw new Error("Select a site.");
+  if (!draft.zone?.trim()) throw new Error("Enter the zone or location.");
+  if (!state.scanImage) throw new Error("Upload a plant image before diagnosis.");
+
+  const payload = {
+    imageBase64: dataUrlToBase64(state.scanImage),
+    note: draft.note,
+    site: site?.name,
+    location: draft.zone,
+    plantType: draft.plantType
+  };
+
+  const out = $("#scanOutput");
+  out.innerHTML = `<div class="card soft"><strong>Checking plant health...</strong><p class="subtitle">Please wait. The scan result will appear here.</p></div>`;
+
+  const res = await fetch(APP.diagnosisEndpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Diagnosis failed");
+
+  createScanRecord({ siteId, zone: draft.zone, plantType: draft.plantType }, data, state.scanImage);
   const category = data.condition_score >= 7 ? "Healthy" : data.condition_score >= 6 ? "Monitor" : "Critical";
-  out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><span class="pill ${healthClass(category)}">${category} · ${data.condition_score}/10</span></div><p><strong>${escapeHtml(data.issue_detected)}</strong></p><p class="muted">Root cause: ${escapeHtml(data.root_cause)}</p><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${category === "Critical" ? `<p class="danger-text">Automatic ticket created with SLA timer.</p>` : ""}</div>`;
-  state.scanImage = ""; state.scanDraft = { siteId: "", zone: "", plantType: "", note: "" }; toast("Diagnosis saved. Dashboard updated.");
+  out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><span class="pill ${healthClass(category)}">${category} · ${data.condition_score}/10</span></div><p><strong>${escapeHtml(data.issue_detected)}</strong></p><p class="muted">Root cause: ${escapeHtml(data.root_cause)}</p><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${category === "Critical" ? `<p class="danger-text">Critical plant logged and ticket created.</p>` : ""}</div>`;
+  toast("Diagnosis saved. Dashboard updated.");
 }
 
 function bindEvents() {
@@ -293,7 +357,8 @@ function bindEvents() {
       if (action === "seed") { seedDemoData(); toast("Demo data seeded."); render(); }
       if (action === "reset" && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = { siteId:"", zone:"", plantType:"", note:"" }; state.scanImage = ""; toast("Local data reset."); render(); }
       if (action === "download-report") exportCsvReport(getDb(), roleFilter(getDb()));
-      if (action === "clear-scan-image") { state.scanImage = ""; toast("Plant image removed."); render(); }
+      if (action === "clear-scan-image") { syncScanDraftFromDom(); state.scanImage = ""; const input = document.querySelector("[data-scan-image]"); if (input) input.value = ""; updateScanImageUi(); toast("Plant image removed."); }
+      if (action === "run-diagnosis") { await diagnoseFromState(); }
       if (action === "progress") { markInProgress(id); toast("Ticket moved to In Progress."); render(); }
       if (action === "close") {
         const ticket = getDb().tickets.find(t => t.id === id);
@@ -308,17 +373,23 @@ function bindEvents() {
   });
   document.addEventListener("change", async e => {
     if (e.target.matches("[data-filter]")) { state.filters[e.target.dataset.filter] = e.target.value; if (["clientId","city"].includes(e.target.dataset.filter)) state.filters.siteId = "all"; render(); }
-    if (e.target.closest("#scanForm") && e.target.name) state.scanDraft[e.target.name] = e.target.value;
-    if (e.target.matches("[data-scan-image]")) { state.scanImage = await imageToDataUrl(e.target.files[0]); toast("Plant image ready for diagnosis."); render(); }
+    if (e.target.closest("#scanPanel") && e.target.dataset.scanField) state.scanDraft[e.target.dataset.scanField] = e.target.value;
+    if (e.target.matches("[data-scan-image]")) {
+      syncScanDraftFromDom();
+      const file = e.target.files?.[0];
+      if (!file) return;
+      state.scanImage = await imageToDataUrl(file);
+      updateScanImageUi();
+      toast("Plant image ready for diagnosis.");
+    }
     if (e.target.matches("[data-evidence]")) { const id = e.target.dataset.evidence; const img = await imageToDataUrl(e.target.files[0], 900, .7); attachEvidence(id, img); toast("Evidence attached. You can now close the ticket."); render(); }
   });
   document.addEventListener("input", e => {
-    if (e.target.closest("#scanForm") && e.target.name) state.scanDraft[e.target.name] = e.target.value;
+    if (e.target.closest("#scanPanel") && e.target.dataset.scanField) state.scanDraft[e.target.dataset.scanField] = e.target.value;
   });
   document.addEventListener("submit", async e => {
     e.preventDefault();
     try {
-      if (e.target.id === "scanForm") await diagnose(e.target);
       if (e.target.id === "clientTicketForm") { const fd = new FormData(e.target); createClientTicket({ siteId: fd.get("siteId"), issue: fd.get("issue"), description: fd.get("description") }); toast("Priority 1 ticket created."); state.tab = "overview"; render(); }
     } catch (err) { toast(err.message || "Submit failed"); }
   });
