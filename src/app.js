@@ -14,6 +14,11 @@ const state = {
   ownerViewRole: sessionStorage.getItem("greenops_owner_view") || ROLES.SUPERVISOR,
   tab: sessionStorage.getItem(APP.sessionTabKey) || "dashboard",
   scanImage: "",
+  clientTicketImage: "",
+  qrText: "",
+  batchImages: [],
+  batchResults: [],
+  batchRunning: false,
   scanDraft: { siteId: "", zone: "", plantType: "", note: "" },
   filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" }
 };
@@ -113,6 +118,11 @@ function setLoggedIn(user) {
   state.filters = { clientId: "all", siteId: "all", city: "all", from: "", to: "" };
   state.scanDraft = { siteId: "", zone: "", plantType: "", note: "" };
   state.scanImage = "";
+  state.clientTicketImage = "";
+  state.qrText = "";
+  state.batchImages = [];
+  state.batchResults = [];
+  state.batchRunning = false;
 }
 function logout() {
   state.user = null;
@@ -248,32 +258,121 @@ function reportsView(supervisor = true) {
 }
 function reportRow(r, type, db) { const site = db.sites.find(s => s.id === r.siteId); const plant = db.plants.find(p => p.id === r.plantId); if (type === "scan") return `<tr><td>Scan</td><td>${escapeHtml(site?.name)}</td><td>${escapeHtml(plant?.type)} · score ${r.score}</td><td><span class="pill ${healthClass(r.category)}">${r.category}</span></td><td>${fmtDate(r.createdAt)}</td></tr>`; return `<tr><td>Ticket</td><td>${escapeHtml(site?.name)}</td><td>${escapeHtml(r.issue)}</td><td><span class="pill ${r.status === STATUS.CLOSED ? "closed" : r.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${r.status}</span></td><td>${fmtDate(r.createdAt)}</td></tr>`; }
 function historyView(scans, tickets) { const closed = tickets.filter(t => t.status === STATUS.CLOSED); return `<section class="card"><div class="card-title"><h3>Closed Work History</h3><button class="btn secondary" data-action="download-report">Export</button></div>${metrics(scans, tickets)}${ticketBoard(closed, { scope: "maintenance" })}</section>`; }
-function evidenceView(tickets) { const closed = tickets.filter(t => t.status === STATUS.CLOSED && t.closureEvidence); return `<section class="card"><h3>Closure Evidence</h3><p class="subtitle">Client-facing proof of work. No evidence means no closure.</p>${closed.length ? `<div class="grid grid-3">${closed.map(t => `<div class="ticket-card"><img class="preview" src="${t.closureEvidence}" alt="Evidence"><strong>${escapeHtml(t.issue)}</strong><span class="small muted">${fmtDate(t.closedAt)} · ${resolutionTime(t)}</span></div>`).join("")}</div>` : `<div class="empty">No closed tickets with evidence yet.</div>`}</section>`; }
+function evidenceView(tickets) { const closed = tickets.filter(t => t.status === STATUS.CLOSED && t.closureEvidence); return `<section class="card"><h3>Closure Evidence</h3><p class="subtitle">Client-facing proof of work. Closure photos are accepted only after health check.</p>${closed.length ? `<div class="grid grid-3">${closed.map(t => `<div class="ticket-card"><img class="preview" src="${t.closureEvidence}" alt="Evidence"><strong>${escapeHtml(t.issue)}</strong><span class="small muted">${fmtDate(t.closedAt)} - ${resolutionTime(t)}</span><span class="pill good">Verified closure photo</span></div>`).join("")}</div>` : `<div class="empty">No closed tickets with evidence yet.</div>`}</section>`; }
 function healthBuckets(scans) { const hs = healthSummary(scans); const total = hs.total || 1; return `<h3>Health buckets</h3><div class="grid">${bucket("Healthy", hs.healthy, total, "good")}${bucket("Monitor", hs.monitor, total, "monitor")}${bucket("Critical", hs.critical, total, "critical")}</div>`; }
 function bucket(label, value, total, cls) { return `<div class="metric ${cls}"><span>${label}</span><strong>${value}</strong><div class="health-bar"><span style="width:${Math.round(value / total * 100)}%"></span></div></div>`; }
 function ticketDisplayId(t) { if (t.ticketNo) return String(t.ticketNo).padStart(6, "0").slice(-6); const raw = String(t.id || ""); let hash = 0; for (let i = 0; i < raw.length; i++) hash = ((hash << 5) - hash + raw.charCodeAt(i)) >>> 0; return String(100000 + (hash % 900000)); }
 function ticketCards(tickets) { if (!tickets.length) return `<div class="empty">No tickets in this queue.</div>`; return `<div class="grid">${tickets.map(t => ticketCard(t)).join("")}</div>`; }
 function ticketCard(t) { const { siteMap, plantMap } = dbx(); const s = slaState(t); const plant = plantMap[t.plantId]; const site = siteMap[t.siteId]; return `<div class="ticket-card"><div class="ticket-head"><strong>${escapeHtml(t.issue)}</strong><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></div><div class="ticket-meta"><span class="pill">#${ticketDisplayId(t)}</span><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span></div><div class="small muted">${escapeHtml(site?.city)} · ${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</div></div>`; }
 function ticketBoard(tickets, { scope = "supervisor", compact = false } = {}) { const { siteMap, plantMap } = dbx(); if (!tickets.length) return `<div class="empty">No tickets found for selected filters.</div>`; if (compact) return ticketCards(tickets); return `<div class="table-wrap"><table><thead><tr><th>Ticket</th><th>Location</th><th>Priority</th><th>Status</th><th>SLA</th><th>Evidence / Action</th></tr></thead><tbody>${tickets.map(t => { const s = slaState(t); const site = siteMap[t.siteId]; const plant = plantMap[t.plantId]; return `<tr><td><strong>${escapeHtml(t.issue)}</strong><br><span class="small muted">Ticket #${ticketDisplayId(t)}<br>${fmtDate(t.createdAt)}</span></td><td>${escapeHtml(site?.city)}<br><span class="small muted">${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</span></td><td><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></td><td><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><br><span class="small muted">Resolution: ${resolutionTime(t)}</span></td><td><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span><br><span class="small muted">Age ${s.ageLabel}; closure SLA ${s.closureHours}h</span></td><td>${ticketActions(t, scope)}</td></tr>`; }).join("")}</tbody></table></div>`; }
-function ticketActions(t, scope) { if (scope === "client") return t.closureEvidence ? `<img class="evidence-img" src="${t.closureEvidence}" alt="Evidence"><br><span class="small muted">${escapeHtml(t.closureRemark || "Closed with evidence")}</span>` : `<span class="small muted">Tracked by operations team</span>`; if (t.status === STATUS.CLOSED) return `${t.closureEvidence ? `<img class="evidence-img" src="${t.closureEvidence}" alt="Evidence">` : ""}<br><span class="small muted">${escapeHtml(t.closureRemark || "Closed")}</span>`; return `<div class="actions">${t.status === STATUS.OPEN ? `<button class="mini-btn" data-action="progress" data-id="${t.id}">Start</button>` : ""}<label class="mini-btn">Evidence<input class="hidden" type="file" accept="image/*" data-evidence="${t.id}"></label>${t.closureEvidence ? `<img class="evidence-img" src="${t.closureEvidence}" alt="Evidence">` : ""}<button class="mini-btn" data-action="close" data-id="${t.id}">Close</button></div>`; }
+function ticketActions(t, scope) {
+  if (scope === "client") {
+    return t.closureEvidence
+      ? `<img class="evidence-img" src="${t.closureEvidence}" alt="Evidence"><br><span class="small muted">${escapeHtml(t.closureRemark || "Closed with verified evidence")}</span>`
+      : `${t.clientEvidence ? `<img class="evidence-img" src="${t.clientEvidence}" alt="Client issue photo"><br><span class="small muted">Your issue photo is attached.</span>` : `<span class="small muted">Tracked by operations team</span>`}`;
+  }
+  if (t.status === STATUS.CLOSED) return `${t.closureEvidence ? `<img class="evidence-img" src="${t.closureEvidence}" alt="Evidence">` : ""}<br><span class="small muted">${escapeHtml(t.closureRemark || "Closed")}</span>`;
+  const verifyLabel = t.closureEvidenceVerified ? `<span class="pill good">Closure photo accepted</span>` : t.closureEvidence ? `<span class="pill monitor">Photo pending acceptance</span>` : "";
+  return `<div class="actions">${t.status === STATUS.OPEN ? `<button class="mini-btn" data-action="progress" data-id="${t.id}">Start</button>` : ""}<label class="mini-btn">Closure Photo<input class="hidden" type="file" accept="image/*" capture="environment" data-evidence="${t.id}"></label>${t.closureEvidence ? `<img class="evidence-img" src="${t.closureEvidence}" alt="Evidence">` : ""}${verifyLabel}<button class="mini-btn" data-action="close" data-id="${t.id}">Close</button></div>`;
+}
 
 function drawCharts() { $$("canvas[data-chart]").forEach(canvas => { const data = JSON.parse(canvas.dataset.chart || "[]"); const rect = canvas.getBoundingClientRect(); const ratio = window.devicePixelRatio || 1; canvas.width = rect.width * ratio; canvas.height = rect.height * ratio; const ctx = canvas.getContext("2d"); ctx.scale(ratio, ratio); const w = rect.width, h = rect.height, pad = 34; ctx.clearRect(0,0,w,h); ctx.strokeStyle = "#e4e0d7"; ctx.lineWidth = 1; for(let i=0;i<=4;i++){ const y = pad + (h-pad*2)*i/4; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke(); } if (!data.length) { ctx.fillStyle = "#6d756f"; ctx.font = "13px Inter"; ctx.fillText("No scan data yet", pad, h/2); return; } const xs = i => pad + (w-pad*2)*(data.length===1?0.5:i/(data.length-1)); const ys = v => h-pad - (h-pad*2)*(v/10); ctx.strokeStyle = "#1c6048"; ctx.lineWidth = 3; ctx.beginPath(); data.forEach((d,i)=> i?ctx.lineTo(xs(i),ys(d.avg)):ctx.moveTo(xs(i),ys(d.avg))); ctx.stroke(); data.forEach((d,i)=>{ ctx.fillStyle="#0f2f24"; ctx.beginPath(); ctx.arc(xs(i),ys(d.avg),4,0,Math.PI*2); ctx.fill(); }); ctx.fillStyle = "#6d756f"; ctx.font = "12px Inter"; ctx.fillText("0", 10, h-pad); ctx.fillText("10", 8, pad+4); ctx.fillText("Avg health score", pad, 18); }); }
 
 async function diagnoseFromState() {
-  syncScanDraftFromDom(); const { db } = dbx(); const draft = { ...state.scanDraft }; const sites = allowedSites(db); const siteId = draft.siteId || sites[0]?.id || ""; const site = db.sites.find(s => s.id === siteId);
+  syncScanDraftFromDom();
+  const draft = { ...state.scanDraft };
+  if (!state.scanImage) throw new Error("Upload a plant image before diagnosis.");
+  const out = $("#scanOutput");
+  out.innerHTML = `<div class="card soft"><strong>Checking plant health...</strong><p class="subtitle">Please wait. The scan result will appear here.</p></div>`;
+  const result = await diagnoseImage({ image: state.scanImage, draft });
+  const data = result.data;
+  out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><span class="pill ${healthClass(result.category)}">${result.category} · ${result.score}/10</span></div><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p><p class="muted">Root cause: ${escapeHtml(data.root_cause || "Not specified")}</p><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${result.category === "Critical" ? `<p class="danger-text">Critical plant logged and ticket created.</p>` : ""}</div>`;
+  toast("Diagnosis saved. Dashboard updated.");
+}
+
+async function diagnoseImage({ image, draft, batchId = "" }) {
+  const { db } = dbx();
+  const siteId = draft.siteId || allowedSites(db)[0]?.id || "";
+  const site = db.sites.find(s => s.id === siteId);
   if (!siteId) throw new Error("No assigned site available.");
   if (!allowedSiteIds(db).includes(siteId)) throw new Error("This site is not assigned to your account.");
-  if (!draft.zone?.trim()) throw new Error("Enter the zone or location.");
-  if (!state.scanImage) throw new Error("Upload a plant image before diagnosis.");
-  const out = $("#scanOutput"); out.innerHTML = `<div class="card soft"><strong>Checking plant health...</strong><p class="subtitle">Please wait. The scan result will appear here.</p></div>`;
-  const payload = { imageBase64: dataUrlToBase64(state.scanImage), note: draft.note, site: site?.name, location: draft.zone, plantType: draft.plantType };
+  if (!draft.zone?.trim()) throw new Error("Scan the zone QR or enter a zone.");
+  const payload = { imageBase64: dataUrlToBase64(image), note: draft.note, site: site?.name, location: draft.zone, plantType: draft.plantType };
   const res = await fetch(APP.diagnosisEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  const data = await res.json(); if (!res.ok) throw new Error(data.error || "Diagnosis failed");
-  createScanRecord({ siteId, zone: draft.zone, plantType: draft.plantType }, data, state.scanImage);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Diagnosis failed");
+  createScanRecord({ siteId, zone: draft.zone, plantType: draft.plantType, note: draft.note, batchId, createdBy: currentUser()?.id || "field-user" }, data, image);
   const score = Number(data.condition_score ?? data.score ?? 5);
   const category = score >= 7 ? "Healthy" : score >= 6 ? "Monitor" : "Critical";
-  out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><span class="pill ${healthClass(category)}">${category} · ${score}/10</span></div><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p><p class="muted">Root cause: ${escapeHtml(data.root_cause || "Not specified")}</p><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${category === "Critical" ? `<p class="danger-text">Critical plant logged and ticket created.</p>` : ""}</div>`;
-  toast("Diagnosis saved. Dashboard updated.");
+  return { data, score, category, label: data.plant_identified || data.issue_detected || "Diagnosis saved" };
+}
+
+async function runBatchDiagnosis() {
+  syncScanDraftFromDom();
+  const draft = { ...state.scanDraft };
+  if (!state.batchImages.length) throw new Error("Add batch photos first.");
+  if (!draft.zone?.trim()) throw new Error("Scan zone QR or enter the zone before batch scan.");
+  state.batchRunning = true;
+  state.batchResults = [];
+  const out = document.querySelector("#batchOutput");
+  if (out) out.innerHTML = `<div class="card soft"><strong>Checking batch health...</strong><p class="subtitle">0 of ${state.batchImages.length} photos completed.</p></div>`;
+  const batchId = `batch-${Date.now().toString(36)}`;
+  const results = [];
+  for (let i = 0; i < state.batchImages.length; i++) {
+    try {
+      if (out) out.innerHTML = `<div class="card soft"><strong>Checking batch health...</strong><p class="subtitle">${i + 1} of ${state.batchImages.length} photos in progress.</p></div>`;
+      const result = await diagnoseImage({ image: state.batchImages[i], draft, batchId });
+      results.push(result);
+    } catch (err) {
+      results.push({ category: "Failed", label: err.message || "Scan failed" });
+    }
+    state.batchResults = results;
+  }
+  state.batchRunning = false;
+  const critical = results.filter(r => r.category === "Critical").length;
+  if (out) out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>Batch complete</h3><span class="pill ${critical ? "critical" : "good"}">${critical} critical</span></div><p>${results.length} photos processed. Critical plants have been logged as tickets.</p>${batchResultsMarkup()}</div>`;
+  toast("Batch diagnosis completed.");
+}
+
+async function verifyClosureEvidence(id, img) {
+  toast("Checking closure photo...", 5000);
+  const res = await fetch(APP.verifyEvidenceEndpoint || APP.diagnosisEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageBase64: dataUrlToBase64(img) }) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Closure photo check failed");
+  if (!data.accepted) throw new Error(data.reason || "Closure photo not accepted. Upload a clear photo of a healthy/replaced plant.");
+  attachEvidence(id, img, data);
+  toast("Closure photo accepted. You can close the ticket.");
+  render();
+}
+
+function startVoiceNote() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) throw new Error("Voice note is not supported in this browser. Use Chrome on Android/Desktop.");
+  syncScanDraftFromDom();
+  const rec = new SpeechRecognition();
+  rec.lang = "hi-IN";
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  toast("Listening... speak in Hindi or English.", 6000);
+  rec.onresult = event => {
+    const transcript = event.results?.[0]?.[0]?.transcript || "";
+    state.scanDraft.note = [state.scanDraft.note, transcript].filter(Boolean).join(" ").trim();
+    const note = document.querySelector('[data-scan-field="note"]');
+    if (note) note.value = state.scanDraft.note;
+    toast("Voice note captured.");
+  };
+  rec.onerror = () => toast("Voice note failed. Please type or try again.");
+  rec.start();
+}
+
+async function decodeQrImage(file) {
+  if (!file) return;
+  if (!("BarcodeDetector" in window)) throw new Error("QR camera decoding is not supported here. Paste QR code instead.");
+  const detector = new BarcodeDetector({ formats: ["qr_code"] });
+  const bitmap = await createImageBitmap(file);
+  const codes = await detector.detect(bitmap);
+  if (!codes.length) throw new Error("No QR code found in this image.");
+  applyQr(codes[0].rawValue);
 }
 
 function bindEvents() {
@@ -286,26 +385,36 @@ function bindEvents() {
       if (action === "logout") { logout(); render(); return; }
       if (!state.user) return;
       if (action === "seed" && isOwner()) { seedDemoData(); toast("Demo data seeded."); render(); }
-      if (action === "reset" && isOwner() && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = { siteId:"", zone:"", plantType:"", note:"" }; state.scanImage = ""; toast("Local data reset."); render(); }
+      if (action === "reset" && isOwner() && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = { siteId:"", zone:"", plantType:"", note:"" }; state.scanImage = ""; state.clientTicketImage = ""; state.batchImages = []; state.batchResults = []; toast("Local data reset."); render(); }
       if (action === "download-report") exportCsvReport(getDb(), roleFilter(getDb()));
       if (action === "clear-scan-image") { syncScanDraftFromDom(); state.scanImage = ""; const input = document.querySelector("[data-scan-image]"); if (input) input.value = ""; updateScanImageUi(); toast("Plant image removed."); }
+      if (action === "clear-client-ticket-image") { state.clientTicketImage = ""; const input = document.querySelector("[data-client-evidence]"); if (input) input.value = ""; updateClientTicketImageUi(); toast("Issue photo removed."); }
+      if (action === "apply-qr") { const input = document.querySelector("[data-qr-text]"); applyQr(input?.value || state.qrText); }
+      if (action === "demo-qr") { applyQr(e.target.closest("[data-qr]")?.dataset.qr || ""); }
+      if (action === "voice-note") { startVoiceNote(); }
       if (action === "run-diagnosis") { await diagnoseFromState(); }
+      if (action === "clear-batch") { state.batchImages = []; state.batchResults = []; render(); toast("Batch cleared."); }
+      if (action === "remove-batch-image") { syncScanDraftFromDom(); const index = Number(e.target.closest("[data-index]")?.dataset.index); state.batchImages.splice(index, 1); render(); }
+      if (action === "run-batch") { await runBatchDiagnosis(); }
       if (action === "progress") { markInProgress(id); toast("Ticket moved to In Progress."); render(); }
-      if (action === "close") { const ticket = getDb().tickets.find(t => t.id === id); if (!ticket) throw new Error("Ticket not found."); if (!ticket.closureEvidence) throw new Error("Upload picture evidence before closing this ticket."); closeTicket(id, "Issue resolved and evidence uploaded."); toast("Ticket closed with resolution time captured."); render(); }
+      if (action === "close") { const ticket = getDb().tickets.find(t => t.id === id); if (!ticket) throw new Error("Ticket not found."); if (!ticket.closureEvidence) throw new Error("Upload closure photo before closing this ticket."); if (!ticket.closureEvidenceVerified) throw new Error("Closure photo must be accepted before closing this ticket."); closeTicket(id, "Issue resolved and verified with closure photo."); toast("Ticket closed with verified evidence."); render(); }
     } catch (err) { toast(err.message || "Action failed"); }
   });
   document.addEventListener("change", async e => {
     if (e.target.matches("[data-filter]")) { state.filters[e.target.dataset.filter] = e.target.value; if (["clientId","city"].includes(e.target.dataset.filter)) state.filters.siteId = "all"; render(); }
     if (e.target.closest("#scanPanel") && e.target.dataset.scanField) state.scanDraft[e.target.dataset.scanField] = e.target.value;
     if (e.target.matches("[data-scan-image]")) { syncScanDraftFromDom(); const file = e.target.files?.[0]; if (!file) return; state.scanImage = await imageToDataUrl(file); updateScanImageUi(); toast("Plant image ready for diagnosis."); }
-    if (e.target.matches("[data-evidence]")) { const id = e.target.dataset.evidence; const img = await imageToDataUrl(e.target.files[0], 900, .7); attachEvidence(id, img); toast("Evidence attached. You can now close the ticket."); render(); }
+    if (e.target.matches("[data-client-evidence]")) { const file = e.target.files?.[0]; if (!file) return; state.clientTicketImage = await imageToDataUrl(file, 900, .7); updateClientTicketImageUi(); toast("Issue photo attached."); }
+    if (e.target.matches("[data-batch-images]")) { syncScanDraftFromDom(); const files = [...(e.target.files || [])].slice(0, Math.max(0, 20 - state.batchImages.length)); for (const file of files) state.batchImages.push(await imageToDataUrl(file, 900, .68)); render(); toast(`${files.length} batch photo(s) added.`); }
+    if (e.target.matches("[data-qr-image]")) { const file = e.target.files?.[0]; if (file) await decodeQrImage(file); }
+    if (e.target.matches("[data-evidence]")) { const id = e.target.dataset.evidence; const file = e.target.files?.[0]; if (!file) return; const img = await imageToDataUrl(file, 900, .7); await verifyClosureEvidence(id, img); }
   });
-  document.addEventListener("input", e => { if (e.target.closest("#scanPanel") && e.target.dataset.scanField) state.scanDraft[e.target.dataset.scanField] = e.target.value; });
+  document.addEventListener("input", e => { if (e.target.closest("#scanPanel") && e.target.dataset.scanField) state.scanDraft[e.target.dataset.scanField] = e.target.value; if (e.target.matches("[data-qr-text]")) state.qrText = e.target.value; });
   document.addEventListener("submit", async e => {
     e.preventDefault();
     try {
       if (e.target.id === "loginForm") { const fd = new FormData(e.target); const user = authenticate(fd.get("role"), fd.get("identifier"), fd.get("secret")); if (!user) throw new Error("Login failed. Check registered credentials."); setLoggedIn(user); toast(`Welcome, ${user.name}.`); render(); return; }
-      if (e.target.id === "clientTicketForm") { const fd = new FormData(e.target); const siteId = fd.get("siteId"); if (!allowedSiteIds().includes(siteId)) throw new Error("This site is not assigned to your account."); createClientTicket({ siteId, issue: fd.get("issue"), description: fd.get("description") }); toast("Priority 1 ticket created."); state.tab = "overview"; render(); }
+      if (e.target.id === "clientTicketForm") { const fd = new FormData(e.target); const siteId = fd.get("siteId"); if (!allowedSiteIds().includes(siteId)) throw new Error("This site is not assigned to your account."); createClientTicket({ siteId, issue: fd.get("issue"), description: fd.get("description"), clientEvidence: state.clientTicketImage }); state.clientTicketImage = ""; toast("Priority 1 ticket created."); state.tab = "overview"; render(); }
     } catch (err) { toast(err.message || "Submit failed"); }
   });
 }

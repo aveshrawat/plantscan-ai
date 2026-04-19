@@ -4,7 +4,8 @@ export const APP = {
   sessionUserKey: "greenops_user_v2",
   sessionRoleKey: "greenops_role_v1",
   sessionTabKey: "greenops_tab_v1",
-  diagnosisEndpoint: "/api/diagnose"
+  diagnosisEndpoint: "/api/diagnose",
+  verifyEvidenceEndpoint: "/api/verify-evidence"
 };
 
 export const ROLES = {
