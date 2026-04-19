@@ -1,0 +1,50 @@
+import { HEALTH, PRIORITY, STATUS } from "./config.js";
+import { tx } from "./store.js";
+import { healthCategory } from "./health.js";
+import { nowIso, uid, hoursBetween } from "./utils.js";
+
+export function priorityForScan(score) {
+  if (Number(score) < 4.5) return PRIORITY.P1;
+  if (Number(score) < 6) return PRIORITY.P2;
+  return PRIORITY.P3;
+}
+export function createScanRecord(input, diagnosis, image) {
+  return tx(d => {
+    const score = Number(diagnosis.condition_score ?? diagnosis.score ?? 5);
+    const category = healthCategory(score);
+    let plant = d.plants.find(p => p.id === input.plantId);
+    if (!plant) {
+      plant = { id: uid("plt"), siteId: input.siteId, type: input.plantType || diagnosis.plant_identified || "Unknown plant", zone: input.zone || "Unmapped", latestScore: score, latestCategory: category, createdAt: nowIso() };
+      d.plants.push(plant);
+    }
+    Object.assign(plant, { latestScore: score, latestCategory: category, type: input.plantType || plant.type, zone: input.zone || plant.zone });
+    const scan = { id: uid("scn"), plantId: plant.id, siteId: input.siteId, score, category, diagnosis: diagnosis.issue_detected || "Diagnosis captured", rootCause: diagnosis.root_cause || "Root cause not specified", instructions: diagnosis.treatment_plan || [diagnosis.immediate_action || "Follow maintenance SOP"], image, createdAt: nowIso(), createdBy: "u-maint-1", raw: diagnosis };
+    d.scans.push(scan);
+    if (category === HEALTH.CRITICAL) {
+      d.tickets.push({ id: uid("tkt"), plantId: plant.id, siteId: input.siteId, priority: priorityForScan(score), status: STATUS.OPEN, source: "Auto Scan", issue: `Critical plant health: ${plant.type}`, assignedTo: "Unassigned", createdAt: nowIso(), startedAt: null, closedAt: null, closureEvidence: "", closureRemark: "", createdBy: "system" });
+    }
+    return d;
+  });
+}
+export function createClientTicket({ siteId, plantId = "", issue, description }) {
+  return tx(d => { d.tickets.push({ id: uid("tkt"), plantId, siteId, priority: PRIORITY.P1, status: STATUS.OPEN, source: "Client", issue: issue || "Client-raised concern", description: description || "", assignedTo: "Unassigned", createdAt: nowIso(), startedAt: null, closedAt: null, closureEvidence: "", closureRemark: "", createdBy: "client" }); return d; });
+}
+export function updateTicket(id, patch) {
+  return tx(d => { const t = d.tickets.find(x => x.id === id); if (t) Object.assign(t, patch); return d; });
+}
+export function markInProgress(id) {
+  return updateTicket(id, { status: STATUS.IN_PROGRESS, startedAt: nowIso() });
+}
+export function attachEvidence(id, evidenceDataUrl) {
+  return updateTicket(id, { closureEvidence: evidenceDataUrl });
+}
+export function closeTicket(id, remark = "") {
+  return tx(d => {
+    const t = d.tickets.find(x => x.id === id);
+    if (!t) throw new Error("Ticket not found");
+    if (!t.closureEvidence) throw new Error("Upload picture evidence before closing this ticket.");
+    const closedAt = nowIso();
+    Object.assign(t, { status: STATUS.CLOSED, closedAt, closureRemark: remark, resolutionHours: +hoursBetween(t.createdAt, closedAt).toFixed(2) });
+    return d;
+  });
+}

@@ -1,1 +1,13 @@
-{"name":"onescape-plant-intelligence","version":"3.0.0"}
+{
+  "name": "greenops-itsm",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
