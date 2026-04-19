@@ -249,7 +249,16 @@ function clientView() {
 }
 function raiseTicketView() {
   const sites = allowedSites();
-  return `<section class="card"><div class="card-title"><div><h3>Raise Client Ticket</h3><p class="subtitle">Every client-created ticket is automatically Priority 1.</p></div><span class="pill p1">P1</span></div><form class="form" id="clientTicketForm"><div class="field"><label>Your site</label><select class="select" name="siteId" required>${sites.map(s => option(s.id, `${s.city} · ${s.name}`)).join("")}</select></div><div class="field"><label>Issue</label><input class="input" name="issue" placeholder="Plant condition concern / area not serviced" required /></div><div class="field"><label>Description</label><textarea class="textarea" name="description" placeholder="Add exact location, concern, or expectation."></textarea></div><button class="btn" type="submit">Create Priority 1 Ticket</button></form></section>`;
+  return `<section class="card"><div class="card-title"><div><h3>Raise Client Ticket</h3><p class="subtitle">Every client-created ticket is automatically Priority 1. Photo evidence is optional.</p></div><span class="pill p1">P1</span></div><form class="form" id="clientTicketForm"><div class="field"><label>Your site</label><select class="select" name="siteId" required>${sites.map(s => option(s.id, `${s.city} · ${s.name}`)).join("")}</select></div><div class="field"><label>Issue</label><input class="input" name="issue" placeholder="Plant condition concern / area not serviced" required /></div><div class="field"><label>Description</label><textarea class="textarea" name="description" placeholder="Add exact location, concern, or expectation."></textarea></div><div class="filebox"><strong>Optional issue photo</strong><br><span class="small muted">Add a photo if it helps the operations team understand the issue.</span><div class="btn-row" style="justify-content:center;margin-top:12px"><label class="mini-btn">Upload / click photo<input class="hidden" type="file" accept="image/*" capture="environment" data-client-evidence /></label><button class="mini-btn danger ${state.clientTicketImage ? "" : "hidden"}" type="button" data-action="clear-client-ticket-image">Remove photo</button></div><div id="clientTicketImageState">${clientTicketImageMarkup()}</div></div><button class="btn" type="submit">Create Priority 1 Ticket</button></form></section>`;
+}
+function clientTicketImageMarkup() {
+  return state.clientTicketImage ? `<div class="image-ready" style="margin-top:12px"><span class="pill good">Issue photo attached</span></div><img src="${state.clientTicketImage}" class="preview" alt="Client issue photo" />` : `<div class="small muted" style="margin-top:12px">No photo attached. This is optional.</div>`;
+}
+function updateClientTicketImageUi() {
+  const box = document.querySelector("#clientTicketImageState");
+  if (box) box.innerHTML = clientTicketImageMarkup();
+  const removeBtn = document.querySelector('[data-action="clear-client-ticket-image"]');
+  if (removeBtn) removeBtn.classList.toggle("hidden", !state.clientTicketImage);
 }
 
 function reportsView(supervisor = true) {
