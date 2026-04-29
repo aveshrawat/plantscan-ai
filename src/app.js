@@ -78,13 +78,11 @@ function loginScreen() {
     <div class="login-frame">
       <section class="login-hero" aria-label="GreenOps ITSM overview">
         <div class="login-hero-copy">
-          <h2>GreenOps ITSM</h2>
-          <ul class="login-hero-points" aria-label="Platform values">
-            <li>Plant Operations</li>
-            <li>Tracked</li>
-            <li>Closed</li>
-            <li>Reported</li>
-          </ul>
+          <h2 class="login-hero-statement">
+            Every plant<br />
+            Every site<br />
+            Fully accounted for
+          </h2>
         </div>
       </section>
       <section class="login-card">
