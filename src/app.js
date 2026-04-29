@@ -75,23 +75,41 @@ function loginScreen() {
   const credentialLabel = isClient ? "Registered email" : isOwnerLogin ? "Owner phone or email" : "Registered phone number";
   const secretLabel = isClient ? "Password" : isOwnerLogin ? "PIN or password" : "PIN";
   return `<main class="login-shell">
-    <section class="login-card">
-      <div class="brand login-brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
-      <h2>Sign in to your workspace</h2>
-      <p class="subtitle">Each user sees only the interface and sites assigned to them.</p>
-      <div class="login-role-grid">
-        ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "Phone + PIN")}
-        ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "Phone + PIN")}
-        ${loginRoleButton(ROLES.CLIENT, "Client", "Email + password")}
-        ${loginRoleButton(ROLES.OWNER, "Owner", "Master access")}
-      </div>
-      <form id="loginForm" class="form login-form">
-        <input type="hidden" name="role" value="${role}" />
-        <div class="field"><label>${credentialLabel}</label><input class="input" name="identifier" autocomplete="username" required /></div>
-        <div class="field"><label>${secretLabel}</label><input class="input" name="secret" type="password" autocomplete="current-password" required /></div>
-        <button class="btn" type="submit">Sign In</button>
-      </form>
-    </section>
+    <div class="login-frame">
+      <section class="login-hero" aria-label="GreenOps platform overview">
+        <div class="login-hero-top">
+          <span>Enterprise Plant Operations</span>
+          <span>EY Demo Preview</span>
+        </div>
+        <div class="login-hero-copy">
+          <div class="login-kicker">GreenOps command layer</div>
+          <h2>Operational visibility for managed green spaces.</h2>
+          <p>AI-assisted plant diagnostics, SLA-led workflows, and evidence-backed closure across client sites.</p>
+        </div>
+        <div class="login-proof-grid">
+          <div><strong>Plant health intelligence</strong><span>Scan, classify, and prioritize field action.</span></div>
+          <div><strong>Service governance</strong><span>Open tickets, SLA ageing, and closure discipline.</span></div>
+          <div><strong>Client-safe proof</strong><span>Restricted visibility with reports and evidence.</span></div>
+        </div>
+      </section>
+      <section class="login-card">
+        <div class="brand login-brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
+        <h2>Sign in to your workspace</h2>
+        <p class="subtitle">Each user sees only the interface, sites, and workflows assigned to them.</p>
+        <div class="login-role-grid">
+          ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "Phone + PIN")}
+          ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "Phone + PIN")}
+          ${loginRoleButton(ROLES.CLIENT, "Client", "Email + password")}
+          ${loginRoleButton(ROLES.OWNER, "Owner", "Master access")}
+        </div>
+        <form id="loginForm" class="form login-form">
+          <input type="hidden" name="role" value="${role}" />
+          <div class="field"><label>${credentialLabel}</label><input class="input" name="identifier" autocomplete="username" required /></div>
+          <div class="field"><label>${secretLabel}</label><input class="input" name="secret" type="password" autocomplete="current-password" required /></div>
+          <button class="btn" type="submit">Sign In</button>
+        </form>
+      </section>
+    </div>
   </main>`;
 }
 function loginRoleButton(role, label, hint) {
