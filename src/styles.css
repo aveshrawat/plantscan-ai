@@ -1094,45 +1094,46 @@ body {
 }
 
 
-/* v6: full-screen background login layout for EY demo */
+/* v7 STABLE REPAIR: split login layout, correct image, no broken full-screen overlay */
 .login-shell {
   min-height: 100vh !important;
   height: 100vh !important;
   overflow: hidden !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  padding: clamp(28px, 4vw, 64px) clamp(34px, 5vw, 86px) !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: clamp(24px, 3vw, 42px) !important;
   background:
-    linear-gradient(rgba(7, 54, 39, 0.50), rgba(7, 54, 39, 0.50)),
-    url("./assets/login-green-wall.png") center center / cover no-repeat !important;
+    radial-gradient(circle at 12% 16%, rgba(15, 121, 87, .08), transparent 32%),
+    radial-gradient(circle at 88% 12%, rgba(31, 61, 98, .07), transparent 28%),
+    linear-gradient(135deg, #f3f7f5 0%, #edf3f1 100%) !important;
 }
 
 .login-frame {
-  width: 100% !important;
-  max-width: 1480px !important;
-  height: 100% !important;
+  width: min(1440px, 100%) !important;
+  height: min(92vh, 850px) !important;
   min-height: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  gap: 0 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.18fr) minmax(480px, .86fr) !important;
+  gap: 28px !important;
+  align-items: stretch !important;
   position: relative !important;
 }
 
 .login-hero {
-  position: fixed !important;
-  inset: 0 !important;
+  position: relative !important;
+  inset: auto !important;
   z-index: 1 !important;
-  height: 100vh !important;
-  min-height: 100vh !important;
-  width: 100vw !important;
-  border-radius: 0 !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  background: transparent !important;
+  width: auto !important;
+  height: 100% !important;
+  min-height: 0 !important;
   overflow: hidden !important;
-  pointer-events: none !important;
+  border-radius: 34px !important;
+  border: 1px solid rgba(255,255,255,.26) !important;
+  box-shadow: 0 28px 84px rgba(12, 28, 22, .14) !important;
+  background:
+    linear-gradient(rgba(7, 54, 39, 0.50), rgba(7, 54, 39, 0.50)),
+    url("./assets/login-green-wall.png") center center / cover no-repeat !important;
+  pointer-events: auto !important;
 }
 
 .login-hero::before,
@@ -1143,12 +1144,12 @@ body {
 .login-hero-copy {
   position: absolute !important;
   z-index: 2 !important;
-  left: clamp(52px, 5.4vw, 92px) !important;
-  top: 57% !important;
+  left: clamp(54px, 5vw, 86px) !important;
   right: auto !important;
+  top: 58% !important;
   bottom: auto !important;
   transform: translateY(-50%) !important;
-  width: min(760px, 50vw) !important;
+  width: min(720px, calc(100% - 110px)) !important;
   max-width: none !important;
 }
 
@@ -1156,7 +1157,7 @@ body {
   margin: 0 !important;
   color: #ffffff !important;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-  font-size: clamp(48px, 4.2vw, 66px) !important;
+  font-size: clamp(48px, 4.1vw, 64px) !important;
   line-height: 1.02 !important;
   letter-spacing: -0.045em !important;
   font-weight: 800 !important;
@@ -1175,61 +1176,49 @@ body {
 
 .login-card {
   position: relative !important;
-  z-index: 3 !important;
-  width: min(560px, 42vw) !important;
-  min-width: 500px !important;
-  max-width: 590px !important;
-  min-height: auto !important;
-  height: auto !important;
-  align-self: center !important;
+  z-index: 2 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  align-self: stretch !important;
   display: flex !important;
   flex-direction: column !important;
   justify-content: center !important;
-  border-radius: 28px !important;
-  padding: clamp(32px, 3vw, 46px) !important;
-  background: rgba(255, 255, 255, 0.94) !important;
-  border: 1px solid rgba(255, 255, 255, 0.70) !important;
-  box-shadow: 0 28px 84px rgba(0, 0, 0, 0.20) !important;
+  border-radius: 34px !important;
+  padding: clamp(30px, 3vw, 44px) !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(16,44,33,.08) !important;
+  box-shadow: 0 22px 64px rgba(12, 28, 22, .10) !important;
   backdrop-filter: blur(18px) !important;
 }
 
-.login-brand {
-  margin-bottom: 20px !important;
-}
-
-.login-brand .logo {
-  width: 52px !important;
-  height: 52px !important;
-  border-radius: 16px !important;
-}
-
 .login-brand h1 {
-  font-size: 22px !important;
-  line-height: 1.1 !important;
-  font-weight: 720 !important;
-  letter-spacing: -0.03em !important;
+  font-weight: 680 !important;
+  letter-spacing: -0.025em !important;
 }
 
 .login-brand p {
-  margin-top: 4px !important;
   color: #64746d !important;
   font-size: 14px !important;
+  margin-top: 4px !important;
 }
 
 .login-card h2 {
   margin: 4px 0 8px !important;
-  max-width: 510px !important;
-  color: #10221a !important;
-  font-size: clamp(40px, 3.25vw, 56px) !important;
-  line-height: 1.03 !important;
-  letter-spacing: -0.055em !important;
-  font-weight: 760 !important;
+  max-width: 520px !important;
+  color: #12211b !important;
+  font-size: clamp(38px, 3.5vw, 52px) !important;
+  line-height: 1.02 !important;
+  letter-spacing: -0.05em !important;
+  font-weight: 700 !important;
 }
 
 .login-card .subtitle {
-  margin: 0 0 26px !important;
-  max-width: 500px !important;
-  color: #5e7068 !important;
+  max-width: 460px !important;
+  margin: 0 0 24px !important;
+  color: #63726b !important;
   font-size: 16px !important;
   line-height: 1.45 !important;
   font-weight: 420 !important;
@@ -1239,12 +1228,7 @@ body {
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   gap: 12px !important;
-  margin: 0 0 26px !important;
-}
-
-.login-role {
-  min-height: 82px !important;
-  border-radius: 17px !important;
+  margin: 0 0 22px !important;
 }
 
 .login-form {
@@ -1257,12 +1241,15 @@ body {
 }
 
 .login-form .input {
-  min-height: 56px !important;
+  width: 100% !important;
+  min-height: 54px !important;
   border-radius: 16px !important;
+  box-sizing: border-box !important;
 }
 
 .login-form .btn {
-  min-height: 58px !important;
+  width: 100% !important;
+  min-height: 56px !important;
   border-radius: 17px !important;
   margin-top: 2px !important;
 }
@@ -1272,32 +1259,24 @@ body {
     height: auto !important;
     min-height: 100vh !important;
     overflow: auto !important;
-    align-items: flex-start !important;
-    justify-content: center !important;
     padding: 18px !important;
   }
 
   .login-frame {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
     height: auto !important;
+    min-height: 0 !important;
+    grid-template-columns: 1fr !important;
     gap: 18px !important;
   }
 
   .login-hero {
-    position: relative !important;
     height: 360px !important;
     min-height: 360px !important;
-    width: 100% !important;
-    border-radius: 28px !important;
-    background:
-      linear-gradient(rgba(7, 54, 39, 0.50), rgba(7, 54, 39, 0.50)),
-      url("./assets/login-green-wall.png") center center / cover no-repeat !important;
   }
 
   .login-hero-copy {
     left: 34px !important;
-    top: 57% !important;
+    top: 58% !important;
     width: calc(100% - 68px) !important;
   }
 
@@ -1306,16 +1285,14 @@ body {
   }
 
   .login-card {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: none !important;
+    height: auto !important;
   }
 }
 
 @media (max-width: 760px) {
   .login-hero {
-    min-height: 320px !important;
     height: 320px !important;
+    min-height: 320px !important;
     border-radius: 24px !important;
   }
 
