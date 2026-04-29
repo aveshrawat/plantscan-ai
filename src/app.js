@@ -76,20 +76,10 @@ function loginScreen() {
   const secretLabel = isClient ? "Password" : isOwnerLogin ? "PIN or password" : "PIN";
   return `<main class="login-shell">
     <div class="login-frame">
-      <section class="login-hero" aria-label="GreenOps platform overview">
-        <div class="login-hero-top">
-          <span>Enterprise Plant Operations</span>
-          <span>EY Demo Preview</span>
-        </div>
+      <section class="login-hero" aria-label="GreenOps ITSM">
         <div class="login-hero-copy">
-          <div class="login-kicker">GreenOps command layer</div>
-          <h2>Operational visibility for managed green spaces.</h2>
-          <p>AI-assisted plant diagnostics, SLA-led workflows, and evidence-backed closure across client sites.</p>
-        </div>
-        <div class="login-proof-grid">
-          <div><strong>Plant health intelligence</strong><span>Scan, classify, and prioritize field action.</span></div>
-          <div><strong>Service governance</strong><span>Open tickets, SLA ageing, and closure discipline.</span></div>
-          <div><strong>Client-safe proof</strong><span>Restricted visibility with reports and evidence.</span></div>
+          <h2>GreenOps ITSM</h2>
+          <p>Plant operations. Tracked, closed, reported.</p>
         </div>
       </section>
       <section class="login-card">
