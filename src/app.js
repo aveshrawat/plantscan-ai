@@ -72,47 +72,30 @@ function loginScreen() {
   const role = state.loginRole;
   const isClient = role === ROLES.CLIENT;
   const isOwnerLogin = role === ROLES.OWNER;
-  const credentialLabel = isClient ? "Registered email" : isOwnerLogin ? "Administrator phone or email" : "Registered phone number";
+  const credentialLabel = isClient ? "Registered email" : isOwnerLogin ? "Owner phone or email" : "Registered phone number";
   const secretLabel = isClient ? "Password" : isOwnerLogin ? "PIN or password" : "PIN";
   return `<main class="login-shell">
-    <section class="login-frame" aria-label="GreenOps login">
-      <aside class="login-intel-panel">
-        <div class="brand login-brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
-        <div class="system-badge">Enterprise pilot console</div>
-        <h2>Managed greenery operations, governed like IT service delivery.</h2>
-        <p class="login-copy">Role-based access, site-restricted visibility, SLA tracking, and evidence-backed closure for workplace plant health.</p>
-        <div class="login-proof-grid">
-          <div><strong>RBAC</strong><span>Role-based workspace access</span></div>
-          <div><strong>SLA</strong><span>Priority and closure discipline</span></div>
-          <div><strong>Proof</strong><span>Evidence-led resolution trail</span></div>
-          <div><strong>Sites</strong><span>Client and city visibility controls</span></div>
-        </div>
-      </aside>
-      <section class="login-card">
-        <div class="login-kicker">Workspace access</div>
-        <h2>Sign in</h2>
-        <p class="subtitle">Users land directly in their assigned workspace. No cross-client or cross-site visibility.</p>
-        <div class="login-role-grid">
-          ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "Phone + PIN")}
-          ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "Phone + PIN")}
-          ${loginRoleButton(ROLES.CLIENT, "Client", "Email + password")}
-          ${loginRoleButton(ROLES.OWNER, "Administrator", "Master access")}
-        </div>
-        <form id="loginForm" class="form login-form">
-          <input type="hidden" name="role" value="${role}" />
-          <div class="field"><label>${credentialLabel}</label><input class="input" name="identifier" autocomplete="username" required /></div>
-          <div class="field"><label>${secretLabel}</label><input class="input" name="secret" type="password" autocomplete="current-password" required /></div>
-          <button class="btn btn-large" type="submit">Continue to workspace</button>
-        </form>
-        <div class="login-footnote">Demo environment. Operational records are visible only within assigned access scope.</div>
-      </section>
+    <section class="login-card">
+      <div class="brand login-brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
+      <h2>Sign in to your workspace</h2>
+      <p class="subtitle">Each user sees only the interface and sites assigned to them.</p>
+      <div class="login-role-grid">
+        ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "Phone + PIN")}
+        ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "Phone + PIN")}
+        ${loginRoleButton(ROLES.CLIENT, "Client", "Email + password")}
+        ${loginRoleButton(ROLES.OWNER, "Owner", "Master access")}
+      </div>
+      <form id="loginForm" class="form login-form">
+        <input type="hidden" name="role" value="${role}" />
+        <div class="field"><label>${credentialLabel}</label><input class="input" name="identifier" autocomplete="username" required /></div>
+        <div class="field"><label>${secretLabel}</label><input class="input" name="secret" type="password" autocomplete="current-password" required /></div>
+        <button class="btn" type="submit">Sign In</button>
+      </form>
     </section>
   </main>`;
 }
-
 function loginRoleButton(role, label, hint) {
-  const active = state.loginRole === role ? "active" : "";
-  return `<button type="button" class="login-role ${active}" data-login-role="${role}"><span class="role-dot"></span><strong>${label}</strong><span>${hint}</span></button>`;
+  return `<button type="button" class="login-role ${state.loginRole === role ? "active" : ""}" data-login-role="${role}"><strong>${label}</strong><span>${hint}</span></button>`;
 }
 
 function authenticate(role, identifier, secret) {
@@ -160,18 +143,17 @@ function layout(content) {
       <div class="brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
       <div class="user-menu">
         ${isOwner() ? ownerModeSwitch() : ""}
-        <span class="pill access-pill">${escapeHtml(user?.name)} · ${title(actualRole())}</span>
+        <span class="pill good">${escapeHtml(user?.name)} · ${title(actualRole())}</span>
         <button class="mini-btn" data-action="logout">Logout</button>
       </div>
     </div></header>
     <main class="main">
-      <section class="hero"><div><div class="eyebrow">${escapeHtml(roleLabel())}</div><h2>${heroTitle()}</h2><p>${heroSubtitle()}</p><div class="hero-signal-row"><span>Role-restricted</span><span>Site-mapped</span><span>SLA-backed</span><span>Evidence-led</span></div></div>${isOwner() ? adminQuickActions() : ""}</section>
+      <section class="hero"><div><div class="eyebrow">${escapeHtml(roleLabel())}</div><h2>${heroTitle()}</h2><p>${heroSubtitle()}</p></div>${isOwner() ? adminQuickActions() : ""}</section>
       <nav class="tabs" aria-label="Section tabs">${tabs.map(t => `<button class="${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</nav>
-      <div style="height:18px"></div>${content}
+      <div style="height:16px"></div>${content}
     </main>
   </div>`;
 }
-
 function ownerModeSwitch() {
   return `<div class="owner-mode">
     <button class="${state.ownerViewRole === ROLES.SUPERVISOR ? "active" : ""}" data-owner-view="${ROLES.SUPERVISOR}">Supervisor</button>
@@ -183,20 +165,20 @@ function adminQuickActions() {
   return `<div class="hero-actions"><button class="btn secondary" data-action="seed">Seed demo data</button><button class="btn ghost" data-action="reset">Reset local data</button></div>`;
 }
 function title(s = "") { return String(s).split(" ").map(w => w[0]?.toUpperCase() + w.slice(1)).join(" "); }
-function roleLabel() { const r = effectiveRole(); return r === ROLES.MAINTENANCE ? "Field service workspace" : r === ROLES.SUPERVISOR ? "Operations command center" : r === ROLES.CLIENT ? "Client visibility portal" : "Administrator console"; }
+function roleLabel() { const r = effectiveRole(); return r === ROLES.MAINTENANCE ? "Field execution" : r === ROLES.SUPERVISOR ? "Operations command center" : r === ROLES.CLIENT ? "Client visibility" : "Owner access"; }
 function heroTitle() {
   const r = effectiveRole();
-  if (r === ROLES.MAINTENANCE) return "Field execution with traceable closure.";
-  if (r === ROLES.SUPERVISOR) return "City-level service control and SLA visibility.";
-  if (r === ROLES.CLIENT) return "Site health, tickets, reports, and proof.";
-  return "Platform control center.";
+  if (r === ROLES.MAINTENANCE) return "Scan, act, close with proof.";
+  if (r === ROLES.SUPERVISOR) return "Control assigned cities like an ITSM desk.";
+  if (r === ROLES.CLIENT) return "Your sites, tickets, reports, and proof.";
+  return "Owner control center.";
 }
 function heroSubtitle() {
   const r = effectiveRole();
-  if (r === ROLES.MAINTENANCE) return "Assigned teams capture plant health, submit evidence, and complete tickets through a controlled field workflow.";
-  if (r === ROLES.SUPERVISOR) return "Track assigned cities, open tickets, SLA ageing, closure evidence, and service reports from one workspace.";
-  if (r === ROLES.CLIENT) return "View only mapped locations, raise P1 issues, download reports, and verify closure evidence.";
-  return "Master access for demo controls, cross-role testing, users, sites, and operational records.";
+  if (r === ROLES.MAINTENANCE) return "Staff sees only assigned sites and tasks. Scan, follow instructions, upload evidence, and close work.";
+  if (r === ROLES.SUPERVISOR) return "City-restricted dashboard with plant health, SLA ageing, tickets, and downloadable reports.";
+  if (r === ROLES.CLIENT) return "Client view is restricted to your mapped locations only. Raise P1 tickets and download reports.";
+  return "Master owner access can view all sites, seed demo data, reset demo data, and test role modes.";
 }
 
 function render() {
@@ -227,7 +209,7 @@ function metrics(scans, tickets) {
   const hs = healthSummary(scans);
   const open = tickets.filter(t => t.status !== STATUS.CLOSED);
   const breached = open.filter(t => slaState(t).breached);
-  return `<div class="kpi-strip"><div class="metric"><span>Average Health</span><strong>${hs.avg || "—"}</strong><small>Latest scan set</small></div><div class="metric good"><span>Healthy</span><strong>${hs.healthy}</strong><small>Score 7+</small></div><div class="metric monitor"><span>Monitor</span><strong>${hs.monitor}</strong><small>Score 6–6.9</small></div><div class="metric critical"><span>Critical / Breached</span><strong>${hs.critical}/${breached.length}</strong><small>Action queue</small></div></div>`;
+  return `<div class="kpi-strip"><div class="metric"><span>Avg Health</span><strong>${hs.avg || "—"}</strong></div><div class="metric good"><span>Healthy</span><strong>${hs.healthy}</strong></div><div class="metric monitor"><span>Monitor</span><strong>${hs.monitor}</strong></div><div class="metric critical"><span>Critical / SLA</span><strong>${hs.critical}/${breached.length}</strong></div></div>`;
 }
 
 function maintenanceView() {
@@ -235,58 +217,16 @@ function maintenanceView() {
   if (state.tab === "scan") return scanView();
   if (state.tab === "my tickets") return ticketBoard(tickets.filter(t => t.status !== STATUS.CLOSED), { scope: "maintenance" });
   if (state.tab === "history") return historyView(scans, tickets);
-  const openTickets = tickets.filter(t => t.status !== STATUS.CLOSED);
-  return `<div class="grid grid-2"><section class="card command-card">${metrics(scans, tickets)}<div class="grid grid-2"><button class="btn" data-tab="scan">Start Field Scan</button><button class="btn secondary" data-tab="my tickets">Open Assigned Tasks</button></div><p class="footer-note">This workspace is restricted to assigned sites and tasks only.</p></section><section class="card queue-card"><div class="card-title"><div><h3>Priority queue</h3><p class="subtitle">Open items requiring field action.</p></div><span class="pill critical">${openTickets.length} open</span></div>${ticketCards(openTickets.slice(0, 5))}</section></div>`;
+  return `<div class="grid grid-2"><section class="card">${metrics(scans, tickets)}<div class="grid grid-2"><button class="btn" data-tab="scan">Scan Plant</button><button class="btn secondary" data-tab="my tickets">My Open Tasks</button></div><p class="footer-note">This view is restricted to assigned sites only.</p></section><section class="card"><div class="card-title"><h3>Critical assigned queue</h3><span class="pill critical">Action required</span></div>${ticketCards(tickets.filter(t => t.status !== STATUS.CLOSED).slice(0, 5))}</section></div>`;
 }
 
 function scanView() {
   const sites = allowedSites();
   const draft = state.scanDraft;
   const selectedSite = draft.siteId || sites[0]?.id || "";
-  const selected = sites.find(s => s.id === selectedSite) || sites[0];
-  const quickZones = (selected?.zones || []).slice(0, 4);
-  return `<div class="split scan-workspace"><section class="card scan-primary"><div class="card-title"><div><h3>Field Scan</h3><p class="subtitle">Capture location once, then scan single plants or a batch from the same zone.</p></div><span class="pill good">AI-assisted</span></div>
-    <div class="qr-panel"><div class="card-title compact"><div><h3>Area check-in</h3><p class="subtitle">Use a zone QR or select an assigned site. This prevents location errors in reports.</p></div><span class="pill p3">QR mapped</span></div><div class="grid grid-2"><div class="field"><label>Assigned site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Drop-off / Lobby" /></div></div><div class="btn-row"><input class="input qr-input" data-qr-text value="${escapeHtml(state.qrText)}" placeholder="Paste QR code payload" /><button class="mini-btn" data-action="apply-qr">Apply QR</button><label class="mini-btn">Scan QR image<input class="hidden" type="file" accept="image/*" data-qr-image /></label>${quickZones.map(z => `<button class="mini-btn" data-action="demo-qr" data-qr="GREENOPS|site=${selected?.id || ""}|zone=${escapeHtml(z)}">${escapeHtml(z)}</button>`).join("")}</div></div>
-    <div class="form" id="scanPanel"><div class="field"><label>Plant type, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily" /></div><div class="field"><label>Technician note</label><div class="voice-row"><textarea class="textarea" data-scan-field="note" placeholder="Type or speak the observation in Hindi/English.">${escapeHtml(draft.note)}</textarea><button class="mini-btn voice-btn" type="button" data-action="voice-note">Speak note</button></div></div>
-      <div class="grid grid-2"><div class="filebox"><strong>Single plant scan</strong><br><span class="small muted">Use for one plant or one visible issue.</span><div class="btn-row" style="justify-content:center;margin-top:12px"><label class="mini-btn">Choose image<input class="hidden" type="file" accept="image/*" capture="environment" data-scan-image /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div><button class="btn full" id="runDiagnosisBtn" type="button" data-action="run-diagnosis" ${state.scanImage ? "" : "disabled"}>Run Single Diagnosis</button></div>
-      <div class="filebox"><strong>Batch scan</strong><br><span class="small muted">Upload up to 20 photos from the same QR-mapped zone.</span><div class="btn-row" style="justify-content:center;margin-top:12px"><label class="mini-btn">Add photos<input class="hidden" type="file" accept="image/*" capture="environment" multiple data-batch-images /></label><button class="mini-btn danger ${state.batchImages.length ? "" : "hidden"}" type="button" data-action="clear-batch">Clear batch</button></div>${batchImagesMarkup()}<button class="btn full" type="button" data-action="run-batch" ${state.batchImages.length && !state.batchRunning ? "" : "disabled"}>Run Batch Diagnosis</button></div></div></div><div id="scanOutput"></div><div id="batchOutput"></div></section>
-    <section class="card side-rail"><h3>Health categories</h3><p class="subtitle">Only the operational outcome is shown to field users.</p><div class="grid"><div class="ticket-card health-guide good"><div class="ticket-head"><strong>Healthy</strong><span class="pill good">7+</span></div><p class="small muted">No ticket. Continue routine monitoring.</p></div><div class="ticket-card health-guide monitor"><div class="ticket-head"><strong>Monitor</strong><span class="pill monitor">6–6.9</span></div><p class="small muted">Recheck in next visit or add planned action.</p></div><div class="ticket-card health-guide critical"><div class="ticket-head"><strong>Critical</strong><span class="pill critical">Below 6</span></div><p class="small muted">Priority ticket is created automatically.</p></div></div></section></div>`;
+  return `<div class="split"><section class="card"><div class="card-title"><h3>Scan Plant</h3><span class="pill good">AI Diagnosis</span></div><div class="form" id="scanPanel"><div class="grid grid-2"><div class="field"><label>Assigned site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Drop-off / Lobby" /></div></div><div class="field"><label>Plant type, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily" /></div><div class="field"><label>Technician note</label><textarea class="textarea" data-scan-field="note" placeholder="Type note for now. Voice note comes in next version.">${escapeHtml(draft.note)}</textarea></div><div class="filebox"><strong>Upload plant image</strong><br><span class="small muted">Image is saved locally for this scan.</span><div class="btn-row" style="justify-content:center;margin-top:12px"><label class="mini-btn">Choose image<input class="hidden" type="file" accept="image/*" data-scan-image /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div></div><button class="btn" id="runDiagnosisBtn" type="button" data-action="run-diagnosis" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button></div><div id="scanOutput"></div></section><section class="card soft"><h3>Health Categories</h3><div class="grid"><div class="ticket-card"><div class="ticket-head"><strong>Healthy</strong><span class="pill good">7+</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Monitor</strong><span class="pill monitor">6–6.9</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Critical</strong><span class="pill critical">Below 6</span></div></div></div></section></div>`;
 }
-function scanImageMarkup() { return state.scanImage ? `<div class="image-ready"><span class="pill good">Image ready</span></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted image-empty">No image selected yet.</div>`; }
-function batchImagesMarkup() {
-  if (!state.batchImages.length) return `<div class="small muted image-empty">No batch photos added yet.</div>`;
-  return `<div class="image-grid">${state.batchImages.map((img, i) => `<div class="image-tile"><img src="${img}" alt="Batch plant ${i + 1}"><div class="ticket-head"><span class="small muted">Photo ${i + 1}</span><button class="mini-btn danger" type="button" data-action="remove-batch-image" data-index="${i}">Remove</button></div></div>`).join("")}</div>`;
-}
-function batchResultsMarkup() {
-  if (!state.batchResults.length) return "";
-  return `<div class="batch-results">${state.batchResults.map((r, i) => `<div class="ticket-card"><div class="ticket-head"><strong>Photo ${i + 1}</strong><span class="pill ${r.category === "Healthy" ? "good" : r.category === "Monitor" ? "monitor" : r.category === "Critical" ? "critical" : "open"}">${escapeHtml(r.category || "Processed")}</span></div><span class="small muted">${escapeHtml(r.label || "Diagnosis saved")}</span></div>`).join("")}</div>`;
-}
-function applyQr(raw = "") {
-  const text = String(raw || "").trim();
-  if (!text) throw new Error("Paste or scan a valid GreenOps QR code.");
-  const sites = allowedSites();
-  let siteId = "";
-  let zone = "";
-  if (text.startsWith("GREENOPS|")) {
-    const parts = Object.fromEntries(text.split("|").slice(1).map(pair => {
-      const [k, ...rest] = pair.split("=");
-      return [k, rest.join("=")];
-    }));
-    siteId = parts.site || "";
-    zone = decodeURIComponent(parts.zone || "");
-  } else if (text.startsWith("greenops://zone/")) {
-    const parts = text.replace("greenops://zone/", "").split("/");
-    siteId = parts[0] || "";
-    zone = decodeURIComponent(parts.slice(1).join("/") || "");
-  }
-  if (!siteId || !zone) throw new Error("QR format not recognized.");
-  if (!sites.some(s => s.id === siteId)) throw new Error("This QR location is not assigned to your account.");
-  state.scanDraft = { ...state.scanDraft, siteId, zone };
-  state.qrText = text;
-  render();
-  toast("Area check-in applied.");
-}
-
+function scanImageMarkup() { return state.scanImage ? `<div class="image-ready" style="margin-top:12px"><span class="pill good">Plant image ready</span></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted" style="margin-top:12px">No image selected yet.</div>`; }
 function syncScanDraftFromDom() { const panel = document.querySelector("#scanPanel"); if (!panel) return; const next = { ...state.scanDraft }; panel.querySelectorAll("[data-scan-field]").forEach(el => { next[el.dataset.scanField] = el.value || ""; }); state.scanDraft = next; }
 function updateScanImageUi() { const box = document.querySelector("#scanImageState"); if (box) box.innerHTML = scanImageMarkup(); const btn = document.querySelector("#runDiagnosisBtn"); if (btn) btn.disabled = !state.scanImage; const removeBtn = document.querySelector('[data-action="clear-scan-image"]'); if (removeBtn) removeBtn.classList.toggle("hidden", !state.scanImage); }
 
@@ -333,8 +273,7 @@ function bucket(label, value, total, cls) { return `<div class="metric ${cls}"><
 function ticketDisplayId(t) { if (t.ticketNo) return String(t.ticketNo).padStart(6, "0").slice(-6); const raw = String(t.id || ""); let hash = 0; for (let i = 0; i < raw.length; i++) hash = ((hash << 5) - hash + raw.charCodeAt(i)) >>> 0; return String(100000 + (hash % 900000)); }
 function ticketCards(tickets) { if (!tickets.length) return `<div class="empty">No tickets in this queue.</div>`; return `<div class="grid">${tickets.map(t => ticketCard(t)).join("")}</div>`; }
 function ticketCard(t) { const { siteMap, plantMap } = dbx(); const s = slaState(t); const plant = plantMap[t.plantId]; const site = siteMap[t.siteId]; return `<div class="ticket-card"><div class="ticket-head"><strong>${escapeHtml(t.issue)}</strong><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></div><div class="ticket-meta"><span class="pill">#${ticketDisplayId(t)}</span><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span></div><div class="small muted">${escapeHtml(site?.city)} · ${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</div></div>`; }
-function ticketBoard(tickets, { scope = "supervisor", compact = false } = {}) { const { siteMap, plantMap } = dbx(); if (!tickets.length) return `<div class="empty"><strong>No records found</strong><span>Adjust filters or seed demo data from administrator access.</span></div>`; if (compact) return ticketCards(tickets); return `<div class="table-wrap"><table><thead><tr><th>Ticket</th><th>Location</th><th>Priority</th><th>Status</th><th>SLA</th><th>Evidence / Action</th></tr></thead><tbody>${tickets.map(t => { const s = slaState(t); const site = siteMap[t.siteId]; const plant = plantMap[t.plantId]; return `<tr class="ticket-row ${t.status === STATUS.CLOSED ? "is-closed" : s.breached ? "is-breached" : ""}"><td><strong>${escapeHtml(t.issue)}</strong><br><span class="small muted">GO-${ticketDisplayId(t)}<br>${fmtDate(t.createdAt)}</span></td><td>${escapeHtml(site?.city)}<br><span class="small muted">${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</span></td><td><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></td><td><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><br><span class="small muted">Resolution: ${resolutionTime(t)}</span></td><td><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span><br><span class="small muted">Age ${s.ageLabel}; closure SLA ${s.closureHours}h</span></td><td>${ticketActions(t, scope)}</td></tr>`; }).join("")}</tbody></table></div>`; }
-
+function ticketBoard(tickets, { scope = "supervisor", compact = false } = {}) { const { siteMap, plantMap } = dbx(); if (!tickets.length) return `<div class="empty">No tickets found for selected filters.</div>`; if (compact) return ticketCards(tickets); return `<div class="table-wrap"><table><thead><tr><th>Ticket</th><th>Location</th><th>Priority</th><th>Status</th><th>SLA</th><th>Evidence / Action</th></tr></thead><tbody>${tickets.map(t => { const s = slaState(t); const site = siteMap[t.siteId]; const plant = plantMap[t.plantId]; return `<tr><td><strong>${escapeHtml(t.issue)}</strong><br><span class="small muted">Ticket #${ticketDisplayId(t)}<br>${fmtDate(t.createdAt)}</span></td><td>${escapeHtml(site?.city)}<br><span class="small muted">${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</span></td><td><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></td><td><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><br><span class="small muted">Resolution: ${resolutionTime(t)}</span></td><td><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span><br><span class="small muted">Age ${s.ageLabel}; closure SLA ${s.closureHours}h</span></td><td>${ticketActions(t, scope)}</td></tr>`; }).join("")}</tbody></table></div>`; }
 function ticketActions(t, scope) {
   if (scope === "client") {
     return t.closureEvidence
@@ -353,7 +292,7 @@ async function diagnoseFromState() {
   const draft = { ...state.scanDraft };
   if (!state.scanImage) throw new Error("Upload a plant image before diagnosis.");
   const out = $("#scanOutput");
-  out.innerHTML = `<div class="card soft"><strong>Analyzing plant condition...</strong><p class="subtitle">Please wait. Assessment will be saved to the service record.</p></div>`;
+  out.innerHTML = `<div class="card soft"><strong>Checking plant health...</strong><p class="subtitle">Please wait. The scan result will appear here.</p></div>`;
   const result = await diagnoseImage({ image: state.scanImage, draft });
   const data = result.data;
   out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><span class="pill ${healthClass(result.category)}">${result.category} · ${result.score}/10</span></div><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p><p class="muted">Root cause: ${escapeHtml(data.root_cause || "Not specified")}</p><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${result.category === "Critical" ? `<p class="danger-text">Critical plant logged and ticket created.</p>` : ""}</div>`;
@@ -385,12 +324,12 @@ async function runBatchDiagnosis() {
   state.batchRunning = true;
   state.batchResults = [];
   const out = document.querySelector("#batchOutput");
-  if (out) out.innerHTML = `<div class="card soft"><strong>Analyzing batch photos...</strong><p class="subtitle">0 of ${state.batchImages.length} photos completed.</p></div>`;
+  if (out) out.innerHTML = `<div class="card soft"><strong>Checking batch health...</strong><p class="subtitle">0 of ${state.batchImages.length} photos completed.</p></div>`;
   const batchId = `batch-${Date.now().toString(36)}`;
   const results = [];
   for (let i = 0; i < state.batchImages.length; i++) {
     try {
-      if (out) out.innerHTML = `<div class="card soft"><strong>Analyzing batch photos...</strong><p class="subtitle">${i + 1} of ${state.batchImages.length} photos in progress.</p></div>`;
+      if (out) out.innerHTML = `<div class="card soft"><strong>Checking batch health...</strong><p class="subtitle">${i + 1} of ${state.batchImages.length} photos in progress.</p></div>`;
       const result = await diagnoseImage({ image: state.batchImages[i], draft, batchId });
       results.push(result);
     } catch (err) {
