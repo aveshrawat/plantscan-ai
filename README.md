@@ -94,3 +94,5 @@ V3:
 - WhatsApp/email alerts
 - Sensor integrations
 - ServiceNow/Salesforce integration layer
+
+EY UI deployment trigger after Vercel reconnect.
