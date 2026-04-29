@@ -76,10 +76,15 @@ function loginScreen() {
   const secretLabel = isClient ? "Password" : isOwnerLogin ? "PIN or password" : "PIN";
   return `<main class="login-shell">
     <div class="login-frame">
-      <section class="login-hero" aria-label="GreenOps ITSM">
+      <section class="login-hero" aria-label="GreenOps ITSM overview">
         <div class="login-hero-copy">
           <h2>GreenOps ITSM</h2>
-          <p>Plant operations. Tracked, closed, reported.</p>
+          <ul class="login-hero-points" aria-label="Platform values">
+            <li>Plant Operations</li>
+            <li>Tracked</li>
+            <li>Closed</li>
+            <li>Reported</li>
+          </ul>
         </div>
       </section>
       <section class="login-card">
