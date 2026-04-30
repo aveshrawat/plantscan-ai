@@ -226,7 +226,7 @@ function metrics(scans, tickets) {
   const hs = healthSummary(scans);
   const open = tickets.filter(t => t.status !== STATUS.CLOSED);
   const breached = open.filter(t => slaState(t).breached);
-  const avgHealth = hs.avg ? hs.avg : `<span class="metric-dash">—</span>`;
+  const avgHealth = hs.avg ? hs.avg : `<span style="font-size: 28px; font-weight: 700; color: var(--color-border-strong); letter-spacing: -1px;">—</span>`;
   return `<div class="kpi-strip"><div class="metric"><span>Avg Health</span><strong>${avgHealth}</strong></div><div class="metric good"><span>Healthy</span><strong>${hs.healthy}</strong></div><div class="metric monitor"><span>Monitor</span><strong>${hs.monitor}</strong></div><div class="metric critical"><span>Critical / SLA</span><strong>${hs.critical}/${breached.length}</strong></div></div>`;
 }
 

@@ -1661,3 +1661,83 @@ body{
   cursor: pointer !important;
   transform: none !important;
 }
+
+
+/* FINAL FOUR FIXES */
+
+/* FIX 1 — Hero botanical background rendering.
+   Uses absolute public path first, with src/assets fallback if project serves src statically. */
+.hero-banner,
+.hero.hero-banner {
+  position: relative !important;
+  background-image:
+    linear-gradient(rgba(6, 26, 18, 0.82), rgba(6, 26, 18, 0.82)),
+    url("/closeup-shot-green-leaves.jpg.jpeg"),
+    url("./assets/closeup-shot-green-leaves.jpg.jpeg") !important;
+  background-position: center center, center center, center center !important;
+  background-size: auto, cover, cover !important;
+  background-repeat: no-repeat, no-repeat, no-repeat !important;
+  min-height: 200px !important;
+  padding: 28px 32px 0 !important;
+  overflow: hidden !important;
+}
+
+.hero-banner::before,
+.hero.hero-banner::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: rgba(6, 26, 18, 0.82) !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+.hero-banner > *,
+.hero.hero-banner > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* FIX 2 — Client portal Raise Priority 1 Ticket button. */
+.client-raise-ticket-cta,
+button.client-raise-ticket-cta {
+  background: #ffffff !important;
+  color: var(--color-brand-primary) !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  border: none !important;
+  border-radius: var(--radius-button) !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  width: 100% !important;
+  box-shadow: var(--shadow-button) !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+}
+
+/* FIX 3 — Download CSV button on Reports screens. */
+.report-download-btn,
+button.report-download-btn {
+  background: var(--color-brand-primary) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  border: none !important;
+  border-radius: var(--radius-button) !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  min-width: 160px !important;
+  width: auto !important;
+  padding: 0 20px !important;
+  box-shadow: var(--shadow-button) !important;
+  cursor: pointer !important;
+  opacity: 1 !important;
+}
+
+/* FIX 4 — keep Avg Health empty dash visually styled even if browser strips inline style. */
+.metric strong span[style*="letter-spacing: -1px"] {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  color: var(--color-border-strong) !important;
+  letter-spacing: -1px !important;
+}
