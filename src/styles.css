@@ -3821,3 +3821,86 @@ button.report-download-btn {
 .final-signin-btn {
   margin-top: 30px !important;
 }
+
+
+/* FINAL MIDDLE-CONTENT ALIGNMENT PATCH
+   Keep GreenOps identity and Sign In CTA anchored.
+   Move only the middle content block — heading, role grid, labels, inputs — into visual center. */
+.login-shell.ey-login-final .ey-login-card {
+  position: relative !important;
+  display: block !important;
+}
+
+.login-shell.ey-login-final .ey-product-identity {
+  margin-bottom: 0 !important;
+}
+
+/* This is the actual visual move: middle content starts lower. */
+.login-shell.ey-login-final .ey-login-card h2 {
+  margin-top: clamp(38px, 4.8vh, 52px) !important;
+  margin-bottom: 24px !important;
+}
+
+.login-shell.ey-login-final .ey-role-grid {
+  margin-bottom: 34px !important;
+}
+
+/* Keep form fields in normal flow, but remove CTA from flow. */
+.login-shell.ey-login-final form#loginForm.ey-login-form {
+  display: block !important;
+  position: static !important;
+  height: auto !important;
+  min-height: 0 !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+}
+
+.login-shell.ey-login-final form#loginForm.ey-login-form .ey-login-field {
+  margin-bottom: 18px !important;
+}
+
+/* CTA stays anchored low; middle content moves independently above it. */
+.login-shell.ey-login-final form#loginForm.ey-login-form .ey-signin-btn {
+  position: absolute !important;
+  left: clamp(34px, 3.2vw, 46px) !important;
+  right: clamp(34px, 3.2vw, 46px) !important;
+  bottom: clamp(34px, 4.4vh, 48px) !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+
+/* Short laptop safety: reduce the middle shift without changing the alignment logic. */
+@media (max-height: 820px) and (min-width: 1021px) {
+  .login-shell.ey-login-final .ey-login-card h2 {
+    margin-top: 30px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .login-shell.ey-login-final .ey-role-grid {
+    margin-bottom: 26px !important;
+  }
+
+  .login-shell.ey-login-final form#loginForm.ey-login-form .ey-login-field {
+    margin-bottom: 14px !important;
+  }
+
+  .login-shell.ey-login-final form#loginForm.ey-login-form .ey-signin-btn {
+    bottom: 30px !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .login-shell.ey-login-final .ey-login-card {
+    display: flex !important;
+  }
+
+  .login-shell.ey-login-final .ey-login-card h2 {
+    margin-top: 24px !important;
+  }
+
+  .login-shell.ey-login-final form#loginForm.ey-login-form .ey-signin-btn {
+    position: static !important;
+    width: 100% !important;
+    margin-top: 18px !important;
+  }
+}
