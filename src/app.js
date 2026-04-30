@@ -97,12 +97,11 @@ function loginScreen() {
           <span class="ey-product-icon-shell"><img src="${productIcon}" alt="" /></span>
           <div>
             <h1>GreenOps ITSM</h1>
-            <p>Enterprise Plant Operations Platform</p>
+            <p>Plant Health Service Management</p>
           </div>
         </div>
 
         <h2>Sign in to your workplace</h2>
-        <p class="ey-login-subheading">Each user sees only the interface and sites assigned to them.</p>
 
         <div class="ey-role-grid">
           ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance")}
@@ -173,7 +172,7 @@ function layout(content) {
   const user = currentUser();
   return `<div class="app-shell">
     <header class="topbar"><div class="top-inner">
-      <div class="brand"><img class="brand-icon" src="${productIcon}" alt="GreenOps icon" /><div><h1>${APP.name}</h1><p>Enterprise Plant Operations Platform</p></div></div>
+      <div class="brand"><img class="brand-icon" src="${productIcon}" alt="GreenOps icon" /><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
       <div class="user-menu">
         ${isOwner() ? ownerModeSwitch() : ""}
         <span class="user-pill">${escapeHtml(user?.name)} · ${title(actualRole())}</span>
