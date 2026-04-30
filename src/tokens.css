@@ -1,25 +1,25 @@
 :root {
   /* ── BRAND GREENS ── */
-  --color-brand-primary: #092e1f;   /* main dark forest green */
-  --color-brand-deep: #061a12;      /* darker version for overlays */
-  --color-brand-mid: #1a5c3a;       /* mid green for hover states */
-  --color-brand-light: #e8f2ec;     /* very light green tint for pills */
+  --color-brand-primary: #092e1f;
+  --color-brand-deep: #061a12;
+  --color-brand-mid: #1a5c3a;
+  --color-brand-light: #e8f2ec;
 
   /* ── STATUS COLORS ── */
-  --color-healthy: #1e7d45;         /* healthy plants — confident green */
+  --color-healthy: #1e7d45;
   --color-healthy-bg: #e9f7ee;
-  --color-monitor: #c47d0e;         /* monitor — warm amber */
+  --color-monitor: #c47d0e;
   --color-monitor-bg: #fef3e2;
-  --color-critical: #b91c1c;        /* critical / SLA breach — clear red */
+  --color-critical: #b91c1c;
   --color-critical-bg: #fde8e8;
 
   /* ── NEUTRALS ── */
-  --color-bg-body: #f2f4f2;         /* app body background */
+  --color-bg-body: #f2f4f2;
   --color-surface-white: #ffffff;
   --color-surface-subtle: #f7f9f7;
   --color-border: #e2e8e4;
   --color-border-strong: #c8d4cc;
-  --color-text-primary: #0d1f17;    /* near black with green undertone */
+  --color-text-primary: #0d1f17;
   --color-text-secondary: #4a5e54;
   --color-text-muted: #8fa89a;
   --color-text-placeholder: #aabcb2;

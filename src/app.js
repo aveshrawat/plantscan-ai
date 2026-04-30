@@ -151,16 +151,19 @@ function layout(content) {
   const user = currentUser();
   return `<div class="app-shell">
     <header class="topbar"><div class="top-inner">
-      <div class="brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
+      <div class="brand"><img class="brand-icon" src="./assets/Artboard 3.png" alt="GreenOps icon" /><div><h1>${APP.name}</h1><p>Enterprise Plant Operations Platform</p></div></div>
       <div class="user-menu">
         ${isOwner() ? ownerModeSwitch() : ""}
-        <span class="pill good">${escapeHtml(user?.name)} · ${title(actualRole())}</span>
-        <button class="mini-btn" data-action="logout">Logout</button>
+        <span class="user-pill">${escapeHtml(user?.name)} · ${title(actualRole())}</span>
+        <button class="logout-btn" data-action="logout">Logout</button>
       </div>
     </div></header>
     <main class="main">
-      <section class="hero"><div><div class="eyebrow">${escapeHtml(roleLabel())}</div><h2>${heroTitle()}</h2><p>${heroSubtitle()}</p></div>${isOwner() ? adminQuickActions() : ""}</section>
-      <nav class="tabs" aria-label="Section tabs">${tabs.map(t => `<button class="${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</nav>
+      <section class="hero hero-banner">
+        <div class="hero-content"><div class="eyebrow">${escapeHtml(roleLabel())}</div><h2>${heroTitle()}</h2><p>${heroSubtitle()}</p></div>
+        ${isOwner() ? adminQuickActions() : ""}
+        <nav class="tabs tab-bar" aria-label="Section tabs">${tabs.map(t => `<button class="tab-item ${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</nav>
+      </section>
       <div style="height:16px"></div>${content}
     </main>
   </div>`;
