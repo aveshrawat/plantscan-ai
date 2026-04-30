@@ -1741,3 +1741,263 @@ button.report-download-btn {
   color: var(--color-border-strong) !important;
   letter-spacing: -1px !important;
 }
+
+
+/* APPROVED LOGIN SCREEN REBUILD — scoped to login only */
+.login-shell.approved-login {
+  width: 100vw !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  display: grid !important;
+  grid-template-columns: 55% 45% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  background: none !important;
+}
+
+.approved-login-left {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+  background: url("/closeup-shot-green-leaves.jpg.jpeg") center / cover no-repeat;
+}
+
+.approved-login-left::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 26, 18, 0.45);
+  z-index: 0;
+}
+
+.approved-login-left > * {
+  position: relative;
+  z-index: 1;
+}
+
+.approved-login-wordmark {
+  position: absolute;
+  top: 36px;
+  left: 36px;
+  width: auto;
+  height: 28px;
+  object-fit: contain;
+}
+
+.approved-login-statement {
+  position: absolute;
+  bottom: 48px;
+  left: 36px;
+}
+
+.approved-login-statement span {
+  display: block;
+  font-family: "Inter", sans-serif;
+  font-size: 42px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+}
+
+.approved-login-right {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 52px;
+  background: rgba(9, 46, 31, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.approved-login-form-wrap {
+  width: 100%;
+}
+
+.approved-product-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 36px;
+}
+
+.approved-product-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  border-radius: 8px;
+  flex: 0 0 auto;
+}
+
+.approved-product-identity h1 {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.approved-product-identity p {
+  margin: 2px 0 0;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.25;
+}
+
+.approved-login-right h2 {
+  margin: 0 0 6px;
+  font-family: "Inter", sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.approved-login-subheading {
+  margin: 0 0 28px;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.60);
+  line-height: 1.45;
+}
+
+.approved-role-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.approved-role-card {
+  border-radius: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1.5px solid rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  text-align: left;
+  box-shadow: none;
+}
+
+.approved-role-card:hover {
+  border-color: rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.approved-role-card.active {
+  background: #ffffff;
+  color: var(--color-brand-primary);
+  font-weight: 700;
+  border-color: #ffffff;
+}
+
+.approved-login-form {
+  display: block;
+}
+
+.approved-login-field {
+  margin: 0 0 16px;
+}
+
+.approved-login-field label {
+  display: block;
+  margin: 0 0 8px;
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.approved-login-field input {
+  width: 100%;
+  height: 50px;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 10px;
+  color: #ffffff !important;
+  font-family: "Inter", sans-serif;
+  font-size: 15px;
+  box-shadow: none !important;
+  outline: none;
+}
+
+.approved-login-field input::placeholder {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.approved-login-field input:focus {
+  border-color: rgba(255, 255, 255, 0.60) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.approved-login-field:nth-of-type(2) {
+  margin-bottom: 28px;
+}
+
+.approved-signin-btn {
+  width: 100%;
+  height: 54px;
+  background: #ffffff;
+  color: var(--color-brand-primary);
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(9, 46, 31, 0.30);
+  letter-spacing: 0.01em;
+}
+
+.approved-signin-btn:hover {
+  transform: none;
+}
+
+@media (max-width: 768px) {
+  .login-shell.approved-login {
+    display: block !important;
+    grid-template-columns: none !important;
+    background: url("/closeup-shot-green-leaves.jpg.jpeg") center / cover no-repeat !important;
+    position: relative;
+  }
+
+  .login-shell.approved-login::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(6, 26, 18, 0.82);
+    z-index: 0;
+  }
+
+  .approved-login-left {
+    display: none;
+  }
+
+  .approved-login-right {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100vh;
+    padding: 0 24px;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .approved-role-grid {
+    grid-template-columns: 1fr;
+  }
+}

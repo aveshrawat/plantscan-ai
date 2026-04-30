@@ -72,41 +72,56 @@ function loginScreen() {
   const role = state.loginRole;
   const isClient = role === ROLES.CLIENT;
   const isOwnerLogin = role === ROLES.OWNER;
-  const credentialLabel = isClient ? "Registered email" : isOwnerLogin ? "Admin phone or email" : "Registered phone number";
-  const secretLabel = isClient ? "Password" : isOwnerLogin ? "PIN or password" : "PIN";
-  return `<main class="login-shell">
-    <div class="login-frame">
-      <section class="login-hero" aria-label="GreenOps ITSM overview">
-        <div class="login-hero-copy">
-          <h2 class="login-hero-statement">
-            Every plant<br />
-            Every site<br />
-            Fully accounted for
-          </h2>
+  const credentialLabel = isClient ? "REGISTERED EMAIL" : isOwnerLogin ? "ADMIN PHONE OR EMAIL" : "REGISTERED PHONE NUMBER";
+  const secretLabel = isClient ? "PASSWORD" : isOwnerLogin ? "PIN OR PASSWORD" : "PIN";
+  return `<main class="login-shell approved-login">
+    <section class="approved-login-left" aria-label="GreenOps visual panel">
+      <img class="approved-login-wordmark" src="/Logo.jpeg" alt="GreenOps" />
+      <div class="approved-login-statement">
+        <span>Every Plant.</span>
+        <span>Every Facility.</span>
+        <span>Fully Accounted For.</span>
+      </div>
+    </section>
+
+    <section class="approved-login-right" aria-label="GreenOps sign in">
+      <div class="approved-login-form-wrap">
+        <div class="approved-product-identity">
+          <img class="approved-product-icon" src="/Artboard 3.png" alt="GreenOps ITSM icon" />
+          <div>
+            <h1>GreenOps ITSM</h1>
+            <p>Enterprise Plant Operations Platform</p>
+          </div>
         </div>
-      </section>
-      <section class="login-card">
-        <div class="brand login-brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Enterprise Plant Operations Platform</p></div></div>
-        <h2>Sign in to your workspace</h2>
-        <p class="subtitle">Each user sees only the interface, sites, and workflows assigned to them.</p>
-        <div class="login-role-grid">
-          ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "Phone + PIN")}
-          ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "Phone + PIN")}
-          ${loginRoleButton(ROLES.CLIENT, "Client", "Email + password")}
-          ${loginRoleButton(ROLES.OWNER, "Admin", "Master access")}
+
+        <h2>Sign in to your workplace</h2>
+        <p class="approved-login-subheading">Each user sees only the interface and sites assigned to them.</p>
+
+        <div class="approved-role-grid">
+          ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance")}
+          ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor")}
+          ${loginRoleButton(ROLES.CLIENT, "Client")}
+          ${loginRoleButton(ROLES.OWNER, "Admin")}
         </div>
-        <form id="loginForm" class="form login-form">
+
+        <form id="loginForm" class="approved-login-form">
           <input type="hidden" name="role" value="${role}" />
-          <div class="field"><label>${credentialLabel}</label><input class="input" name="identifier" autocomplete="username" required /></div>
-          <div class="field"><label>${secretLabel}</label><input class="input" name="secret" type="password" autocomplete="current-password" required /></div>
-          <button class="btn" type="submit">Sign In</button>
+          <div class="approved-login-field">
+            <label>${credentialLabel}</label>
+            <input name="identifier" autocomplete="username" required />
+          </div>
+          <div class="approved-login-field">
+            <label>${secretLabel}</label>
+            <input name="secret" type="password" autocomplete="current-password" placeholder="****" required />
+          </div>
+          <button class="approved-signin-btn" type="submit">Sign In</button>
         </form>
-      </section>
-    </div>
+      </div>
+    </section>
   </main>`;
 }
-function loginRoleButton(role, label, hint) {
-  return `<button type="button" class="login-role ${state.loginRole === role ? "active" : ""}" data-login-role="${role}"><strong>${label}</strong><span>${hint}</span></button>`;
+function loginRoleButton(role, label) {
+  return `<button type="button" class="approved-role-card ${state.loginRole === role ? "active" : ""}" data-login-role="${role}">${label}</button>`;
 }
 
 function authenticate(role, identifier, secret) {
