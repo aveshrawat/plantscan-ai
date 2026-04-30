@@ -3598,3 +3598,10 @@ button.report-download-btn {
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* EY LOGIN LOGO POSITION POLISH — move wordmark slightly down for better leaf contrast */
+.ey-login-wordmark {
+  top: clamp(66px, 7.9vh, 92px) !important;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.42)) !important;
+}
