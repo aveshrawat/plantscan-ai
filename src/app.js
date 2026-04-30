@@ -1,6 +1,6 @@
-import heroBg from './assets/closeup-shot-green-leaves.jpg.jpeg';
-import productIcon from './assets/Artboard-icon.png';
-import logoWordmark from './assets/Logo.jpeg';
+const heroBg = './assets/closeup-shot-green-leaves.jpg.jpeg';
+const productIcon = './assets/Artboard-icon.png';
+const logoWordmark = './assets/Logo.jpeg';
 import { APP, ROLES, STATUS } from "./config.js";
 import { getDb, resetDb, seedDemoData } from "./store.js";
 import { createScanRecord, createClientTicket, markInProgress, attachEvidence, closeTicket } from "./tickets.js";
@@ -88,7 +88,6 @@ function loginScreen() {
         alt="OneScape"
         style="position: absolute; top: 36px; left: 36px; height: 28px; width: auto; object-fit: contain; z-index: 1;"
       />
-
       <div style="position: absolute; bottom: 48px; left: 36px; z-index: 1;">
         <span style="display: block; font-family: Inter, sans-serif; font-size: 44px; font-weight: 800; color: #ffffff; line-height: 1.15;">Every Plant.</span>
         <span style="display: block; font-family: Inter, sans-serif; font-size: 44px; font-weight: 800; color: #ffffff; line-height: 1.15;">Every Facility.</span>
@@ -186,7 +185,7 @@ function layout(content) {
   const user = currentUser();
   return `<div class="app-shell">
     <header class="topbar"><div class="top-inner">
-      <div class="brand"><img class="brand-icon" src="./assets/Artboard 3.png" alt="GreenOps icon" /><div><h1>${APP.name}</h1><p>Enterprise Plant Operations Platform</p></div></div>
+      <div class="brand"><img class="brand-icon" src="${productIcon}" alt="GreenOps icon" /><div><h1>${APP.name}</h1><p>Enterprise Plant Operations Platform</p></div></div>
       <div class="user-menu">
         ${isOwner() ? ownerModeSwitch() : ""}
         <span class="user-pill">${escapeHtml(user?.name)} · ${title(actualRole())}</span>
@@ -399,7 +398,7 @@ async function runBatchDiagnosis() {
   }
   state.batchRunning = false;
   const critical = results.filter(r => r.category === "Critical").length;
-  if (out) out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>Batch complete</h3><span class="pill ${critical ? "critical" : "good"}">${critical} critical</span></div><p>${results.length} photos processed. Critical plants have been logged as tickets.</p>${batchResultsMarkup()}</div>`;
+  if (out) out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>Batch complete</h3><span class="pill ${critical ? "critical" : "good"}">${critical} critical</span></div><p>${results.length} photos processed. Critical plants have been logged as tickets.</p></div>`;
   toast("Batch diagnosis completed.");
 }
 
