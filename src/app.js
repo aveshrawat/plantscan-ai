@@ -1,6 +1,6 @@
-const heroBg = './assets/closeup-shot-green-leaves.jpg.jpeg';
-const productIcon = './assets/Artboard-icon.png';
-const logoWordmark = './assets/Logo.jpeg';
+import heroBg from './assets/closeup-shot-green-leaves.jpg.jpeg';
+import productIcon from './assets/Artboard-icon.png';
+import logoWordmark from './assets/Logo.jpeg';
 import { APP, ROLES, STATUS } from "./config.js";
 import { getDb, resetDb, seedDemoData } from "./store.js";
 import { createScanRecord, createClientTicket, markInProgress, attachEvidence, closeTicket } from "./tickets.js";
@@ -280,7 +280,10 @@ function scanView() {
 }
 function scanImageMarkup() { return state.scanImage ? `<div class="image-ready" style="margin-top:12px"><span class="pill good">Plant image ready</span></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted" style="margin-top:12px">No image selected yet.</div>`; }
 function syncScanDraftFromDom() { const panel = document.querySelector("#scanPanel"); if (!panel) return; const next = { ...state.scanDraft }; panel.querySelectorAll("[data-scan-field]").forEach(el => { next[el.dataset.scanField] = el.value || ""; }); state.scanDraft = next; }
-function updateScanImageUi() { const box = document.querySelector("#scanImageState"); if (box) box.innerHTML = scanImageMarkup(); const btn = document.querySelector("#runDiagnosisBtn"); if (btn) btn.disabled = !state.scanImage; const removeBtn = document.querySelector('[data-action="clear-scan-image"]'); if (removeBtn) removeBtn.classList.toggle("hidden", !state.scanImage); }
+function updateScanImageUi() { const box = document.querySelector("#scanImageState"); if (box) box.innerHTML = scanImageMarkup(); const btn = document.querySelector("#runDiagnosisBtn"); if (btn) {
+    btn.classList.toggle("secondary", !state.scanImage);
+    btn.disabled = false;
+  } const removeBtn = document.querySelector('[data-action="clear-scan-image"]'); if (removeBtn) removeBtn.classList.toggle("hidden", !state.scanImage); }
 
 function supervisorView() {
   const { scans, tickets } = visibleRecords();
