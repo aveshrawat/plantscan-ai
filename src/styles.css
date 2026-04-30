@@ -3101,3 +3101,66 @@ button.report-download-btn {
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* EY LOGIN MICRO-POLISH — logo visibility + darker photographic read */
+.login-shell.ey-login-final {
+  background-position: center center !important;
+  background-size: cover !important;
+}
+
+.ey-login-overlay {
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.40) 0%, rgba(0, 0, 0, 0.28) 48%, rgba(0, 0, 0, 0.32) 100%),
+    rgba(3, 18, 11, 0.18) !important;
+}
+
+.ey-login-wordmark {
+  top: clamp(56px, 7.2vh, 82px) !important;
+  left: clamp(58px, 6.1vw, 96px) !important;
+  width: clamp(150px, 12.2vw, 220px) !important;
+  height: auto !important;
+  max-width: none !important;
+  object-fit: contain !important;
+  opacity: 0.98 !important;
+  filter: drop-shadow(0 5px 18px rgba(0,0,0,0.32)) !important;
+}
+
+.ey-login-statement {
+  bottom: clamp(68px, 10vh, 108px) !important;
+}
+
+.ey-login-statement span {
+  font-size: clamp(36px, 3.55vw, 52px) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.04em !important;
+}
+
+.ey-login-panel {
+  left: 52vw !important;
+  right: clamp(42px, 3.2vw, 64px) !important;
+  height: min(90vh, 940px) !important;
+  min-height: 700px !important;
+}
+
+.ey-login-card {
+  background: rgba(9, 46, 31, 0.54) !important;
+  border-color: rgba(255,255,255,0.16) !important;
+  box-shadow: 0 30px 92px rgba(0,0,0,0.38) !important;
+  backdrop-filter: blur(24px) saturate(132%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(132%) !important;
+}
+
+@media (max-height: 820px) and (min-width: 1021px) {
+  .ey-login-panel {
+    height: calc(100vh - 62px) !important;
+    min-height: 0 !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .ey-login-wordmark,
+  .ey-login-statement {
+    display: none !important;
+  }
+}
