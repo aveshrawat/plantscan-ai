@@ -1395,7 +1395,7 @@ body{
   margin:0 calc(var(--space-page-x)*-1) 0!important;
   padding:28px var(--space-page-x) 0!important;overflow:hidden!important;
   border-radius:0!important;border:0!important;box-shadow:none!important;
-  background:url("./assets/login-bg.jpeg") center/cover no-repeat!important;
+  background:url("./assets/closeup-shot-green-leaves.jpg.jpeg") center/cover no-repeat!important;
   color:var(--color-surface-white)!important;display:block!important;
 }
 .hero.hero-banner::before{
@@ -1672,8 +1672,8 @@ body{
   position: relative !important;
   background-image:
     linear-gradient(rgba(6, 26, 18, 0.82), rgba(6, 26, 18, 0.82)),
-    url("/login-bg.jpeg"),
-    url("./assets/login-bg.jpeg") !important;
+    url("/closeup-shot-green-leaves.jpg.jpeg"),
+    url("./assets/closeup-shot-green-leaves.jpg.jpeg") !important;
   background-position: center center, center center, center center !important;
   background-size: auto, cover, cover !important;
   background-repeat: no-repeat, no-repeat, no-repeat !important;
@@ -1760,7 +1760,7 @@ button.report-download-btn {
   position: relative;
   height: 100vh;
   overflow: hidden;
-  background: url("/login-bg.jpeg") center / cover no-repeat;
+  background: url("/closeup-shot-green-leaves.jpg.jpeg") center / cover no-repeat;
 }
 
 .approved-login-left::before {
@@ -1970,7 +1970,7 @@ button.report-download-btn {
   .login-shell.approved-login {
     display: block !important;
     grid-template-columns: none !important;
-    background: url("/login-bg.jpeg") center / cover no-repeat !important;
+    background: url("/closeup-shot-green-leaves.jpg.jpeg") center / cover no-repeat !important;
     position: relative;
   }
 
@@ -2493,7 +2493,7 @@ button.report-download-btn {
 }
 
 
-/* FINAL LOGIN REPLICA V2 — single image background, no seam, approved proportions */
+/* FINAL LOGIN REPLICA V3 — desktop-first proportion and alignment polish */
 .final-login-replica {
   width: 100vw !important;
   height: 100vh !important;
@@ -2515,8 +2515,8 @@ button.report-download-btn {
   z-index: 0 !important;
   pointer-events: none !important;
   background:
-    linear-gradient(90deg, rgba(0,0,0,0.16) 0%, rgba(0,0,0,0.07) 42%, rgba(0,0,0,0.16) 100%),
-    rgba(6, 26, 18, 0.35) !important;
+    linear-gradient(90deg, rgba(0,0,0,0.14) 0%, rgba(0,0,0,0.05) 42%, rgba(0,0,0,0.14) 100%),
+    rgba(6, 26, 18, 0.30) !important;
 }
 
 .final-login-left-content {
@@ -2530,9 +2530,9 @@ button.report-download-btn {
 
 .final-wordmark {
   position: absolute !important;
-  top: clamp(44px, 6.8vh, 72px) !important;
-  left: clamp(52px, 5.4vw, 88px) !important;
-  height: clamp(28px, 3.3vh, 38px) !important;
+  top: clamp(48px, 6.6vh, 72px) !important;
+  left: clamp(56px, 5.4vw, 90px) !important;
+  height: clamp(28px, 3.4vh, 40px) !important;
   width: auto !important;
   object-fit: contain !important;
   display: block !important;
@@ -2542,17 +2542,17 @@ button.report-download-btn {
 .final-left-statement {
   position: absolute !important;
   left: clamp(54px, 5.6vw, 94px) !important;
-  bottom: clamp(58px, 9.2vh, 104px) !important;
+  bottom: clamp(56px, 8.4vh, 92px) !important;
 }
 
 .final-left-statement span {
   display: block !important;
   color: #ffffff !important;
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-  font-size: clamp(36px, 4.15vw, 58px) !important;
+  font-size: clamp(36px, 4.12vw, 58px) !important;
   font-weight: 760 !important;
-  line-height: 1.08 !important;
-  letter-spacing: -0.04em !important;
+  line-height: 1.06 !important;
+  letter-spacing: -0.045em !important;
   text-shadow: 0 4px 30px rgba(0,0,0,0.36) !important;
   white-space: nowrap !important;
 }
@@ -2561,24 +2561,27 @@ button.report-download-btn {
   position: absolute !important;
   z-index: 3 !important;
   top: 50% !important;
-  right: clamp(46px, 7vw, 108px) !important;
+  right: clamp(50px, 6.2vw, 96px) !important;
   transform: translateY(-50%) !important;
-  width: min(44vw, 650px) !important;
-  min-width: 560px !important;
+  width: min(39vw, 590px) !important;
+  min-width: 530px !important;
 }
 
 .final-login-card {
   position: relative !important;
   width: 100% !important;
+  height: min(82vh, 760px) !important;
   max-height: calc(100vh - 72px) !important;
-  overflow: visible !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
   border-radius: 34px !important;
-  border: 1px solid rgba(255,255,255,0.15) !important;
-  background: rgba(9, 46, 31, 0.48) !important;
-  box-shadow: 0 28px 88px rgba(0,0,0,0.34) !important;
-  backdrop-filter: blur(22px) saturate(130%) !important;
-  -webkit-backdrop-filter: blur(22px) saturate(130%) !important;
-  padding: clamp(34px, 4.2vh, 50px) clamp(34px, 3.8vw, 52px) !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  background: rgba(9, 46, 31, 0.34) !important;
+  box-shadow: 0 28px 88px rgba(0,0,0,0.30) !important;
+  backdrop-filter: blur(26px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(135%) !important;
+  padding: clamp(36px, 4.6vh, 48px) clamp(34px, 3.2vw, 42px) clamp(34px, 4.1vh, 44px) !important;
 }
 
 .final-login-card::before {
@@ -2587,7 +2590,7 @@ button.report-download-btn {
   inset: 0 !important;
   border-radius: inherit !important;
   pointer-events: none !important;
-  background: linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0.025) 45%, rgba(0,0,0,0.08)) !important;
+  background: linear-gradient(135deg, rgba(255,255,255,0.13), rgba(255,255,255,0.03) 44%, rgba(0,0,0,0.07)) !important;
 }
 
 .final-login-card > * {
@@ -2598,20 +2601,26 @@ button.report-download-btn {
 .final-product-identity {
   display: flex !important;
   align-items: center !important;
-  gap: 16px !important;
-  margin: 0 0 clamp(28px, 4.4vh, 46px) !important;
+  gap: 14px !important;
+  margin: 0 0 clamp(24px, 3.2vh, 30px) !important;
+}
+
+.final-product-identity > div {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
 }
 
 .final-icon-shell {
-  width: clamp(52px, 6.3vh, 70px) !important;
-  height: clamp(52px, 6.3vh, 70px) !important;
+  width: clamp(52px, 6vh, 66px) !important;
+  height: clamp(52px, 6vh, 66px) !important;
   border-radius: 18px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex: 0 0 auto !important;
-  background: rgba(255,255,255,0.72) !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 12px 30px rgba(0,0,0,0.18) !important;
+  background: rgba(255,255,255,0.76) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 12px 30px rgba(0,0,0,0.14) !important;
 }
 
 .final-icon-shell img {
@@ -2624,58 +2633,58 @@ button.report-download-btn {
 .final-product-identity h1 {
   margin: 0 !important;
   color: #ffffff !important;
-  font-size: clamp(23px, 2.9vh, 30px) !important;
+  font-size: clamp(22px, 2.6vh, 30px) !important;
   font-weight: 760 !important;
-  line-height: 1.05 !important;
-  letter-spacing: -0.035em !important;
+  line-height: 1.02 !important;
+  letter-spacing: -0.04em !important;
 }
 
 .final-product-identity p {
-  margin: 7px 0 0 !important;
-  color: rgba(255,255,255,0.62) !important;
-  font-size: clamp(13px, 1.75vh, 17px) !important;
-  line-height: 1.25 !important;
+  margin: 6px 0 0 !important;
+  color: rgba(255,255,255,0.60) !important;
+  font-size: clamp(13px, 1.65vh, 16px) !important;
+  line-height: 1.2 !important;
 }
 
 .final-login-card h2 {
   margin: 0 0 8px !important;
   color: #ffffff !important;
-  font-size: clamp(30px, 4.2vh, 42px) !important;
-  line-height: 1.08 !important;
+  font-size: clamp(28px, 3.8vh, 40px) !important;
+  line-height: 1.05 !important;
   font-weight: 760 !important;
-  letter-spacing: -0.045em !important;
+  letter-spacing: -0.05em !important;
 }
 
 .final-login-subheading {
-  margin: 0 0 clamp(28px, 4vh, 40px) !important;
+  margin: 0 0 clamp(24px, 3.2vh, 30px) !important;
   max-width: 560px !important;
-  color: rgba(255,255,255,0.60) !important;
-  font-size: clamp(15px, 2vh, 18px) !important;
-  line-height: 1.38 !important;
+  color: rgba(255,255,255,0.58) !important;
+  font-size: clamp(14px, 1.75vh, 16px) !important;
+  line-height: 1.35 !important;
 }
 
 .final-role-grid {
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: clamp(12px, 1.7vh, 18px) clamp(14px, 1.7vw, 22px) !important;
-  margin: 0 0 clamp(30px, 5.2vh, 52px) !important;
+  gap: 14px 16px !important;
+  margin: 0 0 clamp(24px, 3.2vh, 30px) !important;
 }
 
 .final-role-card {
-  height: clamp(54px, 6.3vh, 68px) !important;
+  height: clamp(54px, 5.9vh, 62px) !important;
   min-height: 0 !important;
   border-radius: 13px !important;
   border: 1.4px solid rgba(255,255,255,0.34) !important;
-  background: rgba(255,255,255,0.16) !important;
+  background: rgba(255,255,255,0.14) !important;
   color: rgba(255,255,255,0.84) !important;
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-  font-size: clamp(17px, 2.35vh, 22px) !important;
+  font-size: clamp(16px, 2.0vh, 19px) !important;
   font-weight: 760 !important;
   text-align: center !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  padding: 0 18px !important;
+  padding: 0 16px !important;
   cursor: pointer !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.10) !important;
 }
@@ -2684,82 +2693,91 @@ button.report-download-btn {
   background: #ffffff !important;
   color: var(--color-brand-primary) !important;
   border-color: #ffffff !important;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.18) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.16) !important;
 }
 
 .final-login-form {
-  display: block !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
 }
 
 .final-login-field {
-  margin: 0 0 clamp(18px, 2.5vh, 26px) !important;
+  margin: 0 0 clamp(16px, 2vh, 20px) !important;
 }
 
 .final-login-field label {
   display: block !important;
-  margin: 0 0 10px !important;
-  color: rgba(255,255,255,0.78) !important;
-  font-size: clamp(13px, 1.9vh, 17px) !important;
-  font-weight: 650 !important;
-  letter-spacing: 0.02em !important;
+  margin: 0 0 8px !important;
+  color: rgba(255,255,255,0.80) !important;
+  font-size: clamp(12px, 1.45vh, 14px) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
   text-transform: uppercase !important;
 }
 
 .final-login-field input {
-  height: clamp(52px, 6.2vh, 66px) !important;
+  height: clamp(50px, 5.8vh, 58px) !important;
   width: 100% !important;
-  padding: 0 20px !important;
+  padding: 0 18px !important;
   border-radius: 10px !important;
-  border: 1.5px solid rgba(255,255,255,0.46) !important;
-  background: rgba(255,255,255,0.20) !important;
+  border: 1.4px solid rgba(255,255,255,0.40) !important;
+  background: rgba(255,255,255,0.18) !important;
   color: #ffffff !important;
-  font-size: clamp(16px, 2.15vh, 19px) !important;
+  font-size: clamp(15px, 1.9vh, 18px) !important;
   font-weight: 500 !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
   outline: none !important;
 }
 
 .final-login-field input::placeholder {
-  color: rgba(255,255,255,0.48) !important;
+  color: rgba(255,255,255,0.46) !important;
 }
 
 .final-login-field input:focus {
-  border-color: rgba(255,255,255,0.82) !important;
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.12) !important;
+  border-color: rgba(255,255,255,0.80) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.10) !important;
 }
 
 .final-signin-btn {
-  margin-top: clamp(12px, 2.2vh, 22px) !important;
-  height: clamp(54px, 6.4vh, 68px) !important;
+  margin-top: auto !important;
+  height: clamp(54px, 6vh, 62px) !important;
   width: 100% !important;
   border: none !important;
   border-radius: 10px !important;
   background: #ffffff !important;
   color: var(--color-brand-primary) !important;
-  font-size: clamp(18px, 2.3vh, 22px) !important;
+  font-size: clamp(18px, 2.1vh, 21px) !important;
   font-weight: 760 !important;
-  box-shadow: 0 16px 38px rgba(0,0,0,0.20) !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,0.16) !important;
   cursor: pointer !important;
 }
 
 @media (max-height: 820px) and (min-width: 1021px) {
+  .final-wordmark {
+    top: 40px !important;
+  }
+  .final-left-statement {
+    bottom: 46px !important;
+  }
+  .final-login-card-wrap {
+    width: min(40vw, 570px) !important;
+    min-width: 510px !important;
+  }
   .final-login-card {
-    padding: 30px 44px !important;
+    height: min(84vh, 720px) !important;
+    padding: 30px 30px 28px !important;
   }
   .final-product-identity {
-    margin-bottom: 26px !important;
+    margin-bottom: 20px !important;
   }
-  .final-login-subheading {
-    margin-bottom: 24px !important;
-  }
+  .final-login-subheading,
   .final-role-grid {
-    margin-bottom: 28px !important;
+    margin-bottom: 20px !important;
   }
   .final-login-field {
-    margin-bottom: 18px !important;
-  }
-  .final-signin-btn {
-    margin-top: 10px !important;
+    margin-bottom: 14px !important;
   }
 }
 
@@ -2774,6 +2792,10 @@ button.report-download-btn {
     width: min(92vw, 620px) !important;
     min-width: 0 !important;
   }
+  .final-login-card {
+    height: auto !important;
+    min-height: 0 !important;
+  }
 }
 
 @media (max-width: 620px) {
@@ -2786,922 +2808,3 @@ button.report-download-btn {
   }
 }
 
-
-/* EY LOGIN FINAL — clean rebuild from current branch, single-background, no split seam */
-.login-shell.ey-login-final {
-  width: 100vw !important;
-  height: 100vh !important;
-  min-height: 100vh !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  position: relative !important;
-  overflow: hidden !important;
-  display: block !important;
-  background-size: cover !important;
-  background-position: center center !important;
-  background-repeat: no-repeat !important;
-  background-color: #061a12 !important;
-}
-
-.ey-login-overlay {
-  position: absolute !important;
-  inset: 0 !important;
-  z-index: 0 !important;
-  pointer-events: none !important;
-  background:
-    radial-gradient(circle at 66% 25%, rgba(84, 115, 34, 0.22), transparent 30%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.30) 47%, rgba(0, 0, 0, 0.42) 100%),
-    rgba(6, 18, 12, 0.34) !important;
-}
-
-.ey-login-left {
-  position: absolute !important;
-  inset: 0 auto 0 0 !important;
-  width: 52vw !important;
-  height: 100vh !important;
-  z-index: 2 !important;
-  pointer-events: none !important;
-}
-
-.ey-login-wordmark {
-  position: absolute !important;
-  top: clamp(50px, 7vh, 78px) !important;
-  left: clamp(58px, 6.1vw, 96px) !important;
-  height: clamp(34px, 4vh, 44px) !important;
-  width: auto !important;
-  max-width: 240px !important;
-  object-fit: contain !important;
-  display: block !important;
-  opacity: 0.98 !important;
-}
-
-.ey-login-statement {
-  position: absolute !important;
-  left: clamp(58px, 6.1vw, 96px) !important;
-  bottom: clamp(72px, 10.8vh, 116px) !important;
-  z-index: 2 !important;
-}
-
-.ey-login-statement span {
-  display: block !important;
-  color: #ffffff !important;
-  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-  font-size: clamp(38px, 3.7vw, 54px) !important;
-  font-weight: 760 !important;
-  line-height: 1.08 !important;
-  letter-spacing: -0.038em !important;
-  white-space: nowrap !important;
-  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.42) !important;
-}
-
-.ey-login-panel {
-  position: absolute !important;
-  z-index: 3 !important;
-  top: 50% !important;
-  left: 52.2vw !important;
-  right: clamp(34px, 2.8vw, 54px) !important;
-  transform: translateY(-50%) !important;
-  height: min(92vh, 980px) !important;
-  min-height: 730px !important;
-  display: flex !important;
-  align-items: stretch !important;
-  justify-content: stretch !important;
-}
-
-.ey-login-card {
-  position: relative !important;
-  width: 100% !important;
-  height: 100% !important;
-  border-radius: 34px !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  background: rgba(9, 46, 31, 0.48) !important;
-  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.36) !important;
-  backdrop-filter: blur(22px) saturate(128%) !important;
-  -webkit-backdrop-filter: blur(22px) saturate(128%) !important;
-  overflow: hidden !important;
-  padding: clamp(36px, 4.8vh, 58px) clamp(38px, 3.8vw, 58px) !important;
-  display: flex !important;
-  flex-direction: column !important;
-  justify-content: center !important;
-}
-
-.ey-login-card::before {
-  content: "" !important;
-  position: absolute !important;
-  inset: 0 !important;
-  border-radius: inherit !important;
-  pointer-events: none !important;
-  background:
-    radial-gradient(circle at 70% 10%, rgba(98, 130, 27, 0.22), transparent 35%),
-    linear-gradient(135deg, rgba(255,255,255,0.13), rgba(255,255,255,0.025) 46%, rgba(0,0,0,0.10)) !important;
-  z-index: 0 !important;
-}
-
-.ey-login-card > * {
-  position: relative !important;
-  z-index: 1 !important;
-}
-
-.ey-product-identity {
-  display: flex !important;
-  align-items: center !important;
-  gap: clamp(13px, 1.15vw, 18px) !important;
-  margin: 0 0 clamp(34px, 5vh, 58px) !important;
-}
-
-.ey-product-icon-shell {
-  width: clamp(54px, 6.4vh, 72px) !important;
-  height: clamp(54px, 6.4vh, 72px) !important;
-  border-radius: 18px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex: 0 0 auto !important;
-  background: rgba(255, 255, 255, 0.72) !important;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.20), 0 12px 30px rgba(0,0,0,0.20) !important;
-}
-
-.ey-product-icon-shell img {
-  width: 74% !important;
-  height: 74% !important;
-  object-fit: contain !important;
-  display: block !important;
-}
-
-.ey-product-identity h1 {
-  margin: 0 !important;
-  color: #ffffff !important;
-  font-size: clamp(23px, 2.85vh, 30px) !important;
-  font-weight: 760 !important;
-  line-height: 1.05 !important;
-  letter-spacing: -0.035em !important;
-}
-
-.ey-product-identity p {
-  margin: 7px 0 0 !important;
-  color: rgba(255,255,255,0.62) !important;
-  font-size: clamp(13px, 1.7vh, 17px) !important;
-  line-height: 1.25 !important;
-}
-
-.ey-login-card h2 {
-  margin: 0 0 8px !important;
-  color: #ffffff !important;
-  font-size: clamp(30px, 4vh, 42px) !important;
-  line-height: 1.08 !important;
-  font-weight: 760 !important;
-  letter-spacing: -0.045em !important;
-}
-
-.ey-login-subheading {
-  margin: 0 0 clamp(28px, 4.1vh, 42px) !important;
-  max-width: 590px !important;
-  color: rgba(255,255,255,0.60) !important;
-  font-size: clamp(15px, 1.95vh, 18px) !important;
-  line-height: 1.38 !important;
-}
-
-.ey-role-grid {
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: clamp(12px, 1.6vh, 18px) clamp(14px, 1.6vw, 22px) !important;
-  margin: 0 0 clamp(32px, 5.2vh, 54px) !important;
-}
-
-.ey-role-card {
-  height: clamp(54px, 6.2vh, 68px) !important;
-  min-height: 0 !important;
-  border-radius: 13px !important;
-  border: 1.4px solid rgba(255,255,255,0.35) !important;
-  background: rgba(255,255,255,0.16) !important;
-  color: rgba(255,255,255,0.84) !important;
-  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-  font-size: clamp(17px, 2.25vh, 22px) !important;
-  font-weight: 760 !important;
-  text-align: center !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 18px !important;
-  cursor: pointer !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10) !important;
-}
-
-.ey-role-card.active {
-  background: #ffffff !important;
-  color: var(--color-brand-primary) !important;
-  border-color: #ffffff !important;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.18) !important;
-}
-
-.ey-login-form {
-  display: block !important;
-}
-
-.ey-login-field {
-  margin: 0 0 clamp(18px, 2.45vh, 26px) !important;
-}
-
-.ey-login-field label {
-  display: block !important;
-  margin: 0 0 10px !important;
-  color: rgba(255,255,255,0.78) !important;
-  font-size: clamp(13px, 1.82vh, 17px) !important;
-  font-weight: 650 !important;
-  letter-spacing: 0.02em !important;
-  text-transform: uppercase !important;
-}
-
-.ey-login-field input {
-  height: clamp(52px, 6.15vh, 66px) !important;
-  width: 100% !important;
-  padding: 0 20px !important;
-  border-radius: 10px !important;
-  border: 1.5px solid rgba(255,255,255,0.46) !important;
-  background: rgba(255,255,255,0.20) !important;
-  color: #ffffff !important;
-  font-size: clamp(16px, 2.1vh, 19px) !important;
-  font-weight: 500 !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10) !important;
-  outline: none !important;
-}
-
-.ey-login-field input::placeholder {
-  color: rgba(255,255,255,0.48) !important;
-}
-
-.ey-login-field input:focus {
-  border-color: rgba(255,255,255,0.82) !important;
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.12) !important;
-}
-
-.ey-signin-btn {
-  margin-top: clamp(12px, 2.2vh, 24px) !important;
-  height: clamp(54px, 6.3vh, 68px) !important;
-  width: 100% !important;
-  border: none !important;
-  border-radius: 10px !important;
-  background: #ffffff !important;
-  color: var(--color-brand-primary) !important;
-  font-size: clamp(18px, 2.22vh, 22px) !important;
-  font-weight: 760 !important;
-  box-shadow: 0 16px 38px rgba(0,0,0,0.20) !important;
-  cursor: pointer !important;
-}
-
-@media (max-height: 820px) and (min-width: 1021px) {
-  .ey-login-panel {
-    height: calc(100vh - 58px) !important;
-    min-height: 0 !important;
-  }
-  .ey-login-card {
-    padding-top: 30px !important;
-    padding-bottom: 30px !important;
-  }
-  .ey-product-identity {
-    margin-bottom: 26px !important;
-  }
-  .ey-login-subheading {
-    margin-bottom: 24px !important;
-  }
-  .ey-role-grid {
-    margin-bottom: 28px !important;
-  }
-  .ey-login-field {
-    margin-bottom: 17px !important;
-  }
-  .ey-signin-btn {
-    margin-top: 8px !important;
-  }
-}
-
-@media (max-width: 1100px) {
-  .ey-login-left {
-    display: none !important;
-  }
-  .ey-login-panel {
-    left: 50% !important;
-    right: auto !important;
-    width: min(92vw, 650px) !important;
-    min-width: 0 !important;
-    transform: translate(-50%, -50%) !important;
-  }
-}
-
-@media (max-width: 620px) {
-  .ey-login-panel {
-    height: auto !important;
-    min-height: 0 !important;
-  }
-  .ey-login-card {
-    padding: 28px 22px !important;
-    border-radius: 24px !important;
-  }
-  .ey-role-grid {
-    grid-template-columns: 1fr !important;
-  }
-}
-
-
-/* EY LOGIN MICRO-POLISH — logo visibility + darker photographic read */
-.login-shell.ey-login-final {
-  background-position: center center !important;
-  background-size: cover !important;
-}
-
-.ey-login-overlay {
-  background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.40) 0%, rgba(0, 0, 0, 0.28) 48%, rgba(0, 0, 0, 0.32) 100%),
-    rgba(3, 18, 11, 0.18) !important;
-}
-
-.ey-login-wordmark {
-  top: clamp(56px, 7.2vh, 82px) !important;
-  left: clamp(58px, 6.1vw, 96px) !important;
-  width: clamp(150px, 12.2vw, 220px) !important;
-  height: auto !important;
-  max-width: none !important;
-  object-fit: contain !important;
-  opacity: 0.98 !important;
-  filter: drop-shadow(0 5px 18px rgba(0,0,0,0.32)) !important;
-}
-
-.ey-login-statement {
-  bottom: clamp(68px, 10vh, 108px) !important;
-}
-
-.ey-login-statement span {
-  font-size: clamp(36px, 3.55vw, 52px) !important;
-  line-height: 1.08 !important;
-  letter-spacing: -0.04em !important;
-}
-
-.ey-login-panel {
-  left: 52vw !important;
-  right: clamp(42px, 3.2vw, 64px) !important;
-  height: min(90vh, 940px) !important;
-  min-height: 700px !important;
-}
-
-.ey-login-card {
-  background: rgba(9, 46, 31, 0.54) !important;
-  border-color: rgba(255,255,255,0.16) !important;
-  box-shadow: 0 30px 92px rgba(0,0,0,0.38) !important;
-  backdrop-filter: blur(24px) saturate(132%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(132%) !important;
-}
-
-@media (max-height: 820px) and (min-width: 1021px) {
-  .ey-login-panel {
-    height: calc(100vh - 62px) !important;
-    min-height: 0 !important;
-  }
-}
-
-@media (max-width: 1100px) {
-  .ey-login-wordmark,
-  .ey-login-statement {
-    display: none !important;
-  }
-}
-
-
-/* FINAL BACKGROUND IMAGE ELEMENT FIX — actual <img>, not CSS-only background */
-.login-shell.ey-login-final {
-  background: #061a12 !important;
-  background-image: none !important;
-  isolation: isolate !important;
-}
-
-.ey-bg-photo {
-  position: absolute !important;
-  inset: 0 !important;
-  z-index: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  object-position: center center !important;
-  display: block !important;
-  opacity: 1 !important;
-  filter: brightness(0.76) contrast(1.08) saturate(1.08) !important;
-  transform: scale(1.001) !important;
-  pointer-events: none !important;
-  user-select: none !important;
-}
-
-.ey-login-overlay {
-  z-index: 1 !important;
-  background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.14) 46%, rgba(0, 0, 0, 0.26) 100%),
-    rgba(6, 18, 12, 0.16) !important;
-}
-
-.ey-login-left {
-  z-index: 2 !important;
-}
-
-.ey-login-panel {
-  z-index: 3 !important;
-}
-
-.ey-login-card {
-  background: rgba(9, 46, 31, 0.46) !important;
-  backdrop-filter: blur(24px) saturate(132%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(132%) !important;
-}
-
-.ey-login-card::before {
-  background:
-    radial-gradient(circle at 70% 8%, rgba(98, 130, 27, 0.20), transparent 35%),
-    linear-gradient(135deg, rgba(255,255,255,0.13), rgba(255,255,255,0.025) 46%, rgba(0,0,0,0.08)) !important;
-}
-
-
-/* FINAL EY DEMO POLISH — stronger glass morphism, tighter typography, remove helper line */
-.ey-login-card {
-  background: rgba(9, 46, 31, 0.26) !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  box-shadow: 0 22px 64px rgba(0, 0, 0, 0.28) !important;
-  backdrop-filter: blur(34px) saturate(155%) brightness(1.03) !important;
-  -webkit-backdrop-filter: blur(34px) saturate(155%) brightness(1.03) !important;
-  padding: clamp(34px, 4.3vh, 48px) clamp(34px, 3.5vw, 44px) !important;
-}
-
-.ey-login-card::before {
-  background:
-    radial-gradient(circle at 18% 30%, rgba(255,255,255,0.12), transparent 22%),
-    radial-gradient(circle at 74% 14%, rgba(120, 150, 38, 0.18), transparent 30%),
-    linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05) 42%, rgba(0,0,0,0.06)) !important;
-}
-
-.ey-product-identity {
-  gap: 14px !important;
-  margin: 0 0 26px !important;
-}
-
-.ey-product-icon-shell {
-  width: 56px !important;
-  height: 56px !important;
-  border-radius: 16px !important;
-  background: rgba(255,255,255,0.76) !important;
-}
-
-.ey-product-identity h1 {
-  font-size: clamp(20px, 2.5vh, 24px) !important;
-  line-height: 1.03 !important;
-}
-
-.ey-product-identity p {
-  margin-top: 5px !important;
-  color: rgba(255,255,255,0.54) !important;
-  font-size: clamp(12px, 1.5vh, 15px) !important;
-  line-height: 1.18 !important;
-}
-
-.ey-login-card h2 {
-  margin: 0 0 22px !important;
-  font-size: clamp(30px, 3.55vh, 38px) !important;
-  line-height: 1.04 !important;
-  letter-spacing: -0.04em !important;
-}
-
-.ey-login-subheading {
-  display: none !important;
-  margin: 0 !important;
-}
-
-.ey-role-grid {
-  gap: 14px 18px !important;
-  margin: 0 0 30px !important;
-}
-
-.ey-role-card {
-  height: 56px !important;
-  border-radius: 14px !important;
-  background: rgba(255,255,255,0.14) !important;
-  border: 1.35px solid rgba(255,255,255,0.34) !important;
-  font-size: clamp(16px, 2vh, 18px) !important;
-}
-
-.ey-login-field {
-  margin: 0 0 16px !important;
-}
-
-.ey-login-field label {
-  margin: 0 0 8px !important;
-  color: rgba(255,255,255,0.82) !important;
-  font-size: clamp(12px, 1.45vh, 14px) !important;
-}
-
-.ey-login-field input {
-  height: 56px !important;
-  border-radius: 12px !important;
-  background: rgba(255,255,255,0.17) !important;
-  border: 1.35px solid rgba(255,255,255,0.36) !important;
-  font-size: clamp(16px, 1.8vh, 18px) !important;
-}
-
-.ey-login-field input::placeholder {
-  color: rgba(255,255,255,0.5) !important;
-}
-
-.ey-signin-btn {
-  margin-top: 14px !important;
-  height: 58px !important;
-  border-radius: 12px !important;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.18) !important;
-  font-size: clamp(18px, 2vh, 20px) !important;
-}
-
-@media (max-height: 820px) and (min-width: 1021px) {
-  .ey-login-card {
-    padding-top: 30px !important;
-    padding-bottom: 30px !important;
-  }
-  .ey-login-card h2 {
-    margin-bottom: 18px !important;
-  }
-}
-
-
-/* EY FINAL TIGHTENING — smaller typography, smaller card, stronger transparency */
-.ey-login-panel {
-  left: auto !important;
-  right: clamp(54px, 4vw, 78px) !important;
-  width: min(43vw, 720px) !important;
-  height: min(84vh, 820px) !important;
-  min-height: 620px !important;
-}
-
-.ey-login-card {
-  background: rgba(9, 46, 31, 0.15) !important;
-  border: 1px solid rgba(255, 255, 255, 0.18) !important;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22) !important;
-  backdrop-filter: blur(42px) saturate(148%) brightness(1.02) !important;
-  -webkit-backdrop-filter: blur(42px) saturate(148%) brightness(1.02) !important;
-  padding: clamp(26px, 3.2vh, 34px) clamp(28px, 2.6vw, 34px) !important;
-  border-radius: 32px !important;
-}
-
-.ey-login-card::before {
-  background:
-    radial-gradient(circle at 16% 30%, rgba(255,255,255,0.10), transparent 24%),
-    radial-gradient(circle at 74% 14%, rgba(124, 157, 43, 0.12), transparent 32%),
-    linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 42%, rgba(0,0,0,0.03)) !important;
-}
-
-.ey-product-identity {
-  gap: 12px !important;
-  margin: 0 0 18px !important;
-}
-
-.ey-product-icon-shell {
-  width: 52px !important;
-  height: 52px !important;
-  border-radius: 14px !important;
-}
-
-.ey-product-identity h1 {
-  font-size: clamp(16px, 1.6vw, 20px) !important;
-  line-height: 1.05 !important;
-}
-
-.ey-product-identity p {
-  margin-top: 4px !important;
-  font-size: clamp(10px, 1vw, 13px) !important;
-  line-height: 1.15 !important;
-}
-
-.ey-login-card h2 {
-  margin: 0 0 18px !important;
-  font-size: clamp(22px, 2.35vw, 30px) !important;
-  line-height: 1.05 !important;
-  letter-spacing: -0.035em !important;
-}
-
-.ey-role-grid {
-  gap: 12px 14px !important;
-  margin: 0 0 22px !important;
-}
-
-.ey-role-card {
-  height: 52px !important;
-  border-radius: 13px !important;
-  font-size: clamp(14px, 1.3vw, 16px) !important;
-  border-width: 1.2px !important;
-}
-
-.ey-login-field {
-  margin: 0 0 14px !important;
-}
-
-.ey-login-field label {
-  margin: 0 0 7px !important;
-  font-size: clamp(11px, 0.95vw, 12.5px) !important;
-}
-
-.ey-login-field input {
-  height: 52px !important;
-  border-radius: 11px !important;
-  background: rgba(255,255,255,0.14) !important;
-  border: 1.2px solid rgba(255,255,255,0.30) !important;
-  font-size: clamp(14px, 1.15vw, 16px) !important;
-}
-
-.ey-signin-btn {
-  margin-top: 10px !important;
-  height: 54px !important;
-  border-radius: 12px !important;
-  font-size: clamp(15px, 1.25vw, 17px) !important;
-}
-
-@media (max-width: 1100px) {
-  .ey-login-panel {
-    width: min(92vw, 640px) !important;
-    right: auto !important;
-    left: 50% !important;
-    height: auto !important;
-    min-height: 0 !important;
-  }
-}
-
-
-/* EY LOGIN FINAL PRECISION PASS — cleaner glass, smaller typography, no layout rebuild */
-.ey-login-panel {
-  left: auto !important;
-  right: clamp(58px, 4.2vw, 82px) !important;
-  width: min(40.5vw, 660px) !important;
-  height: min(81vh, 760px) !important;
-  min-height: 590px !important;
-}
-
-.ey-login-card {
-  background: rgba(8, 34, 23, 0.09) !important;
-  border: 1px solid rgba(255, 255, 255, 0.17) !important;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24) !important;
-  backdrop-filter: blur(28px) saturate(145%) brightness(1.04) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(145%) brightness(1.04) !important;
-  padding: clamp(26px, 3.15vh, 34px) clamp(28px, 2.55vw, 34px) !important;
-  border-radius: 30px !important;
-}
-
-.ey-login-card::before {
-  background:
-    radial-gradient(circle at 18% 28%, rgba(255,255,255,0.09), transparent 24%),
-    radial-gradient(circle at 72% 10%, rgba(116, 148, 36, 0.10), transparent 31%),
-    linear-gradient(135deg, rgba(255,255,255,0.065), rgba(255,255,255,0.018) 45%, rgba(0,0,0,0.025)) !important;
-}
-
-.ey-product-identity {
-  gap: 11px !important;
-  margin: 0 0 20px !important;
-}
-
-.ey-product-icon-shell {
-  width: 48px !important;
-  height: 48px !important;
-  border-radius: 13px !important;
-  background: rgba(255, 255, 255, 0.76) !important;
-}
-
-.ey-product-identity h1 {
-  font-size: clamp(17px, 1.45vw, 20px) !important;
-  line-height: 1.05 !important;
-  letter-spacing: -0.025em !important;
-}
-
-.ey-product-identity p {
-  margin-top: 4px !important;
-  font-size: clamp(10.5px, 0.95vw, 12.5px) !important;
-  line-height: 1.15 !important;
-  color: rgba(255, 255, 255, 0.56) !important;
-}
-
-.ey-login-card h2 {
-  margin: 0 0 20px !important;
-  font-size: clamp(24px, 2.15vw, 29px) !important;
-  line-height: 1.06 !important;
-  letter-spacing: -0.035em !important;
-  font-weight: 740 !important;
-}
-
-.ey-login-subheading {
-  display: none !important;
-}
-
-.ey-role-grid {
-  gap: 12px 14px !important;
-  margin: 0 0 24px !important;
-}
-
-.ey-role-card {
-  height: 48px !important;
-  border-radius: 12px !important;
-  background: rgba(255, 255, 255, 0.115) !important;
-  border: 1.15px solid rgba(255, 255, 255, 0.32) !important;
-  font-size: clamp(13.5px, 1.12vw, 15.5px) !important;
-  font-weight: 730 !important;
-}
-
-.ey-role-card.active {
-  background: rgba(255, 255, 255, 0.96) !important;
-  color: var(--color-brand-primary) !important;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.13) !important;
-}
-
-.ey-login-field {
-  margin: 0 0 13px !important;
-}
-
-.ey-login-field label {
-  margin: 0 0 7px !important;
-  font-size: clamp(10.5px, 0.86vw, 12px) !important;
-  letter-spacing: 0.035em !important;
-  color: rgba(255, 255, 255, 0.82) !important;
-}
-
-.ey-login-field input {
-  height: 48px !important;
-  border-radius: 10px !important;
-  padding: 0 16px !important;
-  background: rgba(255, 255, 255, 0.125) !important;
-  border: 1.15px solid rgba(255, 255, 255, 0.31) !important;
-  font-size: clamp(13.5px, 1.05vw, 15px) !important;
-  color: rgba(255, 255, 255, 0.92) !important;
-}
-
-.ey-login-field input::placeholder {
-  color: rgba(255, 255, 255, 0.48) !important;
-}
-
-.ey-signin-btn {
-  margin-top: 10px !important;
-  height: 50px !important;
-  border-radius: 10px !important;
-  font-size: clamp(14.5px, 1.12vw, 16px) !important;
-  font-weight: 730 !important;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14) !important;
-}
-
-/* Keep the card clean and controlled on shorter laptop screens */
-@media (max-height: 820px) and (min-width: 1021px) {
-  .ey-login-panel {
-    height: min(82vh, 710px) !important;
-    min-height: 560px !important;
-  }
-
-  .ey-login-card {
-    padding-top: 24px !important;
-    padding-bottom: 24px !important;
-  }
-
-  .ey-product-identity {
-    margin-bottom: 16px !important;
-  }
-
-  .ey-login-card h2 {
-    margin-bottom: 16px !important;
-  }
-
-  .ey-role-grid {
-    margin-bottom: 20px !important;
-  }
-
-  .ey-login-field {
-    margin-bottom: 11px !important;
-  }
-
-  .ey-signin-btn {
-    margin-top: 8px !important;
-  }
-}
-
-/* Preserve mobile/tablet stability */
-@media (max-width: 1100px) {
-  .ey-login-panel {
-    width: min(92vw, 620px) !important;
-    right: auto !important;
-    left: 50% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    transform: translate(-50%, -50%) !important;
-  }
-}
-
-@media (max-width: 620px) {
-  .ey-login-card {
-    padding: 26px 22px !important;
-    border-radius: 24px !important;
-  }
-
-  .ey-role-grid {
-    grid-template-columns: 1fr !important;
-  }
-}
-
-
-/* EY LOGIN LOGO POSITION POLISH — move wordmark slightly down for better leaf contrast */
-.ey-login-wordmark {
-  top: clamp(66px, 7.9vh, 92px) !important;
-  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.42)) !important;
-}
-
-
-/* EY LOGIN PANEL PROPORTION MATCH — leaner width, taller glass card, more breathing room */
-.ey-login-panel {
-  left: auto !important;
-  right: clamp(64px, 4.7vw, 92px) !important;
-  width: min(38.8vw, 625px) !important;
-  height: min(88vh, 850px) !important;
-  min-height: 680px !important;
-}
-
-.ey-login-card {
-  padding: clamp(34px, 4.2vh, 46px) clamp(28px, 2.35vw, 32px) !important;
-  border-radius: 31px !important;
-  background: rgba(8, 34, 23, 0.105) !important;
-  border: 1px solid rgba(255, 255, 255, 0.18) !important;
-  backdrop-filter: blur(30px) saturate(148%) brightness(1.04) !important;
-  -webkit-backdrop-filter: blur(30px) saturate(148%) brightness(1.04) !important;
-}
-
-.ey-product-identity {
-  margin: 0 0 26px !important;
-}
-
-.ey-login-card h2 {
-  margin: 0 0 24px !important;
-  font-size: clamp(24px, 2.05vw, 28px) !important;
-  line-height: 1.07 !important;
-}
-
-.ey-role-grid {
-  gap: 13px 14px !important;
-  margin: 0 0 34px !important;
-}
-
-.ey-role-card {
-  height: 50px !important;
-  font-size: clamp(13.5px, 1.06vw, 15px) !important;
-}
-
-.ey-login-field {
-  margin: 0 0 17px !important;
-}
-
-.ey-login-field label {
-  margin-bottom: 8px !important;
-}
-
-.ey-login-field input {
-  height: 50px !important;
-}
-
-.ey-signin-btn {
-  margin-top: 18px !important;
-  height: 52px !important;
-}
-
-/* Override prior short-screen compression: approved design should remain taller unless viewport is truly cramped */
-@media (max-height: 820px) and (min-width: 1021px) {
-  .ey-login-panel {
-    height: calc(100vh - 80px) !important;
-    min-height: 620px !important;
-  }
-
-  .ey-login-card {
-    padding-top: 30px !important;
-    padding-bottom: 30px !important;
-  }
-
-  .ey-product-identity {
-    margin-bottom: 22px !important;
-  }
-
-  .ey-login-card h2 {
-    margin-bottom: 20px !important;
-  }
-
-  .ey-role-grid {
-    margin-bottom: 28px !important;
-  }
-
-  .ey-login-field {
-    margin-bottom: 14px !important;
-  }
-
-  .ey-signin-btn {
-    margin-top: 14px !important;
-  }
-}
-
-@media (max-width: 1100px) {
-  .ey-login-panel {
-    width: min(92vw, 620px) !important;
-    right: auto !important;
-    left: 50% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    transform: translate(-50%, -50%) !important;
-  }
-}
