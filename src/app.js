@@ -78,20 +78,22 @@ function loginScreen() {
   const credentialLabel = isClient ? "REGISTERED EMAIL" : isOwnerLogin ? "ADMIN PHONE OR EMAIL" : "REGISTERED PHONE NUMBER";
   const secretLabel = isClient ? "PASSWORD" : isOwnerLogin ? "PIN OR PASSWORD" : "PIN";
 
-  return `<main class="login-shell approved-login exact-login" style="--login-bg: url('${heroBg}')">
-    <section class="login-left exact-login-left" aria-label="GreenOps visual panel" style="background-image: url('${heroBg}')">
-      <img class="exact-login-wordmark" src="${logoWordmark}" alt="OneScape" />
-      <div class="exact-login-statement">
+  return `<main class="login-shell final-login-replica" style="background-image: url('${heroBg}')">
+    <div class="final-login-vignette" aria-hidden="true"></div>
+
+    <section class="final-login-left-content" aria-label="OneScape identity">
+      <img class="final-wordmark" src="${logoWordmark}" alt="OneScape" />
+      <div class="final-left-statement">
         <span>Every Plant</span>
         <span>Every Facility</span>
         <span>Fully accounted for</span>
       </div>
     </section>
 
-    <section class="login-right exact-login-right" aria-label="GreenOps sign in" style="background-image: url('${heroBg}')">
-      <div class="exact-login-card">
-        <div class="approved-product-identity exact-product-identity">
-          <span class="exact-product-icon-shell"><img src="${productIcon}" alt="" /></span>
+    <section class="final-login-card-wrap" aria-label="GreenOps sign in">
+      <div class="final-login-card">
+        <div class="final-product-identity">
+          <span class="final-icon-shell"><img src="${productIcon}" alt="" /></span>
           <div>
             <h1>GreenOps ITSM</h1>
             <p>Enterprise Plant Operations Platform</p>
@@ -99,33 +101,33 @@ function loginScreen() {
         </div>
 
         <h2>Sign in to your workplace</h2>
-        <p class="approved-login-subheading">Each user sees only the interface and sites assigned to them.</p>
+        <p class="final-login-subheading">Each user sees only the interface and sites assigned to them.</p>
 
-        <div class="approved-role-grid exact-role-grid">
+        <div class="final-role-grid">
           ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance")}
           ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor")}
           ${loginRoleButton(ROLES.CLIENT, "Client")}
           ${loginRoleButton(ROLES.OWNER, "Admin")}
         </div>
 
-        <form id="loginForm" class="approved-login-form exact-login-form">
+        <form id="loginForm" class="final-login-form">
           <input type="hidden" name="role" value="${role}" />
-          <div class="approved-login-field">
+          <div class="final-login-field">
             <label>${credentialLabel}</label>
             <input name="identifier" autocomplete="username" placeholder="${isClient ? "Enter registered email" : "Enter registered phone number"}" required />
           </div>
-          <div class="approved-login-field">
+          <div class="final-login-field">
             <label>${secretLabel}</label>
             <input name="secret" type="password" autocomplete="current-password" placeholder="****" required />
           </div>
-          <button class="approved-signin-btn exact-signin-btn" type="submit">Sign In</button>
+          <button class="final-signin-btn" type="submit">Sign In</button>
         </form>
       </div>
     </section>
   </main>`;
 }
 function loginRoleButton(role, label) {
-  return `<button type="button" class="approved-role-card exact-role-card ${state.loginRole === role ? "active" : ""}" data-login-role="${role}">${label}</button>`;
+  return `<button type="button" class="final-role-card ${state.loginRole === role ? "active" : ""}" data-login-role="${role}">${label}</button>`;
 }
 
 function authenticate(role, identifier, secret) {
