@@ -2168,3 +2168,326 @@ button.report-download-btn {
     background: rgba(6, 26, 18, 0.82);
   }
 }
+
+
+/* EXACT APPROVED LOGIN REBUILD — final authority */
+.login-shell.approved-login.exact-login {
+  width: 100vw !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 52%) minmax(560px, 48%) !important;
+  align-items: stretch !important;
+  background-image: var(--login-bg) !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  background-color: #061a12 !important;
+  position: relative !important;
+}
+
+.login-shell.approved-login.exact-login::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: rgba(6, 26, 18, 0.35) !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+.exact-login-left,
+.exact-login-right {
+  position: relative !important;
+  z-index: 1 !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  overflow: hidden !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+.exact-login-left {
+  background-color: transparent !important;
+}
+
+.exact-login-left::before,
+.exact-login-left::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+.exact-login-left::before {
+  background: rgba(6, 26, 18, 0.42) !important;
+}
+
+.exact-login-left::after {
+  background: linear-gradient(90deg, rgba(0,0,0,0.16) 0%, rgba(0,0,0,0.00) 58%, rgba(0,0,0,0.20) 100%) !important;
+}
+
+.exact-login-wordmark {
+  position: absolute !important;
+  top: 72px !important;
+  left: 64px !important;
+  height: 34px !important;
+  width: auto !important;
+  object-fit: contain !important;
+  z-index: 2 !important;
+  display: block !important;
+}
+
+.exact-login-statement {
+  position: absolute !important;
+  left: 66px !important;
+  bottom: 98px !important;
+  z-index: 2 !important;
+}
+
+.exact-login-statement span {
+  display: block !important;
+  color: #ffffff !important;
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-size: clamp(42px, 4.1vw, 62px) !important;
+  line-height: 1.05 !important;
+  font-weight: 760 !important;
+  letter-spacing: -0.04em !important;
+  text-shadow: 0 4px 30px rgba(0,0,0,0.35) !important;
+  white-space: nowrap !important;
+}
+
+.exact-login-right {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: clamp(36px, 4.2vw, 72px) clamp(42px, 5.2vw, 92px) !important;
+  background-color: transparent !important;
+}
+
+.exact-login-right::before {
+  display: none !important;
+}
+
+.exact-login-card {
+  position: relative !important;
+  z-index: 2 !important;
+  width: min(100%, 690px) !important;
+  min-height: min(82vh, 820px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  padding: clamp(44px, 4vw, 64px) clamp(38px, 4vw, 56px) !important;
+  border-radius: 34px !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  background: rgba(9, 46, 31, 0.50) !important;
+  box-shadow: 0 28px 90px rgba(0,0,0,0.32) !important;
+  backdrop-filter: blur(22px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(125%) !important;
+  overflow: hidden !important;
+}
+
+.exact-login-card::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02) 44%, rgba(0,0,0,0.10)) !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+}
+
+.exact-product-identity {
+  display: flex !important;
+  align-items: center !important;
+  gap: 18px !important;
+  margin: 0 0 56px !important;
+}
+
+.exact-product-icon-shell {
+  width: 70px !important;
+  height: 70px !important;
+  border-radius: 18px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  background: rgba(255,255,255,0.72) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 12px 30px rgba(0,0,0,0.18) !important;
+}
+
+.exact-product-icon-shell img {
+  width: 52px !important;
+  height: 52px !important;
+  object-fit: contain !important;
+  border-radius: 0 !important;
+  display: block !important;
+}
+
+.exact-product-identity h1 {
+  margin: 0 !important;
+  color: #ffffff !important;
+  font-size: 30px !important;
+  font-weight: 760 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.035em !important;
+}
+
+.exact-product-identity p {
+  margin: 8px 0 0 !important;
+  color: rgba(255,255,255,0.62) !important;
+  font-size: 17px !important;
+  line-height: 1.25 !important;
+}
+
+.exact-login-card h2 {
+  margin: 0 0 8px !important;
+  color: #ffffff !important;
+  font-size: clamp(32px, 2.6vw, 46px) !important;
+  line-height: 1.08 !important;
+  font-weight: 760 !important;
+  letter-spacing: -0.045em !important;
+}
+
+.exact-login-card .approved-login-subheading {
+  margin: 0 0 42px !important;
+  max-width: 560px !important;
+  color: rgba(255,255,255,0.58) !important;
+  font-size: 18px !important;
+  line-height: 1.4 !important;
+}
+
+.exact-role-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 18px 22px !important;
+  margin: 0 0 64px !important;
+}
+
+.exact-role-card {
+  height: 68px !important;
+  min-height: 68px !important;
+  border-radius: 13px !important;
+  border: 1.4px solid rgba(255,255,255,0.34) !important;
+  background: rgba(255,255,255,0.16) !important;
+  color: rgba(255,255,255,0.84) !important;
+  font-size: 22px !important;
+  font-weight: 760 !important;
+  text-align: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 20px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10) !important;
+  cursor: pointer !important;
+}
+
+.exact-role-card.active {
+  background: #ffffff !important;
+  color: var(--color-brand-primary) !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18) !important;
+}
+
+.exact-login-form .approved-login-field {
+  margin: 0 0 26px !important;
+}
+
+.exact-login-form .approved-login-field label {
+  margin: 0 0 12px !important;
+  color: rgba(255,255,255,0.78) !important;
+  font-size: 17px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: uppercase !important;
+}
+
+.exact-login-form .approved-login-field input {
+  height: 66px !important;
+  width: 100% !important;
+  padding: 0 20px !important;
+  border-radius: 10px !important;
+  border: 1.5px solid rgba(255,255,255,0.46) !important;
+  background: rgba(255,255,255,0.20) !important;
+  color: #ffffff !important;
+  font-size: 19px !important;
+  font-weight: 500 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10) !important;
+}
+
+.exact-login-form .approved-login-field input::placeholder {
+  color: rgba(255,255,255,0.48) !important;
+}
+
+.exact-login-form .approved-login-field input:focus {
+  outline: none !important;
+  border-color: rgba(255,255,255,0.82) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.12) !important;
+}
+
+.exact-signin-btn {
+  margin-top: 26px !important;
+  height: 68px !important;
+  width: 100% !important;
+  border: none !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  color: var(--color-brand-primary) !important;
+  font-size: 22px !important;
+  font-weight: 760 !important;
+  box-shadow: 0 16px 38px rgba(0,0,0,0.20) !important;
+  cursor: pointer !important;
+}
+
+@media (max-width: 1020px) {
+  .login-shell.approved-login.exact-login {
+    display: block !important;
+    grid-template-columns: none !important;
+  }
+  .exact-login-left {
+    display: none !important;
+  }
+  .exact-login-right {
+    width: 100vw !important;
+    padding: 22px !important;
+  }
+  .exact-login-card {
+    width: min(100%, 620px) !important;
+    min-height: auto !important;
+    margin: 0 auto !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .exact-login-card {
+    padding: 28px 22px !important;
+    border-radius: 24px !important;
+  }
+  .exact-product-icon-shell {
+    width: 52px !important;
+    height: 52px !important;
+  }
+  .exact-product-icon-shell img {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .exact-product-identity h1 {
+    font-size: 22px !important;
+  }
+  .exact-product-identity p {
+    font-size: 13px !important;
+  }
+  .exact-role-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    margin-bottom: 34px !important;
+  }
+  .exact-role-card {
+    height: 56px !important;
+    min-height: 56px !important;
+    font-size: 17px !important;
+  }
+}

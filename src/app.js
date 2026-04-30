@@ -1,6 +1,6 @@
-const heroBg = '/src/assets/closeup-shot-green-leaves.jpg.jpeg';
-const productIcon = '/src/assets/Artboard-icon.png';
-const logoWordmark = '/src/assets/Logo.jpeg';
+const heroBg = new URL('./assets/closeup-shot-green-leaves.jpg.jpeg', import.meta.url).href;
+const productIcon = new URL('./assets/Artboard-icon.png', import.meta.url).href;
+const logoWordmark = new URL('./assets/Logo.jpeg', import.meta.url).href;
 import { APP, ROLES, STATUS } from "./config.js";
 import { getDb, resetDb, seedDemoData } from "./store.js";
 import { createScanRecord, createClientTicket, markInProgress, attachEvidence, closeTicket } from "./tickets.js";
@@ -77,36 +77,21 @@ function loginScreen() {
   const isOwnerLogin = role === ROLES.OWNER;
   const credentialLabel = isClient ? "REGISTERED EMAIL" : isOwnerLogin ? "ADMIN PHONE OR EMAIL" : "REGISTERED PHONE NUMBER";
   const secretLabel = isClient ? "PASSWORD" : isOwnerLogin ? "PIN OR PASSWORD" : "PIN";
-  return `<main class="login-shell approved-login">
-    <section
-      class="login-left approved-login-left"
-      aria-label="GreenOps visual panel"
-      style="background-image: url('${heroBg}'); background-size: cover; background-position: center; background-repeat: no-repeat;"
-    >
-      <img
-        src="${logoWordmark}"
-        alt="OneScape"
-        style="position: absolute; top: 36px; left: 36px; height: 28px; width: auto; object-fit: contain; z-index: 1;"
-      />
-      <div style="position: absolute; bottom: 48px; left: 36px; z-index: 1;">
-        <span style="display: block; font-family: Inter, sans-serif; font-size: 44px; font-weight: 800; color: #ffffff; line-height: 1.15;">Every Plant.</span>
-        <span style="display: block; font-family: Inter, sans-serif; font-size: 44px; font-weight: 800; color: #ffffff; line-height: 1.15;">Every Facility.</span>
-        <span style="display: block; font-family: Inter, sans-serif; font-size: 44px; font-weight: 800; color: #ffffff; line-height: 1.15;">Fully Accounted For.</span>
+
+  return `<main class="login-shell approved-login exact-login" style="--login-bg: url('${heroBg}')">
+    <section class="login-left exact-login-left" aria-label="GreenOps visual panel" style="background-image: url('${heroBg}')">
+      <img class="exact-login-wordmark" src="${logoWordmark}" alt="OneScape" />
+      <div class="exact-login-statement">
+        <span>Every Plant</span>
+        <span>Every Facility</span>
+        <span>Fully accounted for</span>
       </div>
     </section>
 
-    <section
-      class="login-right approved-login-right"
-      aria-label="GreenOps sign in"
-      style="background-image: url('${heroBg}'); background-size: cover; background-position: center;"
-    >
-      <div class="approved-login-form-wrap">
-        <div class="approved-product-identity">
-          <img
-            src="${productIcon}"
-            alt=""
-            style="width: 34px; height: 34px; border-radius: 8px; object-fit: contain;"
-          />
+    <section class="login-right exact-login-right" aria-label="GreenOps sign in" style="background-image: url('${heroBg}')">
+      <div class="exact-login-card">
+        <div class="approved-product-identity exact-product-identity">
+          <span class="exact-product-icon-shell"><img src="${productIcon}" alt="" /></span>
           <div>
             <h1>GreenOps ITSM</h1>
             <p>Enterprise Plant Operations Platform</p>
@@ -116,31 +101,31 @@ function loginScreen() {
         <h2>Sign in to your workplace</h2>
         <p class="approved-login-subheading">Each user sees only the interface and sites assigned to them.</p>
 
-        <div class="approved-role-grid">
+        <div class="approved-role-grid exact-role-grid">
           ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance")}
           ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor")}
           ${loginRoleButton(ROLES.CLIENT, "Client")}
           ${loginRoleButton(ROLES.OWNER, "Admin")}
         </div>
 
-        <form id="loginForm" class="approved-login-form">
+        <form id="loginForm" class="approved-login-form exact-login-form">
           <input type="hidden" name="role" value="${role}" />
           <div class="approved-login-field">
             <label>${credentialLabel}</label>
-            <input name="identifier" autocomplete="username" required />
+            <input name="identifier" autocomplete="username" placeholder="${isClient ? "Enter registered email" : "Enter registered phone number"}" required />
           </div>
           <div class="approved-login-field">
             <label>${secretLabel}</label>
             <input name="secret" type="password" autocomplete="current-password" placeholder="****" required />
           </div>
-          <button class="approved-signin-btn" type="submit">Sign In</button>
+          <button class="approved-signin-btn exact-signin-btn" type="submit">Sign In</button>
         </form>
       </div>
     </section>
   </main>`;
 }
 function loginRoleButton(role, label) {
-  return `<button type="button" class="approved-role-card ${state.loginRole === role ? "active" : ""}" data-login-role="${role}">${label}</button>`;
+  return `<button type="button" class="approved-role-card exact-role-card ${state.loginRole === role ? "active" : ""}" data-login-role="${role}">${label}</button>`;
 }
 
 function authenticate(role, identifier, secret) {
