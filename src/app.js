@@ -72,7 +72,7 @@ function loginScreen() {
   const role = state.loginRole;
   const isClient = role === ROLES.CLIENT;
   const isOwnerLogin = role === ROLES.OWNER;
-  const credentialLabel = isClient ? "Registered email" : isOwnerLogin ? "Owner phone or email" : "Registered phone number";
+  const credentialLabel = isClient ? "Registered email" : isOwnerLogin ? "Admin phone or email" : "Registered phone number";
   const secretLabel = isClient ? "Password" : isOwnerLogin ? "PIN or password" : "PIN";
   return `<main class="login-shell">
     <div class="login-frame">
@@ -86,14 +86,14 @@ function loginScreen() {
         </div>
       </section>
       <section class="login-card">
-        <div class="brand login-brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
+        <div class="brand login-brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Enterprise Plant Operations Platform</p></div></div>
         <h2>Sign in to your workspace</h2>
         <p class="subtitle">Each user sees only the interface, sites, and workflows assigned to them.</p>
         <div class="login-role-grid">
           ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "Phone + PIN")}
           ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "Phone + PIN")}
           ${loginRoleButton(ROLES.CLIENT, "Client", "Email + password")}
-          ${loginRoleButton(ROLES.OWNER, "Owner", "Master access")}
+          ${loginRoleButton(ROLES.OWNER, "Admin", "Master access")}
         </div>
         <form id="loginForm" class="form login-form">
           <input type="hidden" name="role" value="${role}" />
@@ -178,7 +178,10 @@ function ownerModeSwitch() {
 function adminQuickActions() {
   return `<div class="hero-actions"><button class="btn secondary" data-action="seed">Seed demo data</button><button class="btn ghost" data-action="reset">Reset local data</button></div>`;
 }
-function title(s = "") { return String(s).split(" ").map(w => w[0]?.toUpperCase() + w.slice(1)).join(" "); }
+function title(s = "") {
+  if (s === ROLES.OWNER) return "Admin";
+  return String(s).split(" ").map(w => w.toLowerCase() === "sla" ? "SLA" : (w[0]?.toUpperCase() + w.slice(1))).join(" ");
+}
 function roleLabel() { const r = effectiveRole(); return r === ROLES.MAINTENANCE ? "Field execution" : r === ROLES.SUPERVISOR ? "Operations command center" : r === ROLES.CLIENT ? "Client visibility" : "Owner access"; }
 function heroTitle() {
   const r = effectiveRole();
@@ -223,7 +226,8 @@ function metrics(scans, tickets) {
   const hs = healthSummary(scans);
   const open = tickets.filter(t => t.status !== STATUS.CLOSED);
   const breached = open.filter(t => slaState(t).breached);
-  return `<div class="kpi-strip"><div class="metric"><span>Avg Health</span><strong>${hs.avg || "—"}</strong></div><div class="metric good"><span>Healthy</span><strong>${hs.healthy}</strong></div><div class="metric monitor"><span>Monitor</span><strong>${hs.monitor}</strong></div><div class="metric critical"><span>Critical / SLA</span><strong>${hs.critical}/${breached.length}</strong></div></div>`;
+  const avgHealth = hs.avg ? hs.avg : `<span class="metric-dash">—</span>`;
+  return `<div class="kpi-strip"><div class="metric"><span>Avg Health</span><strong>${avgHealth}</strong></div><div class="metric good"><span>Healthy</span><strong>${hs.healthy}</strong></div><div class="metric monitor"><span>Monitor</span><strong>${hs.monitor}</strong></div><div class="metric critical"><span>Critical / SLA</span><strong>${hs.critical}/${breached.length}</strong></div></div>`;
 }
 
 function maintenanceView() {
@@ -238,7 +242,7 @@ function scanView() {
   const sites = allowedSites();
   const draft = state.scanDraft;
   const selectedSite = draft.siteId || sites[0]?.id || "";
-  return `<div class="split"><section class="card"><div class="card-title"><h3>Scan Plant</h3><span class="pill good">AI Diagnosis</span></div><div class="form" id="scanPanel"><div class="grid grid-2"><div class="field"><label>Assigned site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Drop-off / Lobby" /></div></div><div class="field"><label>Plant type, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily" /></div><div class="field"><label>Technician note</label><textarea class="textarea" data-scan-field="note" placeholder="Type note for now. Voice note comes in next version.">${escapeHtml(draft.note)}</textarea></div><div class="filebox"><strong>Upload plant image</strong><br><span class="small muted">Image is saved locally for this scan.</span><div class="btn-row" style="justify-content:center;margin-top:12px"><label class="mini-btn">Choose image<input class="hidden" type="file" accept="image/*" data-scan-image /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div></div><button class="btn" id="runDiagnosisBtn" type="button" data-action="run-diagnosis" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button></div><div id="scanOutput"></div></section><section class="card soft"><h3>Health Categories</h3><div class="grid"><div class="ticket-card"><div class="ticket-head"><strong>Healthy</strong><span class="pill good">7+</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Monitor</strong><span class="pill monitor">6–6.9</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Critical</strong><span class="pill critical">Below 6</span></div></div></div></section></div>`;
+  return `<div class="split"><section class="card"><div class="card-title"><h3>Scan Plant</h3><span class="pill good">AI Diagnosis</span></div><div class="form" id="scanPanel"><div class="grid grid-2"><div class="field"><label>Assigned site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Drop-off / Lobby" /></div></div><div class="field"><label>Plant type, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily" /></div><div class="field"><label>Technician note</label><textarea class="textarea" data-scan-field="note" placeholder="Add technician observations.">${escapeHtml(draft.note)}</textarea></div><div class="filebox"><strong>Upload plant image</strong><br><div class="btn-row" style="justify-content:center;margin-top:12px"><label class="mini-btn">Choose image<input class="hidden" type="file" accept="image/*" data-scan-image /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div></div><button class="btn ${state.scanImage ? "" : "secondary"}" id="runDiagnosisBtn" type="button" data-action="run-diagnosis">Run AI Diagnosis</button></div><div id="scanOutput"></div></section><section class="card soft"><h3>Health Categories</h3><div class="grid"><div class="ticket-card"><div class="ticket-head"><strong>Healthy</strong><span class="pill good">7+</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Monitor</strong><span class="pill monitor">6–6.9</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Critical</strong><span class="pill critical">Below 6</span></div></div></div></section></div>`;
 }
 function scanImageMarkup() { return state.scanImage ? `<div class="image-ready" style="margin-top:12px"><span class="pill good">Plant image ready</span></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted" style="margin-top:12px">No image selected yet.</div>`; }
 function syncScanDraftFromDom() { const panel = document.querySelector("#scanPanel"); if (!panel) return; const next = { ...state.scanDraft }; panel.querySelectorAll("[data-scan-field]").forEach(el => { next[el.dataset.scanField] = el.value || ""; }); state.scanDraft = next; }
@@ -259,7 +263,7 @@ function clientView() {
   if (state.tab === "raise ticket") return raiseTicketView();
   if (state.tab === "reports") return reportsView(false);
   if (state.tab === "evidence") return evidenceView(tickets);
-  return `<section class="card">${filterPanel({ client: false })}${metrics(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><h3>Your open tickets</h3><button class="btn" data-tab="raise ticket">Raise Priority 1 Ticket</button></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
+  return `<section class="card">${filterPanel({ client: false })}${metrics(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><h3>Your open tickets</h3></div><button class="btn client-raise-ticket-cta" data-tab="raise ticket">Raise Priority 1 Ticket</button><div style="height:14px"></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
 }
 function raiseTicketView() {
   const sites = allowedSites();
@@ -277,13 +281,20 @@ function updateClientTicketImageUi() {
 
 function reportsView(supervisor = true) {
   const { db } = dbx(); const { scans, tickets } = visibleRecords();
-  return `<section class="card"><div class="card-title"><div><h3>Reports</h3><p class="subtitle">Download service reports by date range, city, and site.</p></div><button class="btn" data-action="download-report">Download CSV</button></div>${filterPanel({ client: supervisor })}${metrics(scans, tickets)}<div class="table-wrap"><table><thead><tr><th>Type</th><th>Site</th><th>Details</th><th>Status</th><th>Date</th></tr></thead><tbody>${[...scans.slice(-8).map(s => reportRow(s, "scan", db)), ...tickets.slice(-8).map(t => reportRow(t, "ticket", db))].join("") || `<tr><td colspan="5">No records yet.</td></tr>`}</tbody></table></div></section>`;
+  return `<section class="card"><div class="card-title"><div><h3>Reports</h3><p class="subtitle">Download service reports by date range, city, and site.</p></div><button class="btn report-download-btn" data-action="download-report">Download CSV</button></div>${filterPanel({ client: supervisor })}${metrics(scans, tickets)}<div class="table-wrap"><table><thead><tr><th>Type</th><th>Site</th><th>Details</th><th>Status</th><th>Date</th></tr></thead><tbody>${[...scans.slice(-8).map(s => reportRow(s, "scan", db)), ...tickets.slice(-8).map(t => reportRow(t, "ticket", db))].join("") || `<tr><td colspan="5">No records yet.</td></tr>`}</tbody></table></div></section>`;
 }
 function reportRow(r, type, db) { const site = db.sites.find(s => s.id === r.siteId); const plant = db.plants.find(p => p.id === r.plantId); if (type === "scan") return `<tr><td>Scan</td><td>${escapeHtml(site?.name)}</td><td>${escapeHtml(plant?.type)} · score ${r.score}</td><td><span class="pill ${healthClass(r.category)}">${r.category}</span></td><td>${fmtDate(r.createdAt)}</td></tr>`; return `<tr><td>Ticket</td><td>${escapeHtml(site?.name)}</td><td>${escapeHtml(r.issue)}</td><td><span class="pill ${r.status === STATUS.CLOSED ? "closed" : r.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${r.status}</span></td><td>${fmtDate(r.createdAt)}</td></tr>`; }
 function historyView(scans, tickets) { const closed = tickets.filter(t => t.status === STATUS.CLOSED); return `<section class="card"><div class="card-title"><h3>Closed Work History</h3><button class="btn secondary" data-action="download-report">Export</button></div>${metrics(scans, tickets)}${ticketBoard(closed, { scope: "maintenance" })}</section>`; }
 function evidenceView(tickets) { const closed = tickets.filter(t => t.status === STATUS.CLOSED && t.closureEvidence); return `<section class="card"><h3>Closure Evidence</h3><p class="subtitle">Client-facing proof of work. Closure photos are accepted only after health check.</p>${closed.length ? `<div class="grid grid-3">${closed.map(t => `<div class="ticket-card"><img class="preview" src="${t.closureEvidence}" alt="Evidence"><strong>${escapeHtml(t.issue)}</strong><span class="small muted">${fmtDate(t.closedAt)} - ${resolutionTime(t)}</span><span class="pill good">Verified closure photo</span></div>`).join("")}</div>` : `<div class="empty">No closed tickets with evidence yet.</div>`}</section>`; }
-function healthBuckets(scans) { const hs = healthSummary(scans); const total = hs.total || 1; return `<h3>Health buckets</h3><div class="grid">${bucket("Healthy", hs.healthy, total, "good")}${bucket("Monitor", hs.monitor, total, "monitor")}${bucket("Critical", hs.critical, total, "critical")}</div>`; }
-function bucket(label, value, total, cls) { return `<div class="metric ${cls}"><span>${label}</span><strong>${value}</strong><div class="health-bar"><span style="width:${Math.round(value / total * 100)}%"></span></div></div>`; }
+function healthBuckets(scans) {
+  const hs = healthSummary(scans);
+  const total = hs.total || 1;
+  return `<div class="card health-buckets-card"><h3>Health buckets</h3><div class="health-bucket-list">${bucket("Healthy", hs.healthy, total, "healthy")}${bucket("Monitor", hs.monitor, total, "monitor")}${bucket("Critical", hs.critical, total, "critical")}</div></div>`;
+}
+function bucket(label, value, total, cls) {
+  const pct = Math.round((value / total) * 100);
+  return `<div class="health-bucket-row ${cls}"><div class="health-bucket-row-top"><span>${label}</span><strong>${value}</strong></div><div class="health-bucket-bar"><i style="width:${pct}%"></i></div></div>`;
+}
 function ticketDisplayId(t) { if (t.ticketNo) return String(t.ticketNo).padStart(6, "0").slice(-6); const raw = String(t.id || ""); let hash = 0; for (let i = 0; i < raw.length; i++) hash = ((hash << 5) - hash + raw.charCodeAt(i)) >>> 0; return String(100000 + (hash % 900000)); }
 function ticketCards(tickets) { if (!tickets.length) return `<div class="empty">No tickets in this queue.</div>`; return `<div class="grid">${tickets.map(t => ticketCard(t)).join("")}</div>`; }
 function ticketCard(t) { const { siteMap, plantMap } = dbx(); const s = slaState(t); const plant = plantMap[t.plantId]; const site = siteMap[t.siteId]; return `<div class="ticket-card"><div class="ticket-head"><strong>${escapeHtml(t.issue)}</strong><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></div><div class="ticket-meta"><span class="pill">#${ticketDisplayId(t)}</span><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span></div><div class="small muted">${escapeHtml(site?.city)} · ${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</div></div>`; }

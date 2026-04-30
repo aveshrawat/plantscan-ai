@@ -1529,3 +1529,135 @@ body{
   .user-menu{width:100%;justify-content:space-between}
   .kpi-strip,.metric-grid{grid-template-columns:1fr!important}
 }
+
+
+/* STEP 3 — Screen-specific fixes */
+
+/* Health buckets compact rows */
+.health-buckets-card {
+  padding: var(--space-card-pad) !important;
+}
+
+.health-buckets-card h3 {
+  margin-bottom: 12px !important;
+}
+
+.health-bucket-list {
+  display: grid;
+}
+
+.health-bucket-row {
+  min-height: 64px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.health-bucket-row:last-child {
+  border-bottom: 0;
+}
+
+.health-bucket-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 9px;
+}
+
+.health-bucket-row-top span {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.health-bucket-row-top strong {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.health-bucket-row.healthy .health-bucket-row-top strong {
+  color: var(--color-healthy);
+}
+
+.health-bucket-row.monitor .health-bucket-row-top strong {
+  color: var(--color-monitor);
+}
+
+.health-bucket-row.critical .health-bucket-row-top strong {
+  color: var(--color-critical);
+}
+
+.health-bucket-bar {
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--color-border);
+}
+
+.health-bucket-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.health-bucket-row.healthy .health-bucket-bar i {
+  background: var(--color-healthy);
+}
+
+.health-bucket-row.monitor .health-bucket-bar i {
+  background: var(--color-monitor);
+}
+
+.health-bucket-row.critical .health-bucket-bar i {
+  background: var(--color-critical);
+}
+
+/* Scan button must never look disabled/greyed. */
+#runDiagnosisBtn {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+#runDiagnosisBtn.btn.secondary {
+  background: transparent !important;
+  border: 1.5px solid var(--color-brand-primary) !important;
+  color: var(--color-brand-primary) !important;
+  box-shadow: none !important;
+}
+
+/* Client overview Raise P1 CTA */
+.client-raise-ticket-cta {
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+/* AVG HEALTH dash */
+.metric-dash {
+  display: inline-block !important;
+  font-size: 28px !important;
+  color: var(--color-border-strong) !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+}
+
+/* Download CSV button */
+.report-download-btn {
+  width: auto !important;
+  min-width: 160px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 18px !important;
+  flex: 0 0 auto !important;
+}
+
+/* Prevent old disabled button styling from impacting action buttons */
+.btn:disabled {
+  opacity: 1 !important;
+  cursor: pointer !important;
+  transform: none !important;
+}
