@@ -1395,7 +1395,7 @@ body{
   margin:0 calc(var(--space-page-x)*-1) 0!important;
   padding:28px var(--space-page-x) 0!important;overflow:hidden!important;
   border-radius:0!important;border:0!important;box-shadow:none!important;
-  background:url("./assets/closeup-shot-green-leaves.jpg.jpeg") center/cover no-repeat!important;
+  background:url("./assets/login-bg.jpeg") center/cover no-repeat!important;
   color:var(--color-surface-white)!important;display:block!important;
 }
 .hero.hero-banner::before{
@@ -1672,8 +1672,8 @@ body{
   position: relative !important;
   background-image:
     linear-gradient(rgba(6, 26, 18, 0.82), rgba(6, 26, 18, 0.82)),
-    url("/closeup-shot-green-leaves.jpg.jpeg"),
-    url("./assets/closeup-shot-green-leaves.jpg.jpeg") !important;
+    url("/login-bg.jpeg"),
+    url("./assets/login-bg.jpeg") !important;
   background-position: center center, center center, center center !important;
   background-size: auto, cover, cover !important;
   background-repeat: no-repeat, no-repeat, no-repeat !important;
@@ -1760,7 +1760,7 @@ button.report-download-btn {
   position: relative;
   height: 100vh;
   overflow: hidden;
-  background: url("/closeup-shot-green-leaves.jpg.jpeg") center / cover no-repeat;
+  background: url("/login-bg.jpeg") center / cover no-repeat;
 }
 
 .approved-login-left::before {
@@ -1970,7 +1970,7 @@ button.report-download-btn {
   .login-shell.approved-login {
     display: block !important;
     grid-template-columns: none !important;
-    background: url("/closeup-shot-green-leaves.jpg.jpeg") center / cover no-repeat !important;
+    background: url("/login-bg.jpeg") center / cover no-repeat !important;
     position: relative;
   }
 

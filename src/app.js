@@ -1,4 +1,4 @@
-const heroBg = new URL('./assets/closeup-shot-green-leaves.jpg.jpeg', import.meta.url).href;
+const heroBg = new URL('./assets/login-bg.jpeg', import.meta.url).href;
 const productIcon = new URL('./assets/Artboard-icon.png', import.meta.url).href;
 const logoWordmark = new URL('./assets/onescape-logo-cropped.png', import.meta.url).href;
 import { APP, ROLES, STATUS } from "./config.js";
