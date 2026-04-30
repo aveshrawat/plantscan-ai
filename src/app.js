@@ -1,6 +1,6 @@
-import heroBg from './assets/closeup-shot-green-leaves.jpg.jpeg';
-import productIcon from './assets/Artboard-icon.png';
-import logoWordmark from './assets/Logo.jpeg';
+const heroBg = './assets/closeup-shot-green-leaves.jpg.jpeg';
+const productIcon = './assets/Artboard-icon.png';
+const logoWordmark = './assets/Logo.jpeg';
 import { APP, ROLES, STATUS } from "./config.js";
 import { getDb, resetDb, seedDemoData } from "./store.js";
 import { createScanRecord, createClientTicket, markInProgress, attachEvidence, closeTicket } from "./tickets.js";
