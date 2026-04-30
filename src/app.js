@@ -1,6 +1,6 @@
 const heroBg = new URL('./assets/closeup-shot-green-leaves.jpg.jpeg', import.meta.url).href;
 const productIcon = new URL('./assets/Artboard-icon.png', import.meta.url).href;
-const logoWordmark = new URL('./assets/Logo.jpeg', import.meta.url).href;
+const logoWordmark = new URL('./assets/onescape-logo.svg', import.meta.url).href;
 import { APP, ROLES, STATUS } from "./config.js";
 import { getDb, resetDb, seedDemoData } from "./store.js";
 import { createScanRecord, createClientTicket, markInProgress, attachEvidence, closeTicket } from "./tickets.js";
@@ -78,22 +78,22 @@ function loginScreen() {
   const credentialLabel = isClient ? "REGISTERED EMAIL" : isOwnerLogin ? "ADMIN PHONE OR EMAIL" : "REGISTERED PHONE NUMBER";
   const secretLabel = isClient ? "PASSWORD" : isOwnerLogin ? "PIN OR PASSWORD" : "PIN";
 
-  return `<main class="login-shell final-login-replica" style="background-image: url('${heroBg}')">
-    <div class="final-login-vignette" aria-hidden="true"></div>
+  return `<main class="login-shell ey-login-final" style="background-image: url('${heroBg}')">
+    <div class="ey-login-overlay" aria-hidden="true"></div>
 
-    <section class="final-login-left-content" aria-label="OneScape identity">
-      <img class="final-wordmark" src="${logoWordmark}" alt="OneScape" />
-      <div class="final-left-statement">
+    <section class="ey-login-left" aria-label="OneScape identity">
+      <img class="ey-login-wordmark" src="${logoWordmark}" alt="OneScape" />
+      <div class="ey-login-statement">
         <span>Every Plant</span>
         <span>Every Facility</span>
         <span>Fully accounted for</span>
       </div>
     </section>
 
-    <section class="final-login-card-wrap" aria-label="GreenOps sign in">
-      <div class="final-login-card">
-        <div class="final-product-identity">
-          <span class="final-icon-shell"><img src="${productIcon}" alt="" /></span>
+    <section class="ey-login-panel" aria-label="GreenOps ITSM sign in">
+      <div class="ey-login-card">
+        <div class="ey-product-identity">
+          <span class="ey-product-icon-shell"><img src="${productIcon}" alt="" /></span>
           <div>
             <h1>GreenOps ITSM</h1>
             <p>Enterprise Plant Operations Platform</p>
@@ -101,33 +101,33 @@ function loginScreen() {
         </div>
 
         <h2>Sign in to your workplace</h2>
-        <p class="final-login-subheading">Each user sees only the interface and sites assigned to them.</p>
+        <p class="ey-login-subheading">Each user sees only the interface and sites assigned to them.</p>
 
-        <div class="final-role-grid">
+        <div class="ey-role-grid">
           ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance")}
           ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor")}
           ${loginRoleButton(ROLES.CLIENT, "Client")}
           ${loginRoleButton(ROLES.OWNER, "Admin")}
         </div>
 
-        <form id="loginForm" class="final-login-form">
+        <form id="loginForm" class="ey-login-form">
           <input type="hidden" name="role" value="${role}" />
-          <div class="final-login-field">
+          <div class="ey-login-field">
             <label>${credentialLabel}</label>
             <input name="identifier" autocomplete="username" placeholder="${isClient ? "Enter registered email" : "Enter registered phone number"}" required />
           </div>
-          <div class="final-login-field">
+          <div class="ey-login-field">
             <label>${secretLabel}</label>
             <input name="secret" type="password" autocomplete="current-password" placeholder="****" required />
           </div>
-          <button class="final-signin-btn" type="submit">Sign In</button>
+          <button class="ey-signin-btn" type="submit">Sign In</button>
         </form>
       </div>
     </section>
   </main>`;
 }
 function loginRoleButton(role, label) {
-  return `<button type="button" class="final-role-card ${state.loginRole === role ? "active" : ""}" data-login-role="${role}">${label}</button>`;
+  return `<button type="button" class="ey-role-card ${state.loginRole === role ? "active" : ""}" data-login-role="${role}">${label}</button>`;
 }
 
 function authenticate(role, identifier, secret) {
