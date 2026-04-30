@@ -3164,3 +3164,54 @@ button.report-download-btn {
     display: none !important;
   }
 }
+
+
+/* FINAL BACKGROUND IMAGE ELEMENT FIX — actual <img>, not CSS-only background */
+.login-shell.ey-login-final {
+  background: #061a12 !important;
+  background-image: none !important;
+  isolation: isolate !important;
+}
+
+.ey-bg-photo {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+  display: block !important;
+  opacity: 1 !important;
+  filter: brightness(0.76) contrast(1.08) saturate(1.08) !important;
+  transform: scale(1.001) !important;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+.ey-login-overlay {
+  z-index: 1 !important;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.14) 46%, rgba(0, 0, 0, 0.26) 100%),
+    rgba(6, 18, 12, 0.16) !important;
+}
+
+.ey-login-left {
+  z-index: 2 !important;
+}
+
+.ey-login-panel {
+  z-index: 3 !important;
+}
+
+.ey-login-card {
+  background: rgba(9, 46, 31, 0.46) !important;
+  backdrop-filter: blur(24px) saturate(132%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(132%) !important;
+}
+
+.ey-login-card::before {
+  background:
+    radial-gradient(circle at 70% 8%, rgba(98, 130, 27, 0.20), transparent 35%),
+    linear-gradient(135deg, rgba(255,255,255,0.13), rgba(255,255,255,0.025) 46%, rgba(0,0,0,0.08)) !important;
+}

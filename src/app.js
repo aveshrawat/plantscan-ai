@@ -78,7 +78,8 @@ function loginScreen() {
   const credentialLabel = isClient ? "REGISTERED EMAIL" : isOwnerLogin ? "ADMIN PHONE OR EMAIL" : "REGISTERED PHONE NUMBER";
   const secretLabel = isClient ? "PASSWORD" : isOwnerLogin ? "PIN OR PASSWORD" : "PIN";
 
-  return `<main class="login-shell ey-login-final" style="background-image: url('${heroBg}')">
+  return `<main class="login-shell ey-login-final">
+    <img class="ey-bg-photo" src="${heroBg}" alt="" aria-hidden="true" decoding="async" />
     <div class="ey-login-overlay" aria-hidden="true"></div>
 
     <section class="ey-login-left" aria-label="OneScape identity">
