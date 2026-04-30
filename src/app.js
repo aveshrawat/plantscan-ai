@@ -1,3 +1,6 @@
+import heroBg from "./assets/closeup-shot-green-leaves.jpg.jpeg";
+import productIcon from "./assets/Artboard 3.png";
+import logoWordmark from "./assets/Logo.jpeg";
 import { APP, ROLES, STATUS } from "./config.js";
 import { getDb, resetDb, seedDemoData } from "./store.js";
 import { createScanRecord, createClientTicket, markInProgress, attachEvidence, closeTicket } from "./tickets.js";
@@ -75,19 +78,36 @@ function loginScreen() {
   const credentialLabel = isClient ? "REGISTERED EMAIL" : isOwnerLogin ? "ADMIN PHONE OR EMAIL" : "REGISTERED PHONE NUMBER";
   const secretLabel = isClient ? "PASSWORD" : isOwnerLogin ? "PIN OR PASSWORD" : "PIN";
   return `<main class="login-shell approved-login">
-    <section class="approved-login-left" aria-label="GreenOps visual panel">
-      <img class="approved-login-wordmark" src="/Logo.jpeg" alt="GreenOps" />
-      <div class="approved-login-statement">
-        <span>Every Plant.</span>
-        <span>Every Facility.</span>
-        <span>Fully Accounted For.</span>
+    <section
+      class="login-left approved-login-left"
+      aria-label="GreenOps visual panel"
+      style="background-image: url('${heroBg}'); background-size: cover; background-position: center; background-repeat: no-repeat;"
+    >
+      <img
+        src="${logoWordmark}"
+        alt="OneScape"
+        style="position: absolute; top: 36px; left: 36px; height: 28px; width: auto; object-fit: contain; z-index: 1;"
+      />
+
+      <div style="position: absolute; bottom: 48px; left: 36px; z-index: 1;">
+        <span style="display: block; font-family: Inter, sans-serif; font-size: 44px; font-weight: 800; color: #ffffff; line-height: 1.15;">Every Plant.</span>
+        <span style="display: block; font-family: Inter, sans-serif; font-size: 44px; font-weight: 800; color: #ffffff; line-height: 1.15;">Every Facility.</span>
+        <span style="display: block; font-family: Inter, sans-serif; font-size: 44px; font-weight: 800; color: #ffffff; line-height: 1.15;">Fully Accounted For.</span>
       </div>
     </section>
 
-    <section class="approved-login-right" aria-label="GreenOps sign in">
+    <section
+      class="login-right approved-login-right"
+      aria-label="GreenOps sign in"
+      style="background-image: url('${heroBg}'); background-size: cover; background-position: center;"
+    >
       <div class="approved-login-form-wrap">
         <div class="approved-product-identity">
-          <img class="approved-product-icon" src="/Artboard 3.png" alt="GreenOps ITSM icon" />
+          <img
+            src="${productIcon}"
+            alt=""
+            style="width: 34px; height: 34px; border-radius: 8px; object-fit: contain;"
+          />
           <div>
             <h1>GreenOps ITSM</h1>
             <p>Enterprise Plant Operations Platform</p>

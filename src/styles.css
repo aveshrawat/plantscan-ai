@@ -2001,3 +2001,170 @@ button.report-download-btn {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* LOGIN ASSET IMPORT FIX — uses Vite/Webpack-imported image URLs from app.js */
+.login-left,
+.approved-login-left {
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+.login-right,
+.approved-login-right {
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.login-right::before,
+.approved-login-right::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(9, 46, 31, 0.78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 0;
+}
+
+.login-right > *,
+.approved-login-right > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Remove any flat color/background-image declarations from previous login rebuilds. Inline style now owns the image. */
+.approved-login-left {
+  background-color: transparent !important;
+}
+
+.approved-login-right {
+  background-color: transparent !important;
+}
+
+@media (max-width: 768px) {
+  .login-shell.approved-login {
+    background-image: none !important;
+  }
+
+  .approved-login-right,
+  .login-right {
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+  }
+}
+
+
+/* FINAL LOGIN IMPORT FIX — exact Login file asset handling */
+.login-shell.approved-login {
+  width: 100vw !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  display: grid !important;
+  grid-template-columns: 55% 45% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  background: none !important;
+}
+
+.login-left,
+.approved-login-left {
+  position: relative !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-color: transparent !important;
+}
+
+.login-left::after,
+.approved-login-left::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 26, 18, 0.38);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.login-left > *,
+.approved-login-left > * {
+  position: relative;
+  z-index: 1;
+}
+
+.login-right,
+.approved-login-right {
+  height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  padding: 0 52px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.login-right::before,
+.approved-login-right::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(9, 46, 31, 0.80);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 0;
+}
+
+.login-right > *,
+.approved-login-right > * {
+  position: relative;
+  z-index: 1;
+}
+
+.approved-login-form-wrap {
+  width: 100%;
+}
+
+.approved-product-identity img,
+.approved-login-wordmark,
+.approved-product-icon {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 768px) {
+  .login-shell.approved-login {
+    display: block !important;
+    grid-template-columns: none !important;
+    position: relative;
+  }
+
+  .login-left,
+  .approved-login-left {
+    display: none !important;
+  }
+
+  .login-right,
+  .approved-login-right {
+    width: 100% !important;
+    height: 100vh !important;
+    padding: 0 24px !important;
+  }
+
+  .login-right::before,
+  .approved-login-right::before {
+    background: rgba(6, 26, 18, 0.82);
+  }
+}
