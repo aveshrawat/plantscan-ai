@@ -7,6 +7,7 @@ export function joinRecords(db, filters = {}) {
   const siteMap = Object.fromEntries(db.sites.map(s => [s.id, s]));
   const clientMap = Object.fromEntries(db.clients.map(c => [c.id, c]));
   const plantMap = Object.fromEntries(db.plants.map(p => [p.id, p]));
+  const activityByTicket = (db.activityLog || []).reduce((acc, a) => { (acc[a.ticketId] ||= []).push(a); return acc; }, {});
   const inRange = iso => (!from || iso.slice(0, 10) >= from) && (!to || iso.slice(0, 10) <= to);
   const matchSite = sid => {
     const site = siteMap[sid];
@@ -14,7 +15,7 @@ export function joinRecords(db, filters = {}) {
     return (!allowed || allowed.has(site.id)) && (clientId === "all" || site.clientId === clientId) && (siteId === "all" || site.id === siteId) && (city === "all" || site.city === city);
   };
   const scans = db.scans.filter(s => matchSite(s.siteId) && inRange(s.createdAt)).map(s => ({ ...s, site: siteMap[s.siteId], client: clientMap[siteMap[s.siteId]?.clientId], plant: plantMap[s.plantId] }));
-  const tickets = db.tickets.filter(t => matchSite(t.siteId) && inRange(t.createdAt)).map(t => ({ ...t, site: siteMap[t.siteId], client: clientMap[siteMap[t.siteId]?.clientId], plant: plantMap[t.plantId] }));
+  const tickets = db.tickets.filter(t => matchSite(t.siteId) && inRange(t.createdAt)).map(t => ({ ...t, site: siteMap[t.siteId], client: clientMap[siteMap[t.siteId]?.clientId], plant: plantMap[t.plantId], activity: activityByTicket[t.id] || [] }));
   return { scans, tickets };
 }
 

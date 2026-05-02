@@ -7,6 +7,7 @@ import { createScanRecord, createClientTicket, markInProgress, attachEvidence, c
 import { healthClass, healthSummary, trendByDay } from "./health.js";
 import { exportCsvReport, joinRecords } from "./reports.js";
 import { slaState, resolutionTime } from "./sla.js";
+import { buildEfficiencyModel, normalizeIssueType, ticketNo as efficiencyTicketNo, zoneOf } from "./efficiency.js";
 import { $, $$, dataUrlToBase64, escapeHtml, fmtDate, imageToDataUrl, option, toast } from "./utils.js";
 
 const savedUser = (() => { try { return JSON.parse(sessionStorage.getItem(APP.sessionUserKey) || "null"); } catch { return null; } })();
@@ -23,14 +24,15 @@ const state = {
   batchResults: [],
   batchRunning: false,
   scanDraft: { siteId: "", zone: "", plantType: "", note: "" },
-  filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" }
+  filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" },
+  efficiencyFilter: sessionStorage.getItem("greenops_efficiency_filter") || "action"
 };
 
 const roleTabs = {
   [ROLES.MAINTENANCE]: ["dashboard", "scan", "my tickets", "history"],
-  [ROLES.SUPERVISOR]: ["dashboard", "tickets", "sla breaches", "reports"],
+  [ROLES.SUPERVISOR]: ["dashboard", "tickets", "sla breaches", "efficiency", "reports"],
   [ROLES.CLIENT]: ["overview", "raise ticket", "reports", "evidence"],
-  [ROLES.OWNER]: ["dashboard", "tickets", "sla breaches", "reports", "admin"]
+  [ROLES.OWNER]: ["dashboard", "tickets", "sla breaches", "efficiency", "reports", "admin"]
 };
 
 function dbx() {
@@ -269,10 +271,53 @@ function scanImageMarkup() { return state.scanImage ? `<div class="image-ready" 
 function syncScanDraftFromDom() { const panel = document.querySelector("#scanPanel"); if (!panel) return; const next = { ...state.scanDraft }; panel.querySelectorAll("[data-scan-field]").forEach(el => { next[el.dataset.scanField] = el.value || ""; }); state.scanDraft = next; }
 function updateScanImageUi() { const box = document.querySelector("#scanImageState"); if (box) box.innerHTML = scanImageMarkup(); const btn = document.querySelector("#runDiagnosisBtn"); if (btn) btn.disabled = !state.scanImage; const removeBtn = document.querySelector('[data-action="clear-scan-image"]'); if (removeBtn) removeBtn.classList.toggle("hidden", !state.scanImage); }
 
+
+function currentEfficiencyModel() {
+  const { db } = dbx();
+  const records = visibleRecords();
+  return buildEfficiencyModel({ db, scans: records.scans, tickets: records.tickets, filters: state.filters, sites: allowedSites(db) });
+}
+function efficiencyView() {
+  const model = currentEfficiencyModel();
+  const active = state.efficiencyFilter || "action";
+  return `<section class="card efficiency-panel"><div class="card-title"><div><h3>Efficiency Intelligence</h3><p class="subtitle">Derived from scans, tickets, SLA state, activity logs, and closure evidence. Every metric links back to source work items.</p></div></div>${filterPanel()}<div class="efficiency-grid">${model.cards.map(card => efficiencyCard(card, active)).join("")}</div><div style="height:16px"></div>${efficiencyWorkItems(model, active)}</section>`;
+}
+function efficiencyCard(card, active) {
+  return `<button class="efficiency-card ${active === card.key ? "active" : ""}" type="button" data-efficiency-filter="${card.key}"><span>${escapeHtml(card.label)}</span><strong class="${card.status}">${escapeHtml(card.value)}</strong><small>${escapeHtml(card.sub)}</small></button>`;
+}
+function clientServiceAssurance(scans, tickets) {
+  const model = currentEfficiencyModel();
+  return `<div class="service-assurance"><div class="service-assurance-title"><h3>Service Assurance</h3><span class="small muted">Coverage, freshness, and dependencies</span></div><div class="assurance-grid"><div><span>Scan Coverage</span><strong>${model.coverage.pct}%</strong></div><div><span>Last Checked</span><strong>${model.freshness.latestScan ? model.cards.find(c => c.key === "freshness")?.value || "—" : "—"}</strong></div><div><span>Action Required</span><strong>${model.action.count}</strong></div><div><span>SLA Paused</span><strong>${model.blockers.count}</strong></div></div></div>`;
+}
+function efficiencyWorkItems(model, active) {
+  if (active === "coverage") return coverageTable(model.coverage.rows);
+  if (active === "freshness") return freshnessTable(model.freshness.rows);
+  if (active === "avoided") return ticketsTable("Resolved Without FM Intervention", model.avoided.rows, "No FM/client activity before closure.");
+  if (active === "recurring") return recurringTable(model.recurring.clusters);
+  if (active === "reopen") return ticketsTable("Reopened / Repeat Closure Issues", model.reopen.rows, "Closed work that came back within the control window.");
+  if (active === "action") return ticketsTable("Action Required from Client / IFM", model.action.rows, "Only tickets where client/IFM action is blocking closure.");
+  if (active === "blockers") return ticketsTable("SLA Paused / Blocked Work Items", model.blockers.rows, "SLA is paused only when a dependency blocks execution.");
+  if (active === "expert") return ticketsTable("Horticulture Expert Required", model.expert.rows, "L3 cases where routine field closure may not be enough.");
+  return ticketsTable("Linked Work Items", [], "Select a metric above.");
+}
+function coverageTable(rows = []) {
+  return `<div class="table-wrap"><table><thead><tr><th>Site</th><th>Zone</th><th>Expected</th><th>Completed</th><th>Coverage</th><th>Backlink Meaning</th></tr></thead><tbody>${rows.map(r => `<tr><td>${escapeHtml(r.site?.name)}</td><td>${escapeHtml(r.zone)}</td><td>${r.expected}</td><td>${r.completed}</td><td><span class="pill ${r.pct >= 85 ? "good" : r.pct >= 60 ? "monitor" : "critical"}">${r.pct}%</span></td><td><span class="small muted">Derived from scan records for this zone.</span></td></tr>`).join("") || `<tr><td colspan="6">No zones available.</td></tr>`}</tbody></table></div>`;
+}
+function freshnessTable(rows = []) {
+  return `<div class="table-wrap"><table><thead><tr><th>Site</th><th>Zone</th><th>Last Checked</th><th>Status</th><th>Linked Scan</th></tr></thead><tbody>${rows.map(r => `<tr><td>${escapeHtml(r.site?.name)}</td><td>${escapeHtml(r.zone)}</td><td>${r.scan ? fmtDate(r.scan.createdAt) : "—"}</td><td><span class="pill ${r.status === "Fresh" ? "good" : r.status === "Acceptable" ? "monitor" : "critical"}">${escapeHtml(r.status)}</span></td><td>${r.scan ? `<span class="small muted">Scan ${escapeHtml(r.scan.id)}</span>` : `<span class="small muted">No scan record found</span>`}</td></tr>`).join("") || `<tr><td colspan="5">No zones available.</td></tr>`}</tbody></table></div>`;
+}
+function recurringTable(clusters = []) {
+  return `<div class="table-wrap"><table><thead><tr><th>Pattern</th><th>Site / Zone</th><th>Count</th><th>Linked Tickets</th><th>Suggested Action</th></tr></thead><tbody>${clusters.map(c => `<tr><td><strong>${escapeHtml(c.issueType)}</strong></td><td>${escapeHtml(c.site?.name)}<br><span class="small muted">${escapeHtml(c.zone)}</span></td><td><span class="pill monitor">${c.count}</span></td><td>${c.relatedTickets.map(t => `<span class="pill">#${escapeHtml(efficiencyTicketNo(t))}</span>`).join(" ")}</td><td>${escapeHtml(c.suggestion)}</td></tr>`).join("") || `<tr><td colspan="5"><div class="empty">No recurring issue pattern for the selected filters.</div></td></tr>`}</tbody></table></div>`;
+}
+function ticketsTable(titleText, tickets = [], emptyText = "No linked work items.") {
+  return `<div class="card soft linked-work-card"><div class="card-title"><div><h3>${escapeHtml(titleText)}</h3><p class="subtitle">Clicking cards above filters this table to the exact source work items.</p></div><span class="pill">${tickets.length} items</span></div><div class="table-wrap"><table><thead><tr><th>Ticket</th><th>Site / Zone</th><th>Status</th><th>SLA / Blocker</th><th>Source Link</th></tr></thead><tbody>${tickets.map(t => { const s = slaState(t); return `<tr><td><strong>${escapeHtml(t.issue || normalizeIssueType(t))}</strong><br><span class="small muted">#${escapeHtml(efficiencyTicketNo(t))} · ${fmtDate(t.createdAt)}</span></td><td>${escapeHtml(t.site?.name)}<br><span class="small muted">${escapeHtml(zoneOf(t))}</span></td><td><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : t.status === STATUS.PAUSED ? "monitor" : "open"}">${escapeHtml(t.status)}</span>${t.expertRequired ? `<br><span class="pill monitor">L3 Expert</span>` : ""}</td><td><span class="pill ${s.paused ? "monitor" : s.breached ? "critical" : "good"}">${escapeHtml(s.label)}</span><br><span class="small muted">${escapeHtml(t.blockerReason || t.actionRequiredNote || t.expertReason || `Age ${s.ageLabel}`)}</span></td><td><span class="small muted">Source: ${escapeHtml(t.source || "Ticket")}</span><br><span class="small muted">Plant/scan: ${escapeHtml(t.plantId || t.linkedScanId || "general")}</span></td></tr>`; }).join("") || `<tr><td colspan="5"><div class="empty">${escapeHtml(emptyText)}</div></td></tr>`}</tbody></table></div></div>`;
+}
+
 function supervisorView() {
   const { scans, tickets } = visibleRecords();
   if (state.tab === "tickets") return `<section class="card">${filterPanel()}${ticketBoard(tickets, { scope: "supervisor" })}</section>`;
   if (state.tab === "sla breaches") return `<section class="card">${filterPanel()}${ticketBoard(tickets.filter(t => t.status !== STATUS.CLOSED && slaState(t).breached), { scope: "supervisor" })}</section>`;
+  if (state.tab === "efficiency") return efficiencyView();
   if (state.tab === "reports") return reportsView(true);
   if (state.tab === "admin" && isOwner()) return adminView();
   return `<section class="card">${filterPanel()}${metrics(scans, tickets)}<div class="grid grid-2"><div>${healthBuckets(scans)}</div><div><h3>Health trend</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><h3>Live ticket queue</h3><button class="btn secondary" data-tab="tickets">Open full board</button></div>${ticketBoard(tickets.slice(0, 8), { scope: "supervisor", compact: true })}</section>`;
@@ -284,7 +329,7 @@ function clientView() {
   if (state.tab === "raise ticket") return raiseTicketView();
   if (state.tab === "reports") return reportsView(false);
   if (state.tab === "evidence") return evidenceView(tickets);
-  return `<section class="card">${filterPanel({ client: false })}${metrics(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><h3>Your open tickets</h3></div><button class="btn client-raise-ticket-cta" data-tab="raise ticket">Raise Priority 1 Ticket</button><div style="height:14px"></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
+  return `<section class="card">${filterPanel({ client: false })}${metrics(scans, tickets)}${clientServiceAssurance(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><h3>Your open tickets</h3></div><button class="btn client-raise-ticket-cta" data-tab="raise ticket">Raise Priority 1 Ticket</button><div style="height:14px"></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
 }
 function raiseTicketView() {
   const sites = allowedSites();
@@ -318,8 +363,8 @@ function bucket(label, value, total, cls) {
 }
 function ticketDisplayId(t) { if (t.ticketNo) return String(t.ticketNo).padStart(6, "0").slice(-6); const raw = String(t.id || ""); let hash = 0; for (let i = 0; i < raw.length; i++) hash = ((hash << 5) - hash + raw.charCodeAt(i)) >>> 0; return String(100000 + (hash % 900000)); }
 function ticketCards(tickets) { if (!tickets.length) return `<div class="empty">No tickets in this queue.</div>`; return `<div class="grid">${tickets.map(t => ticketCard(t)).join("")}</div>`; }
-function ticketCard(t) { const { siteMap, plantMap } = dbx(); const s = slaState(t); const plant = plantMap[t.plantId]; const site = siteMap[t.siteId]; return `<div class="ticket-card"><div class="ticket-head"><strong>${escapeHtml(t.issue)}</strong><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></div><div class="ticket-meta"><span class="pill">#${ticketDisplayId(t)}</span><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span></div><div class="small muted">${escapeHtml(site?.city)} · ${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</div></div>`; }
-function ticketBoard(tickets, { scope = "supervisor", compact = false } = {}) { const { siteMap, plantMap } = dbx(); if (!tickets.length) return `<div class="empty">No tickets found for selected filters.</div>`; if (compact) return ticketCards(tickets); return `<div class="table-wrap"><table><thead><tr><th>Ticket</th><th>Location</th><th>Priority</th><th>Status</th><th>SLA</th><th>Evidence / Action</th></tr></thead><tbody>${tickets.map(t => { const s = slaState(t); const site = siteMap[t.siteId]; const plant = plantMap[t.plantId]; return `<tr><td><strong>${escapeHtml(t.issue)}</strong><br><span class="small muted">Ticket #${ticketDisplayId(t)}<br>${fmtDate(t.createdAt)}</span></td><td>${escapeHtml(site?.city)}<br><span class="small muted">${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</span></td><td><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></td><td><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${t.status}</span><br><span class="small muted">Resolution: ${resolutionTime(t)}</span></td><td><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span><br><span class="small muted">Age ${s.ageLabel}; closure SLA ${s.closureHours}h</span></td><td>${ticketActions(t, scope)}</td></tr>`; }).join("")}</tbody></table></div>`; }
+function ticketCard(t) { const { siteMap, plantMap } = dbx(); const s = slaState(t); const plant = plantMap[t.plantId]; const site = siteMap[t.siteId]; return `<div class="ticket-card"><div class="ticket-head"><strong>${escapeHtml(t.issue)}</strong><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></div><div class="ticket-meta"><span class="pill">#${ticketDisplayId(t)}</span><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : t.status === STATUS.PAUSED ? "monitor" : "open"}">${t.status}</span><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span></div><div class="small muted">${escapeHtml(site?.city)} · ${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</div></div>`; }
+function ticketBoard(tickets, { scope = "supervisor", compact = false } = {}) { const { siteMap, plantMap } = dbx(); if (!tickets.length) return `<div class="empty">No tickets found for selected filters.</div>`; if (compact) return ticketCards(tickets); return `<div class="table-wrap"><table><thead><tr><th>Ticket</th><th>Location</th><th>Priority</th><th>Status</th><th>SLA</th><th>Evidence / Action</th></tr></thead><tbody>${tickets.map(t => { const s = slaState(t); const site = siteMap[t.siteId]; const plant = plantMap[t.plantId]; return `<tr><td><strong>${escapeHtml(t.issue)}</strong><br><span class="small muted">Ticket #${ticketDisplayId(t)}<br>${fmtDate(t.createdAt)}</span></td><td>${escapeHtml(site?.city)}<br><span class="small muted">${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</span></td><td><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></td><td><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : t.status === STATUS.PAUSED ? "monitor" : "open"}">${t.status}</span><br><span class="small muted">Resolution: ${resolutionTime(t)}</span></td><td><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span><br><span class="small muted">Age ${s.ageLabel}; closure SLA ${s.closureHours}h</span></td><td>${ticketActions(t, scope)}</td></tr>`; }).join("")}</tbody></table></div>`; }
 function ticketActions(t, scope) {
   if (scope === "client") {
     return t.closureEvidence
@@ -435,6 +480,7 @@ function bindEvents() {
     const loginRole = e.target.closest("[data-login-role]")?.dataset.loginRole; if (loginRole) { state.loginRole = loginRole; render(); return; }
     const ownerView = e.target.closest("[data-owner-view]")?.dataset.ownerView; if (ownerView && isOwner()) { state.ownerViewRole = ownerView; sessionStorage.setItem("greenops_owner_view", ownerView); state.tab = firstTabFor(ownerView === ROLES.MAINTENANCE ? ROLES.MAINTENANCE : ownerView === ROLES.CLIENT ? ROLES.CLIENT : ROLES.OWNER); render(); return; }
     const tab = e.target.closest("[data-tab]")?.dataset.tab; if (tab) { state.tab = tab; sessionStorage.setItem(APP.sessionTabKey, tab); render(); return; }
+    const efficiencyFilter = e.target.closest("[data-efficiency-filter]")?.dataset.efficiencyFilter; if (efficiencyFilter) { state.efficiencyFilter = efficiencyFilter; sessionStorage.setItem("greenops_efficiency_filter", efficiencyFilter); render(); return; }
     const action = e.target.closest("[data-action]")?.dataset.action; const id = e.target.closest("[data-id]")?.dataset.id;
     try {
       if (action === "logout") { logout(); render(); return; }

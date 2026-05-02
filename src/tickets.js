@@ -15,6 +15,33 @@ function ticketNumber(d) {
   while (used.has(value));
   return value;
 }
+function defaultTicketFields(ticket) {
+  return {
+    closureEvidenceVerified: false,
+    closureVerification: null,
+    clientEvidence: "",
+    reopenCount: 0,
+    actionRequiredOwner: "",
+    actionRequiredNote: "",
+    blockerOwner: "",
+    blockerReason: "",
+    slaPaused: false,
+    slaPausedAt: "",
+    expertRequired: false,
+    expertLevel: "",
+    expertReason: "",
+    ...ticket
+  };
+}
+function logActivity(d, ticketId, activityType, userRole = "system", remarks = "") {
+  d.activityLog ||= [];
+  d.activityLog.push({ id: uid("act"), ticketId, activityType, userRole, userId: userRole, remarks, timestamp: nowIso() });
+}
+function expertFlagFor(score, diagnosis = {}) {
+  const text = `${diagnosis.issue_detected || ""} ${diagnosis.root_cause || ""}`.toLowerCase();
+  const technical = ["pest", "disease", "root", "soil", "irrigation", "fungal", "green wall"].some(k => text.includes(k));
+  return Number(score) <= 4.5 || technical;
+}
 
 export function createScanRecord(input, diagnosis, image) {
   return tx(d => {
@@ -57,7 +84,8 @@ export function createScanRecord(input, diagnosis, image) {
     };
     d.scans.push(scan);
     if (category === HEALTH.CRITICAL) {
-      d.tickets.push({
+      const expertRequired = expertFlagFor(score, diagnosis);
+      const ticket = defaultTicketFields({
         id: uid("tkt"),
         ticketNo: ticketNumber(d),
         plantId: plant.id,
@@ -65,6 +93,7 @@ export function createScanRecord(input, diagnosis, image) {
         priority: priorityForScan(score),
         status: STATUS.OPEN,
         source: input.batchId ? "Batch Scan" : "Auto Scan",
+        issueType: "Critical plant health",
         issue: `Critical plant health: ${plant.type}`,
         description: input.note || "",
         assignedTo: "Unassigned",
@@ -72,19 +101,24 @@ export function createScanRecord(input, diagnosis, image) {
         startedAt: null,
         closedAt: null,
         closureEvidence: "",
-        closureEvidenceVerified: false,
-        closureVerification: null,
         closureRemark: "",
-        clientEvidence: "",
-        createdBy: input.createdBy || "system"
+        createdBy: input.createdBy || "system",
+        linkedScanId: scan.id,
+        expertRequired,
+        expertLevel: expertRequired ? "L3" : "",
+        expertReason: expertRequired ? "Low score or technical diagnosis requires horticulture expert review." : ""
       });
+      d.tickets.push(ticket);
+      scan.linkedTicketId = ticket.id;
+      logActivity(d, ticket.id, "created_from_scan", "system", `AI scan score ${score}/10 created ${ticket.priority} ticket`);
+      if (expertRequired) logActivity(d, ticket.id, "expert_flagged", "system", ticket.expertReason);
     }
     return d;
   });
 }
 export function createClientTicket({ siteId, plantId = "", issue, description, clientEvidence = "" }) {
   return tx(d => {
-    d.tickets.push({
+    const ticket = defaultTicketFields({
       id: uid("tkt"),
       ticketNo: ticketNumber(d),
       plantId,
@@ -92,6 +126,7 @@ export function createClientTicket({ siteId, plantId = "", issue, description, c
       priority: PRIORITY.P1,
       status: STATUS.OPEN,
       source: "Client",
+      issueType: "Client concern",
       issue: issue || "Client-raised concern",
       description: description || "",
       assignedTo: "Unassigned",
@@ -99,12 +134,13 @@ export function createClientTicket({ siteId, plantId = "", issue, description, c
       startedAt: null,
       closedAt: null,
       closureEvidence: "",
-      closureEvidenceVerified: false,
-      closureVerification: null,
       closureRemark: "",
       clientEvidence,
-      createdBy: "client"
+      createdBy: "client",
+      fmInterventionRequired: true
     });
+    d.tickets.push(ticket);
+    logActivity(d, ticket.id, "created", "client", "Client raised Priority 1 ticket");
     return d;
   });
 }
@@ -112,13 +148,27 @@ export function updateTicket(id, patch) {
   return tx(d => { const t = d.tickets.find(x => x.id === id); if (t) Object.assign(t, patch); return d; });
 }
 export function markInProgress(id) {
-  return updateTicket(id, { status: STATUS.IN_PROGRESS, startedAt: nowIso() });
+  return tx(d => {
+    const t = d.tickets.find(x => x.id === id);
+    if (t) {
+      Object.assign(t, { status: STATUS.IN_PROGRESS, startedAt: nowIso() });
+      logActivity(d, id, "status_changed", "maintenance", "Ticket moved to In Progress");
+    }
+    return d;
+  });
 }
 export function attachEvidence(id, evidenceDataUrl, verification = null) {
-  return updateTicket(id, {
-    closureEvidence: evidenceDataUrl,
-    closureEvidenceVerified: !!verification?.accepted,
-    closureVerification: verification || null
+  return tx(d => {
+    const t = d.tickets.find(x => x.id === id);
+    if (t) {
+      Object.assign(t, {
+        closureEvidence: evidenceDataUrl,
+        closureEvidenceVerified: !!verification?.accepted,
+        closureVerification: verification || null
+      });
+      logActivity(d, id, "closure_evidence_uploaded", "maintenance", verification?.accepted ? "Closure photo accepted" : "Closure photo uploaded");
+    }
+    return d;
   });
 }
 export function closeTicket(id, remark = "") {
@@ -128,7 +178,8 @@ export function closeTicket(id, remark = "") {
     if (!t.closureEvidence) throw new Error("Upload closure photo before closing this ticket.");
     if (!t.closureEvidenceVerified) throw new Error("Closure photo must be accepted before closing this ticket.");
     const closedAt = nowIso();
-    Object.assign(t, { status: STATUS.CLOSED, closedAt, closureRemark: remark, resolutionHours: +hoursBetween(t.createdAt, closedAt).toFixed(2) });
+    Object.assign(t, { status: STATUS.CLOSED, closedAt, closureRemark: remark, resolutionHours: +hoursBetween(t.createdAt, closedAt).toFixed(2), slaPaused: false, slaPausedAt: "" });
+    logActivity(d, id, "closed", "maintenance", remark || "Ticket closed with verified evidence");
     return d;
   });
 }

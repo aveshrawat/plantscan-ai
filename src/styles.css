@@ -3904,3 +3904,48 @@ button.report-download-btn {
     margin-top: 18px !important;
   }
 }
+
+/* Efficiency Intelligence layer */
+.efficiency-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+  margin:16px 0 18px;
+}
+.efficiency-card{
+  appearance:none;
+  text-align:left;
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:linear-gradient(180deg,#fff,#f8fbfa);
+  padding:18px;
+  min-height:128px;
+  cursor:pointer;
+  box-shadow:var(--shadow-soft);
+  transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.efficiency-card:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.efficiency-card.active{border-color:rgba(15,123,99,.42);box-shadow:0 0 0 4px rgba(15,123,99,.10),var(--shadow-soft)}
+.efficiency-card span{display:block;color:var(--muted);font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.efficiency-card strong{display:block;margin-top:10px;font-size:35px;line-height:1;letter-spacing:-.055em;color:var(--ink)}
+.efficiency-card strong.good{color:var(--green2)}
+.efficiency-card strong.monitor{color:var(--amber)}
+.efficiency-card strong.critical{color:var(--red)}
+.efficiency-card small{display:block;margin-top:10px;color:var(--muted);font-size:12px;line-height:1.35}
+.linked-work-card{margin-top:0}
+.service-assurance{
+  border:1px solid var(--line);
+  border-radius:22px;
+  background:linear-gradient(180deg,#ffffff,#f7faf8);
+  padding:16px;
+  margin:0 0 18px;
+  box-shadow:var(--shadow-soft);
+}
+.service-assurance-title{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-bottom:13px}
+.service-assurance-title h3{margin:0;font-size:18px}
+.assurance-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.assurance-grid div{border:1px solid var(--line);border-radius:17px;background:#fff;padding:14px}
+.assurance-grid span{display:block;color:var(--muted);font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.assurance-grid strong{display:block;margin-top:6px;font-size:25px;letter-spacing:-.05em;color:var(--ink)}
+@media(max-width:1100px){.efficiency-grid,.assurance-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.efficiency-grid,.assurance-grid{grid-template-columns:1fr}}

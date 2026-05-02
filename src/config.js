@@ -24,7 +24,8 @@ export const HEALTH = {
 export const STATUS = {
   OPEN: "Open",
   IN_PROGRESS: "In Progress",
-  CLOSED: "Closed"
+  CLOSED: "Closed",
+  PAUSED: "Paused"
 };
 
 export const PRIORITY = {
@@ -130,5 +131,5 @@ export const INITIAL_DB = {
     { id: "site-mar-blr", clientId: "client-marriott", name: "Marriott Bellandur", city: "Bangalore", zones: ["Entrance", "Drop-off", "Lobby", "Service Apartment"] },
     { id: "site-sn-kol", clientId: "client-servicenow", name: "ServiceNow Kolkata Office", city: "Kolkata", zones: ["Reception", "Atrium", "Cafe", "Workbay B"] }
   ],
-  plants: [], scans: [], tickets: [], evidence: [], meta: { seeded: false, version: 2 }
+  plants: [], scans: [], tickets: [], evidence: [], activityLog: [], meta: { seeded: false, version: 3 }
 };
