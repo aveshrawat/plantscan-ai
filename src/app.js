@@ -25,7 +25,8 @@ const state = {
   batchRunning: false,
   scanDraft: { siteId: "", zone: "", plantType: "", note: "" },
   filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" },
-  efficiencyFilter: sessionStorage.getItem("greenops_efficiency_filter") || "action"
+  efficiencyFilter: sessionStorage.getItem("greenops_efficiency_filter") || "action",
+  clientAssuranceFilter: sessionStorage.getItem("greenops_client_assurance_filter") || ""
 };
 
 const roleTabs = {
@@ -287,7 +288,13 @@ function efficiencyCard(card, active) {
 }
 function clientServiceAssurance(scans, tickets) {
   const model = currentEfficiencyModel();
-  return `<div class="service-assurance"><div class="service-assurance-title"><h3>Service Assurance</h3><span class="small muted">Coverage, freshness, and dependencies</span></div><div class="assurance-grid"><div><span>Scan Coverage</span><strong>${model.coverage.pct}%</strong></div><div><span>Last Checked</span><strong>${model.freshness.latestScan ? model.cards.find(c => c.key === "freshness")?.value || "—" : "—"}</strong></div><div><span>Action Required</span><strong>${model.action.count}</strong></div><div><span>SLA Paused</span><strong>${model.blockers.count}</strong></div></div></div>`;
+  const freshnessValue = model.freshness.latestScan ? model.cards.find(c => c.key === "freshness")?.value || "—" : "—";
+  const actionActive = state.clientAssuranceFilter === "action";
+  return `<div class="service-assurance"><div class="service-assurance-title"><h3>Service Assurance</h3><span class="small muted">Coverage, freshness, and dependencies</span></div><div class="assurance-grid"><div class="assurance-card"><span>Scan Coverage</span><strong>${model.coverage.pct}%</strong><small>${model.coverage.completed}/${model.coverage.expected} checks completed</small></div><div class="assurance-card"><span>Last Checked</span><strong>${freshnessValue}</strong><small>Average freshness</small></div><button class="assurance-card clickable ${actionActive ? "active" : ""}" type="button" data-client-assurance-filter="action"><span>Action Required</span><strong>${model.action.count}</strong><small>Client / IFM input needed</small></button><div class="assurance-card"><span>Dependency Hold</span><strong>${model.blockers.count}</strong><small>Access / approval pending</small></div></div>${actionActive ? clientActionRequiredPanel(model.action.rows) : ""}</div>`;
+}
+
+function clientActionRequiredPanel(tickets = []) {
+  return `<div class="client-action-panel"><div class="card-title"><div><h3>Action Required from Client / IFM</h3><p class="subtitle">Only work items where access, approval, or clarification is blocking closure.</p></div><span class="pill">${tickets.length} items</span></div><div class="table-wrap"><table><thead><tr><th>Ticket</th><th>Site / Zone</th><th>Action Required</th><th>Current Status</th></tr></thead><tbody>${tickets.map(t => { const s = slaState(t); return `<tr><td><strong>${escapeHtml(t.issue || normalizeIssueType(t))}</strong><br><span class="small muted">#${escapeHtml(efficiencyTicketNo(t))} · ${fmtDate(t.createdAt)}</span></td><td>${escapeHtml(t.site?.name)}<br><span class="small muted">${escapeHtml(zoneOf(t))}</span></td><td>${escapeHtml(t.actionRequiredNote || t.blockerReason || "Client / IFM input needed")}</td><td><span class="pill ${s.paused ? "monitor" : s.breached ? "critical" : "good"}">${escapeHtml(s.paused ? "Dependency Hold" : s.label)}</span><br><span class="small muted">${escapeHtml(t.status || "Open")}</span></td></tr>`; }).join("") || `<tr><td colspan="4"><div class="empty">No action required from your side.</div></td></tr>`}</tbody></table></div></div>`;
 }
 function efficiencyWorkItems(model, active) {
   if (active === "coverage") return coverageTable(model.coverage.rows);
@@ -481,6 +488,7 @@ function bindEvents() {
     const ownerView = e.target.closest("[data-owner-view]")?.dataset.ownerView; if (ownerView && isOwner()) { state.ownerViewRole = ownerView; sessionStorage.setItem("greenops_owner_view", ownerView); state.tab = firstTabFor(ownerView === ROLES.MAINTENANCE ? ROLES.MAINTENANCE : ownerView === ROLES.CLIENT ? ROLES.CLIENT : ROLES.OWNER); render(); return; }
     const tab = e.target.closest("[data-tab]")?.dataset.tab; if (tab) { state.tab = tab; sessionStorage.setItem(APP.sessionTabKey, tab); render(); return; }
     const efficiencyFilter = e.target.closest("[data-efficiency-filter]")?.dataset.efficiencyFilter; if (efficiencyFilter) { state.efficiencyFilter = efficiencyFilter; sessionStorage.setItem("greenops_efficiency_filter", efficiencyFilter); render(); return; }
+    const clientAssuranceFilter = e.target.closest("[data-client-assurance-filter]")?.dataset.clientAssuranceFilter; if (clientAssuranceFilter) { state.clientAssuranceFilter = state.clientAssuranceFilter === clientAssuranceFilter ? "" : clientAssuranceFilter; sessionStorage.setItem("greenops_client_assurance_filter", state.clientAssuranceFilter); render(); return; }
     const action = e.target.closest("[data-action]")?.dataset.action; const id = e.target.closest("[data-id]")?.dataset.id;
     try {
       if (action === "logout") { logout(); render(); return; }

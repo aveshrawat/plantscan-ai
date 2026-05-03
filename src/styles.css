@@ -3944,8 +3944,13 @@ button.report-download-btn {
 .service-assurance-title{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;margin-bottom:13px}
 .service-assurance-title h3{margin:0;font-size:18px}
 .assurance-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.assurance-grid div{border:1px solid var(--line);border-radius:17px;background:#fff;padding:14px}
+.assurance-card{border:1px solid var(--line);border-radius:17px;background:#fff;padding:14px;text-align:left;font:inherit;color:inherit}
+.assurance-card.clickable{cursor:pointer;transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease}
+.assurance-card.clickable:hover,.assurance-card.active{border-color:rgba(15,123,99,.42);box-shadow:0 0 0 4px rgba(15,123,99,.10)}
+.assurance-card.clickable:active{transform:translateY(1px)}
 .assurance-grid span{display:block;color:var(--muted);font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
 .assurance-grid strong{display:block;margin-top:6px;font-size:25px;letter-spacing:-.05em;color:var(--ink)}
+.assurance-grid small{display:block;margin-top:7px;color:var(--muted);font-size:12px;line-height:1.35}
+.client-action-panel{margin-top:14px;border-top:1px solid var(--line);padding-top:14px}
 @media(max-width:1100px){.efficiency-grid,.assurance-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.efficiency-grid,.assurance-grid{grid-template-columns:1fr}}
