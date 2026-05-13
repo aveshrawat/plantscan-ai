@@ -10,20 +10,23 @@ export default async function handler(req, res) {
   const PROMPT = `You are an expert horticulturist and plant pathologist for a professional facility maintenance company managing 50+ commercial sites across India.
 Analyse the uploaded plant photo and return a structured diagnostic report.${context ? `\nContext: ${context}` : ""}
 Respond ONLY in this exact JSON format — no markdown, no extra text:
-{"plant_identified":"Common name (Scientific name)","plant_identified_hi":"पौधे का हिंदी नाम","condition_score":7,"issue_detected":"One clear sentence describing the main problem","issue_detected_hi":"मुख्य समस्या हिंदी में","root_cause":"Most likely cause in one sentence","root_cause_hi":"मुख्य कारण हिंदी में","severity":"LOW","symptoms_observed":["Symptom 1","Symptom 2","Symptom 3"],"symptoms_observed_hi":["लक्षण 1","लक्षण 2","लक्षण 3"],"immediate_action":"What to do in the next 24 hours","immediate_action_hi":"अगले 24 घंटों में क्या करें","treatment_plan":["Step 1","Step 2","Step 3","Step 4"],"treatment_plan_hi":["चरण 1","चरण 2","चरण 3","चरण 4"],"prevent_recurrence":"One key prevention measure","prevent_recurrence_hi":"रोकथाम का उपाय","follow_up_days":5}
-Rules: condition_score is integer 1-10. severity is LOW/MEDIUM/HIGH/CRITICAL. All Hindi in Devanagari script.`;
+{"plant_identified":"Common name (Scientific name)","plant_identified_hi":"पौधे का हिंदी नाम","plant_confidence":86,"possible_matches":["Likely match 1","Likely match 2","Likely match 3"],"capture_quality":"Good","condition_score":7,"issue_detected":"One clear sentence describing the main problem","issue_detected_hi":"मुख्य समस्या हिंदी में","root_cause":"Most likely cause in one sentence","root_cause_hi":"मुख्य कारण हिंदी में","severity":"LOW","symptoms_observed":["Symptom 1","Symptom 2","Symptom 3"],"symptoms_observed_hi":["लक्षण 1","लक्षण 2","लक्षण 3"],"immediate_action":"What to do in the next 24 hours","immediate_action_hi":"अगले 24 घंटों में क्या करें","treatment_plan":["Step 1","Step 2","Step 3","Step 4"],"treatment_plan_hi":["चरण 1","चरण 2","चरण 3","चरण 4"],"prevent_recurrence":"One key prevention measure","prevent_recurrence_hi":"रोकथाम का उपाय","follow_up_days":5}
+Rules: condition_score is integer or decimal between 1 and 10. plant_confidence is an integer 0-100 representing identification certainty, and possible_matches must list 2-3 alternatives when certainty is not high. capture_quality must be one of Poor/Fair/Good/Excellent. Be conservative about plant identification; if the image is unclear, choose the most likely broad plant type rather than overclaiming an exact rare variety. severity is LOW/MEDIUM/HIGH/CRITICAL. All Hindi in Devanagari script.`;
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1500, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageBase64 } }, { type: "text", text: PROMPT }] }] })
+      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1500, temperature: 0, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageBase64 } }, { type: "text", text: PROMPT }] }] })
     });
     const data = await response.json();
     if (data.error) return res.status(500).json({ error: data.error.message });
     const text = data.content?.map(b => b.text || "").join("") || "";
     const result = JSON.parse(text.replace(/```json|```/g, "").trim());
-    result.condition_score = parseFloat(result.condition_score) || 5;
+    result.condition_score = Math.max(1, Math.min(10, parseFloat(result.condition_score) || 5));
     result.follow_up_days = parseInt(result.follow_up_days) || 7;
+    result.plant_confidence = Math.max(0, Math.min(100, parseInt(result.plant_confidence) || 0));
+    result.possible_matches = Array.isArray(result.possible_matches) ? result.possible_matches.slice(0,3) : [];
+    result.capture_quality = result.capture_quality || 'Good';
     res.status(200).json(result);
   } catch (e) {
     console.error(e);
