@@ -62,7 +62,7 @@ Identification logic:
 
 Health scoring logic:
 - Score the plant condition independently from plant-variety confidence.
-- Use 1-10 condition_score where 10 is excellent, 7+ healthy, 6-6.9 monitor, below 6 critical.
+- Use 1-10 condition_score where 10 is excellent, 7+ healthy, 6.1-6.9 monitor, and 6.0 or below requires SLA-bound intervention / critical handling.
 - Consider leaf condition, density/fullness, pest/disease visibility, water stress, and presentation.
 
 Return ONLY valid JSON. No markdown. No commentary.
