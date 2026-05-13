@@ -3,6 +3,17 @@ function clampNumber(value, min, max, fallback) {
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, n));
 }
+function normalizeHealthScore(value, fallback = 5) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  const score = n > 10 && n <= 100 ? n / 10 : n;
+  return clampNumber(Number(score.toFixed(1)), 1, 10, fallback);
+}
+function normalizeConfidence(value, fallback = 0.65) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return clampNumber(n > 1 ? n / 100 : n, 0, 1, fallback);
+}
 
 function normalizeMatches(value) {
   if (!Array.isArray(value)) return [];
@@ -10,7 +21,7 @@ function normalizeMatches(value) {
     if (typeof item === "string") return item;
     return {
       name: String(item?.name || item?.plant || "Possible match"),
-      confidence: clampNumber(item?.confidence, 0, 1, 0)
+      confidence: normalizeConfidence(item?.confidence, 0)
     };
   });
 }
@@ -120,12 +131,12 @@ Rules: condition_score and score_breakdown values must be numbers from 1 to 10. 
     const jsonText = text.replace(/```json|```/g, "").trim();
     const result = JSON.parse(jsonText);
 
-    result.condition_score = clampNumber(result.condition_score, 1, 10, 5);
+    result.condition_score = normalizeHealthScore(result.condition_score, 5);
     result.follow_up_days = parseInt(result.follow_up_days, 10) || 7;
-    result.plant_identification_confidence = clampNumber(result.plant_identification_confidence, 0, 1, 0.65);
+    result.plant_identification_confidence = normalizeConfidence(result.plant_identification_confidence, 0.65);
     result.requires_manual_confirmation = Boolean(result.requires_manual_confirmation) || result.plant_identification_confidence < 0.75;
     result.possible_matches = normalizeMatches(result.possible_matches);
-    result.score_breakdown = Object.fromEntries(Object.entries(result.score_breakdown || {}).map(([key, value]) => [key, clampNumber(value, 1, 10, result.condition_score)]));
+    result.score_breakdown = Object.fromEntries(Object.entries(result.score_breakdown || {}).map(([key, value]) => [key, normalizeHealthScore(value, result.condition_score)]));
     result.severity = ["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(result.severity) ? result.severity : "MEDIUM";
 
     return res.status(200).json(result);
