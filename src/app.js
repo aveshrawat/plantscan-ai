@@ -18,6 +18,7 @@ const state = {
   ownerViewRole: sessionStorage.getItem("greenops_owner_view") || ROLES.SUPERVISOR,
   tab: sessionStorage.getItem(APP.sessionTabKey) || "dashboard",
   scanImage: "",
+  cameraOpen: false,
   clientTicketImage: "",
   qrText: "",
   batchImages: [],
@@ -28,6 +29,8 @@ const state = {
   efficiencyFilter: sessionStorage.getItem("greenops_efficiency_filter") || "action",
   clientAssuranceFilter: sessionStorage.getItem("greenops_client_assurance_filter") || ""
 };
+
+let activeCameraStream = null;
 
 const roleTabs = {
   [ROLES.MAINTENANCE]: ["dashboard", "scan", "my tickets", "history"],
@@ -153,6 +156,7 @@ function setLoggedIn(user) {
   state.filters = { clientId: "all", siteId: "all", city: "all", from: "", to: "" };
   state.scanDraft = { siteId: "", zone: "", plantType: "", note: "" };
   state.scanImage = "";
+  state.cameraOpen = false;
   state.clientTicketImage = "";
   state.qrText = "";
   state.batchImages = [];
@@ -266,11 +270,23 @@ function scanView() {
   const sites = allowedSites();
   const draft = state.scanDraft;
   const selectedSite = draft.siteId || sites[0]?.id || "";
-  return `<div class="split"><section class="card"><div class="card-title"><h3>Scan Plant</h3><span class="pill good">AI Diagnosis</span></div><div class="form" id="scanPanel"><div class="grid grid-2"><div class="field"><label>Assigned site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Drop-off / Lobby" /></div></div><div class="field"><label>Plant type, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily" /></div><div class="field"><label>Technician note</label><textarea class="textarea" data-scan-field="note" placeholder="Add technician observations.">${escapeHtml(draft.note)}</textarea></div><div class="filebox"><strong>Upload plant image</strong><br><div class="btn-row" style="justify-content:center;margin-top:12px"><label class="mini-btn">Choose image<input class="hidden" type="file" accept="image/*" data-scan-image /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div></div><button class="btn ${state.scanImage ? "" : "secondary"}" id="runDiagnosisBtn" type="button" data-action="run-diagnosis">Run AI Diagnosis</button></div><div id="scanOutput"></div></section><section class="card soft"><h3>Health Categories</h3><div class="grid"><div class="ticket-card"><div class="ticket-head"><strong>Healthy</strong><span class="pill good">7+</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Monitor</strong><span class="pill monitor">6–6.9</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Critical</strong><span class="pill critical">Below 6</span></div></div></div></section></div>`;
+  return `<div class="split scan-workbench"><section class="card scan-card"><div class="card-title"><div><h3>AI Plant Health Scan</h3><p class="subtitle">Capture a live field photo, verify the plant variety, generate a health score, and auto-log critical issues.</p></div><span class="pill good">Field Capture</span></div><div class="form" id="scanPanel"><div class="grid grid-2"><div class="field"><label>Assigned site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Drop-off / Lobby" /></div></div><div class="field"><label>Expected plant variety, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily / Dracaena" /></div><div class="field"><label>Technician note</label><textarea class="textarea" data-scan-field="note" placeholder="Add visible symptoms, watering condition, light exposure, or pest signs.">${escapeHtml(draft.note)}</textarea></div><div class="filebox capture-box"><strong>Capture plant image</strong><br><span class="small muted">Best result: one clear photo of the full plant plus visible leaves. Avoid blurry, dark, or backlit photos.</span><div class="btn-row capture-actions" style="justify-content:center;margin-top:12px"><button class="mini-btn primary-capture" type="button" data-action="open-camera">Open live camera</button><label class="mini-btn">Quick phone camera<input class="hidden" type="file" accept="image/*" capture="environment" data-scan-camera /></label><label class="mini-btn">Upload from gallery<input class="hidden" type="file" accept="image/*" data-scan-image /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div></div><button class="btn ${state.scanImage ? "" : "secondary"}" id="runDiagnosisBtn" type="button" data-action="run-diagnosis" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button></div><div id="scanOutput"></div></section><section class="card soft scan-guidance"><h3>CEO-ready proof path</h3><div class="proof-stack"><div class="ticket-card"><div class="ticket-head"><strong>1. Capture</strong><span class="pill good">Live photo</span></div><p class="small muted">Field team captures evidence directly from site.</p></div><div class="ticket-card"><div class="ticket-head"><strong>2. Score</strong><span class="pill monitor">AI + confidence</span></div><p class="small muted">Health score is separated from plant-variety confidence to avoid false certainty.</p></div><div class="ticket-card"><div class="ticket-head"><strong>3. Close</strong><span class="pill critical">Ticket if critical</span></div><p class="small muted">Low-score plants create an accountable work item with closure evidence.</p></div></div></section></div>`;
 }
 function scanImageMarkup() { return state.scanImage ? `<div class="image-ready" style="margin-top:12px"><span class="pill good">Plant image ready</span></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted" style="margin-top:12px">No image selected yet.</div>`; }
 function syncScanDraftFromDom() { const panel = document.querySelector("#scanPanel"); if (!panel) return; const next = { ...state.scanDraft }; panel.querySelectorAll("[data-scan-field]").forEach(el => { next[el.dataset.scanField] = el.value || ""; }); state.scanDraft = next; }
-function updateScanImageUi() { const box = document.querySelector("#scanImageState"); if (box) box.innerHTML = scanImageMarkup(); const btn = document.querySelector("#runDiagnosisBtn"); if (btn) btn.disabled = !state.scanImage; const removeBtn = document.querySelector('[data-action="clear-scan-image"]'); if (removeBtn) removeBtn.classList.toggle("hidden", !state.scanImage); }
+function updateScanImageUi() { const box = document.querySelector("#scanImageState"); if (box) box.innerHTML = scanImageMarkup(); const btn = document.querySelector("#runDiagnosisBtn"); if (btn) { btn.disabled = !state.scanImage; btn.classList.toggle("secondary", !state.scanImage); } const removeBtn = document.querySelector('[data-action="clear-scan-image"]'); if (removeBtn) removeBtn.classList.toggle("hidden", !state.scanImage); }
+function confidenceValue(data = {}) {
+  const raw = data.plant_identification_confidence ?? data.identification_confidence ?? data.confidence;
+  const value = Number(raw);
+  if (Number.isFinite(value)) return value > 1 ? Math.min(1, value / 100) : Math.max(0, Math.min(1, value));
+  return 0.65;
+}
+function confidenceLabel(data = {}) { return `${Math.round(confidenceValue(data) * 100)}%`; }
+function confidenceClass(data = {}) { const v = confidenceValue(data); return v >= 0.82 ? "good" : v >= 0.65 ? "monitor" : "critical"; }
+function possibleMatchesMarkup(data = {}) {
+  const matches = Array.isArray(data.possible_matches) ? data.possible_matches.slice(0, 3) : [];
+  return matches.length ? `<div class="match-list"><span class="small muted">Possible matches</span>${matches.map(m => `<span class="pill">${escapeHtml(typeof m === "string" ? m : `${m.name || "Option"}${m.confidence ? ` · ${Math.round(Number(m.confidence) * 100)}%` : ""}`)}</span>`).join("")}</div>` : "";
+}
 
 
 function currentEfficiencyModel() {
@@ -320,6 +336,24 @@ function ticketsTable(titleText, tickets = [], emptyText = "No linked work items
   return `<div class="card soft linked-work-card"><div class="card-title"><div><h3>${escapeHtml(titleText)}</h3><p class="subtitle">Clicking cards above filters this table to the exact source work items.</p></div><span class="pill">${tickets.length} items</span></div><div class="table-wrap"><table><thead><tr><th>Ticket</th><th>Site / Zone</th><th>Status</th><th>SLA / Blocker</th><th>Source Link</th></tr></thead><tbody>${tickets.map(t => { const s = slaState(t); return `<tr><td><strong>${escapeHtml(t.issue || normalizeIssueType(t))}</strong><br><span class="small muted">#${escapeHtml(efficiencyTicketNo(t))} · ${fmtDate(t.createdAt)}</span></td><td>${escapeHtml(t.site?.name)}<br><span class="small muted">${escapeHtml(zoneOf(t))}</span></td><td><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : t.status === STATUS.PAUSED ? "monitor" : "open"}">${escapeHtml(t.status)}</span>${t.expertRequired ? `<br><span class="pill monitor">L3 Expert</span>` : ""}</td><td><span class="pill ${s.paused ? "monitor" : s.breached ? "critical" : "good"}">${escapeHtml(s.label)}</span><br><span class="small muted">${escapeHtml(t.blockerReason || t.actionRequiredNote || t.expertReason || `Age ${s.ageLabel}`)}</span></td><td><span class="small muted">Source: ${escapeHtml(t.source || "Ticket")}</span><br><span class="small muted">Plant/scan: ${escapeHtml(t.plantId || t.linkedScanId || "general")}</span></td></tr>`; }).join("") || `<tr><td colspan="5"><div class="empty">${escapeHtml(emptyText)}</div></td></tr>`}</tbody></table></div></div>`;
 }
 
+function executiveSnapshot(scans, tickets, audience = "Leadership") {
+  const hs = healthSummary(scans);
+  const open = tickets.filter(t => t.status !== STATUS.CLOSED);
+  const closed = tickets.filter(t => t.status === STATUS.CLOSED);
+  const breached = open.filter(t => slaState(t).breached);
+  const verified = closed.filter(t => t.closureEvidenceVerified || t.closureEvidence);
+  const coverage = scans.length;
+  const valueLine = audience === "Client"
+    ? "Site visibility over health, issues, SLA movement, and closure evidence."
+    : "Operational proof that green assets can be measured, tracked, and reported.";
+  return `<section class="executive-snapshot"><div class="snapshot-copy"><span class="eyebrow dark">${escapeHtml(audience)} Snapshot</span><h3>Green asset visibility, not manual guesswork.</h3><p>${valueLine}</p></div><div class="snapshot-metrics"><div><span>Scans</span><strong>${coverage}</strong></div><div><span>Avg score</span><strong>${hs.avg || "—"}</strong></div><div><span>Open issues</span><strong>${open.length}</strong></div><div><span>SLA risk</span><strong>${breached.length}</strong></div><div><span>Verified closures</span><strong>${verified.length}</strong></div></div></section>`;
+}
+function proofOutcomeGrid(scans, tickets) {
+  const hs = healthSummary(scans);
+  const open = tickets.filter(t => t.status !== STATUS.CLOSED).length;
+  const closed = tickets.filter(t => t.status === STATUS.CLOSED).length;
+  return `<div class="proof-outcomes"><div><span>Baseline created</span><strong>${hs.total ? "Yes" : "Pending"}</strong><small>${hs.total} plant / zone records</small></div><div><span>Issue visibility</span><strong>${open}</strong><small>Open accountable work items</small></div><div><span>Evidence trail</span><strong>${closed}</strong><small>Closed items retained for reporting</small></div></div>`;
+}
 function supervisorView() {
   const { scans, tickets } = visibleRecords();
   if (state.tab === "tickets") return `<section class="card">${filterPanel()}${ticketBoard(tickets, { scope: "supervisor" })}</section>`;
@@ -327,7 +361,7 @@ function supervisorView() {
   if (state.tab === "efficiency") return efficiencyView();
   if (state.tab === "reports") return reportsView(true);
   if (state.tab === "admin" && isOwner()) return adminView();
-  return `<section class="card">${filterPanel()}${metrics(scans, tickets)}<div class="grid grid-2"><div>${healthBuckets(scans)}</div><div><h3>Health trend</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><h3>Live ticket queue</h3><button class="btn secondary" data-tab="tickets">Open full board</button></div>${ticketBoard(tickets.slice(0, 8), { scope: "supervisor", compact: true })}</section>`;
+  return `${executiveSnapshot(scans, tickets, isOwner() ? "Owner" : "Operations")}<section class="card command-card">${filterPanel()}${metrics(scans, tickets)}${proofOutcomeGrid(scans, tickets)}<div class="grid grid-2"><div>${healthBuckets(scans)}</div><div><h3>Health trend</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><div><h3>Live ticket queue</h3><p class="subtitle">The items below are the operational proof trail behind the dashboard.</p></div><button class="btn secondary" data-tab="tickets">Open full board</button></div>${ticketBoard(tickets.slice(0, 8), { scope: "supervisor", compact: true })}</section>`;
 }
 function adminView() { return `<section class="card"><div class="card-title"><div><h3>Owner Admin Tools</h3><p class="subtitle">Visible only to the master owner account.</p></div></div><div class="grid grid-2"><button class="btn secondary" data-action="seed">Seed demo data</button><button class="btn ghost" data-action="reset">Reset local data</button></div><p class="footer-note">Normal maintenance, supervisor, and client users cannot see these controls.</p></section>`; }
 
@@ -336,7 +370,7 @@ function clientView() {
   if (state.tab === "raise ticket") return raiseTicketView();
   if (state.tab === "reports") return reportsView(false);
   if (state.tab === "evidence") return evidenceView(tickets);
-  return `<section class="card">${filterPanel({ client: false })}${metrics(scans, tickets)}${clientServiceAssurance(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><h3>Your open tickets</h3></div><button class="btn client-raise-ticket-cta" data-tab="raise ticket">Raise Priority 1 Ticket</button><div style="height:14px"></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
+  return `${executiveSnapshot(scans, tickets, "Client")}<section class="card command-card">${filterPanel({ client: false })}${metrics(scans, tickets)}${clientServiceAssurance(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><div><h3>Your open tickets</h3><p class="subtitle">Priority items, closure evidence, and current operational state.</p></div></div><button class="btn client-raise-ticket-cta" data-tab="raise ticket">Raise Priority 1 Ticket</button><div style="height:14px"></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
 }
 function raiseTicketView() {
   const sites = allowedSites();
@@ -354,7 +388,7 @@ function updateClientTicketImageUi() {
 
 function reportsView(supervisor = true) {
   const { db } = dbx(); const { scans, tickets } = visibleRecords();
-  return `<section class="card"><div class="card-title"><div><h3>Reports</h3><p class="subtitle">Download service reports by date range, city, and site.</p></div><button class="btn report-download-btn" data-action="download-report">Download CSV</button></div>${filterPanel({ client: supervisor })}${metrics(scans, tickets)}<div class="table-wrap"><table><thead><tr><th>Type</th><th>Site</th><th>Details</th><th>Status</th><th>Date</th></tr></thead><tbody>${[...scans.slice(-8).map(s => reportRow(s, "scan", db)), ...tickets.slice(-8).map(t => reportRow(t, "ticket", db))].join("") || `<tr><td colspan="5">No records yet.</td></tr>`}</tbody></table></div></section>`;
+  return `${executiveSnapshot(scans, tickets, supervisor ? "Report" : "Client Report")}<section class="card report-card"><div class="card-title"><div><h3>Reports</h3><p class="subtitle">Board-friendly summary plus exportable service records by date range, city, and site.</p></div><div class="btn-row report-actions"><button class="btn secondary report-download-btn" data-action="download-report">Download CSV</button><button class="btn report-print-btn" data-action="print-report">Print / Save PDF</button></div></div>${filterPanel({ client: supervisor })}${metrics(scans, tickets)}<div class="table-wrap"><table><thead><tr><th>Type</th><th>Site</th><th>Details</th><th>Status</th><th>Date</th></tr></thead><tbody>${[...scans.slice(-8).map(s => reportRow(s, "scan", db)), ...tickets.slice(-8).map(t => reportRow(t, "ticket", db))].join("") || `<tr><td colspan="5">No records yet.</td></tr>`}</tbody></table></div></section>`;
 }
 function reportRow(r, type, db) { const site = db.sites.find(s => s.id === r.siteId); const plant = db.plants.find(p => p.id === r.plantId); if (type === "scan") return `<tr><td>Scan</td><td>${escapeHtml(site?.name)}</td><td>${escapeHtml(plant?.type)} · score ${r.score}</td><td><span class="pill ${healthClass(r.category)}">${r.category}</span></td><td>${fmtDate(r.createdAt)}</td></tr>`; return `<tr><td>Ticket</td><td>${escapeHtml(site?.name)}</td><td>${escapeHtml(r.issue)}</td><td><span class="pill ${r.status === STATUS.CLOSED ? "closed" : r.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${r.status}</span></td><td>${fmtDate(r.createdAt)}</td></tr>`; }
 function historyView(scans, tickets) { const closed = tickets.filter(t => t.status === STATUS.CLOSED); return `<section class="card"><div class="card-title"><h3>Closed Work History</h3><button class="btn secondary" data-action="download-report">Export</button></div>${metrics(scans, tickets)}${ticketBoard(closed, { scope: "maintenance" })}</section>`; }
@@ -385,6 +419,47 @@ function ticketActions(t, scope) {
 
 function drawCharts() { $$("canvas[data-chart]").forEach(canvas => { const data = JSON.parse(canvas.dataset.chart || "[]"); const rect = canvas.getBoundingClientRect(); const ratio = window.devicePixelRatio || 1; canvas.width = rect.width * ratio; canvas.height = rect.height * ratio; const ctx = canvas.getContext("2d"); ctx.scale(ratio, ratio); const w = rect.width, h = rect.height, pad = 34; ctx.clearRect(0,0,w,h); ctx.strokeStyle = "#e4e0d7"; ctx.lineWidth = 1; for(let i=0;i<=4;i++){ const y = pad + (h-pad*2)*i/4; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke(); } if (!data.length) { ctx.fillStyle = "#6d756f"; ctx.font = "13px Inter"; ctx.fillText("No scan data yet", pad, h/2); return; } const xs = i => pad + (w-pad*2)*(data.length===1?0.5:i/(data.length-1)); const ys = v => h-pad - (h-pad*2)*(v/10); ctx.strokeStyle = "#1c6048"; ctx.lineWidth = 3; ctx.beginPath(); data.forEach((d,i)=> i?ctx.lineTo(xs(i),ys(d.avg)):ctx.moveTo(xs(i),ys(d.avg))); ctx.stroke(); data.forEach((d,i)=>{ ctx.fillStyle="#0f2f24"; ctx.beginPath(); ctx.arc(xs(i),ys(d.avg),4,0,Math.PI*2); ctx.fill(); }); ctx.fillStyle = "#6d756f"; ctx.font = "12px Inter"; ctx.fillText("0", 10, h-pad); ctx.fillText("10", 8, pad+4); ctx.fillText("Avg health score", pad, 18); }); }
 
+
+function stopCameraCapture() {
+  activeCameraStream?.getTracks?.().forEach(track => track.stop());
+  activeCameraStream = null;
+  document.querySelector(".camera-modal")?.remove();
+}
+async function openCameraCapture() {
+  syncScanDraftFromDom();
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error("Live camera is not supported in this browser. Use Quick phone camera instead.");
+  stopCameraCapture();
+  const modal = document.createElement("div");
+  modal.className = "camera-modal";
+  modal.innerHTML = `<div class="camera-dialog"><div class="card-title"><div><h3>Live plant capture</h3><p class="subtitle">Hold steady. Capture the full plant and visible leaf condition.</p></div><button class="mini-btn danger" type="button" data-camera-close>Close</button></div><video autoplay playsinline muted class="camera-video"></video><canvas class="hidden" data-camera-canvas></canvas><div class="camera-help"><span>Use rear camera where available</span><span>Avoid glare and dark background</span><span>Retake if leaves are blurred</span></div><button class="btn" type="button" data-camera-shot>Capture photo</button></div>`;
+  document.body.appendChild(modal);
+  const video = modal.querySelector("video");
+  try {
+    activeCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    video.srcObject = activeCameraStream;
+    await video.play();
+  } catch (error) {
+    stopCameraCapture();
+    throw new Error("Camera permission failed. Use Quick phone camera or upload from gallery.");
+  }
+  modal.querySelector("[data-camera-close]").addEventListener("click", stopCameraCapture);
+  modal.addEventListener("click", e => { if (e.target === modal) stopCameraCapture(); });
+  modal.querySelector("[data-camera-shot]").addEventListener("click", () => {
+    const canvas = modal.querySelector("[data-camera-canvas]");
+    const sourceW = video.videoWidth || 1280;
+    const sourceH = video.videoHeight || 720;
+    const maxEdge = 1600;
+    const scale = Math.min(1, maxEdge / Math.max(sourceW, sourceH));
+    canvas.width = Math.round(sourceW * scale);
+    canvas.height = Math.round(sourceH * scale);
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+    state.scanImage = canvas.toDataURL("image/jpeg", 0.84);
+    updateScanImageUi();
+    stopCameraCapture();
+    toast("Live camera photo captured.");
+  });
+}
+
 async function diagnoseFromState() {
   syncScanDraftFromDom();
   const draft = { ...state.scanDraft };
@@ -393,7 +468,7 @@ async function diagnoseFromState() {
   out.innerHTML = `<div class="card soft"><strong>Checking plant health...</strong><p class="subtitle">Please wait. The scan result will appear here.</p></div>`;
   const result = await diagnoseImage({ image: state.scanImage, draft });
   const data = result.data;
-  out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><span class="pill ${healthClass(result.category)}">${result.category} · ${result.score}/10</span></div><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p><p class="muted">Root cause: ${escapeHtml(data.root_cause || "Not specified")}</p><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${result.category === "Critical" ? `<p class="danger-text">Critical plant logged and ticket created.</p>` : ""}</div>`;
+  out.innerHTML = `<div class="card scan-result"><div class="card-title"><div><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><p class="subtitle">Identification confidence: <span class="pill ${confidenceClass(data)}">${confidenceLabel(data)}</span>${data.requires_manual_confirmation ? ` <span class="pill monitor">Manual confirmation needed</span>` : ""}</p></div><span class="pill ${healthClass(result.category)}">${result.category} · ${result.score}/10</span></div>${possibleMatchesMarkup(data)}<div class="diagnosis-grid"><div><span class="small muted">Main issue</span><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">Likely root cause</span><p>${escapeHtml(data.root_cause || "Not specified")}</p></div></div><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${data.photo_quality ? `<p class="small muted">Photo quality: ${escapeHtml(data.photo_quality)}</p>` : ""}${result.category === "Critical" ? `<p class="danger-text">Critical plant logged and ticket created.</p>` : ""}</div>`;
   toast("Diagnosis saved. Dashboard updated.");
 }
 
@@ -404,7 +479,7 @@ async function diagnoseImage({ image, draft, batchId = "" }) {
   if (!siteId) throw new Error("No assigned site available.");
   if (!allowedSiteIds(db).includes(siteId)) throw new Error("This site is not assigned to your account.");
   if (!draft.zone?.trim()) throw new Error("Scan the zone QR or enter a zone.");
-  const payload = { imageBase64: dataUrlToBase64(image), note: draft.note, site: site?.name, location: draft.zone, plantType: draft.plantType };
+  const payload = { imageBase64: dataUrlToBase64(image), note: draft.note, site: site?.name, location: draft.zone, plantType: draft.plantType, expectedPlantType: draft.plantType };
   const res = await fetch(APP.diagnosisEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Diagnosis failed");
@@ -491,16 +566,18 @@ function bindEvents() {
     const clientAssuranceFilter = e.target.closest("[data-client-assurance-filter]")?.dataset.clientAssuranceFilter; if (clientAssuranceFilter) { state.clientAssuranceFilter = state.clientAssuranceFilter === clientAssuranceFilter ? "" : clientAssuranceFilter; sessionStorage.setItem("greenops_client_assurance_filter", state.clientAssuranceFilter); render(); return; }
     const action = e.target.closest("[data-action]")?.dataset.action; const id = e.target.closest("[data-id]")?.dataset.id;
     try {
-      if (action === "logout") { logout(); render(); return; }
+      if (action === "logout") { stopCameraCapture(); logout(); render(); return; }
       if (!state.user) return;
       if (action === "seed" && isOwner()) { seedDemoData(); toast("Demo data seeded."); render(); }
       if (action === "reset" && isOwner() && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = { siteId:"", zone:"", plantType:"", note:"" }; state.scanImage = ""; state.clientTicketImage = ""; state.batchImages = []; state.batchResults = []; toast("Local data reset."); render(); }
       if (action === "download-report") exportCsvReport(getDb(), roleFilter(getDb()));
+      if (action === "print-report") window.print();
       if (action === "clear-scan-image") { syncScanDraftFromDom(); state.scanImage = ""; const input = document.querySelector("[data-scan-image]"); if (input) input.value = ""; updateScanImageUi(); toast("Plant image removed."); }
       if (action === "clear-client-ticket-image") { state.clientTicketImage = ""; const input = document.querySelector("[data-client-evidence]"); if (input) input.value = ""; updateClientTicketImageUi(); toast("Issue photo removed."); }
       if (action === "apply-qr") { const input = document.querySelector("[data-qr-text]"); applyQr(input?.value || state.qrText); }
       if (action === "demo-qr") { applyQr(e.target.closest("[data-qr]")?.dataset.qr || ""); }
       if (action === "voice-note") { startVoiceNote(); }
+      if (action === "open-camera") { await openCameraCapture(); }
       if (action === "run-diagnosis") { await diagnoseFromState(); }
       if (action === "clear-batch") { state.batchImages = []; state.batchResults = []; render(); toast("Batch cleared."); }
       if (action === "remove-batch-image") { syncScanDraftFromDom(); const index = Number(e.target.closest("[data-index]")?.dataset.index); state.batchImages.splice(index, 1); render(); }
@@ -512,9 +589,9 @@ function bindEvents() {
   document.addEventListener("change", async e => {
     if (e.target.matches("[data-filter]")) { state.filters[e.target.dataset.filter] = e.target.value; if (["clientId","city"].includes(e.target.dataset.filter)) state.filters.siteId = "all"; render(); }
     if (e.target.closest("#scanPanel") && e.target.dataset.scanField) state.scanDraft[e.target.dataset.scanField] = e.target.value;
-    if (e.target.matches("[data-scan-image]")) { syncScanDraftFromDom(); const file = e.target.files?.[0]; if (!file) return; state.scanImage = await imageToDataUrl(file); updateScanImageUi(); toast("Plant image ready for diagnosis."); }
+    if (e.target.matches("[data-scan-image], [data-scan-camera]")) { syncScanDraftFromDom(); const file = e.target.files?.[0]; if (!file) return; state.scanImage = await imageToDataUrl(file, 1600, .82); updateScanImageUi(); toast("Plant image ready for diagnosis."); }
     if (e.target.matches("[data-client-evidence]")) { const file = e.target.files?.[0]; if (!file) return; state.clientTicketImage = await imageToDataUrl(file, 900, .7); updateClientTicketImageUi(); toast("Issue photo attached."); }
-    if (e.target.matches("[data-batch-images]")) { syncScanDraftFromDom(); const files = [...(e.target.files || [])].slice(0, Math.max(0, 20 - state.batchImages.length)); for (const file of files) state.batchImages.push(await imageToDataUrl(file, 900, .68)); render(); toast(`${files.length} batch photo(s) added.`); }
+    if (e.target.matches("[data-batch-images]")) { syncScanDraftFromDom(); const files = [...(e.target.files || [])].slice(0, Math.max(0, 20 - state.batchImages.length)); for (const file of files) state.batchImages.push(await imageToDataUrl(file, 1200, .75)); render(); toast(`${files.length} batch photo(s) added.`); }
     if (e.target.matches("[data-qr-image]")) { const file = e.target.files?.[0]; if (file) await decodeQrImage(file); }
     if (e.target.matches("[data-evidence]")) { const id = e.target.dataset.evidence; const file = e.target.files?.[0]; if (!file) return; const img = await imageToDataUrl(file, 900, .7); await verifyClosureEvidence(id, img); }
   });
@@ -528,6 +605,7 @@ function bindEvents() {
   });
 }
 
+window.addEventListener("beforeunload", stopCameraCapture);
 window.addEventListener("resize", () => drawCharts());
 window.addEventListener("db:changed", () => drawCharts());
 bindEvents();

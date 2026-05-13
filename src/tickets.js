@@ -47,12 +47,18 @@ export function createScanRecord(input, diagnosis, image) {
   return tx(d => {
     const score = Number(diagnosis.condition_score ?? diagnosis.score ?? 5);
     const category = healthCategory(score);
+    const identificationConfidence = Number(diagnosis.plant_identification_confidence ?? diagnosis.identification_confidence ?? 0.65);
+    const aiPlantName = diagnosis.plant_identified || "Unconfirmed plant";
+    const reliablePlantName = input.plantType || (identificationConfidence >= 0.75 ? aiPlantName : `Unconfirmed - ${aiPlantName}`);
     let plant = d.plants.find(p => p.id === input.plantId);
     if (!plant) {
       plant = {
         id: uid("plt"),
         siteId: input.siteId,
-        type: input.plantType || diagnosis.plant_identified || "Unknown plant",
+        type: reliablePlantName || "Unknown plant",
+        aiSuggestedType: aiPlantName,
+        identificationConfidence,
+        needsManualPlantConfirmation: Boolean(diagnosis.requires_manual_confirmation) || identificationConfidence < 0.75,
         zone: input.zone || "Unmapped",
         latestScore: score,
         latestCategory: category,
@@ -63,7 +69,10 @@ export function createScanRecord(input, diagnosis, image) {
     Object.assign(plant, {
       latestScore: score,
       latestCategory: category,
-      type: input.plantType || diagnosis.plant_identified || plant.type,
+      type: reliablePlantName || plant.type,
+      aiSuggestedType: aiPlantName,
+      identificationConfidence,
+      needsManualPlantConfirmation: Boolean(diagnosis.requires_manual_confirmation) || identificationConfidence < 0.75,
       zone: input.zone || plant.zone
     });
     const scan = {
