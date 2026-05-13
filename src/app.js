@@ -275,6 +275,16 @@ function scanView() {
 function scanImageMarkup() { return state.scanImage ? `<div class="image-ready" style="margin-top:12px"><span class="pill good">Plant image ready</span></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted" style="margin-top:12px">No image selected yet.</div>`; }
 function syncScanDraftFromDom() { const panel = document.querySelector("#scanPanel"); if (!panel) return; const next = { ...state.scanDraft }; panel.querySelectorAll("[data-scan-field]").forEach(el => { next[el.dataset.scanField] = el.value || ""; }); state.scanDraft = next; }
 function updateScanImageUi() { const box = document.querySelector("#scanImageState"); if (box) box.innerHTML = scanImageMarkup(); const btn = document.querySelector("#runDiagnosisBtn"); if (btn) { btn.disabled = !state.scanImage; btn.classList.toggle("secondary", !state.scanImage); } const removeBtn = document.querySelector('[data-action="clear-scan-image"]'); if (removeBtn) removeBtn.classList.toggle("hidden", !state.scanImage); }
+function normalizeHealthScore(value, fallback = 5) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  const score = n > 10 && n <= 100 ? n / 10 : n;
+  return Math.max(1, Math.min(10, Number(score.toFixed(1))));
+}
+function healthScoreLabel(value) {
+  const score = normalizeHealthScore(value);
+  return `${Number.isInteger(score) ? score : score.toFixed(1)}/10`;
+}
 function confidenceValue(data = {}) {
   const raw = data.plant_identification_confidence ?? data.identification_confidence ?? data.confidence;
   const value = Number(raw);
@@ -285,7 +295,7 @@ function confidenceLabel(data = {}) { return `${Math.round(confidenceValue(data)
 function confidenceClass(data = {}) { const v = confidenceValue(data); return v >= 0.82 ? "good" : v >= 0.65 ? "monitor" : "critical"; }
 function possibleMatchesMarkup(data = {}) {
   const matches = Array.isArray(data.possible_matches) ? data.possible_matches.slice(0, 3) : [];
-  return matches.length ? `<div class="match-list"><span class="small muted">Possible matches</span>${matches.map(m => `<span class="pill">${escapeHtml(typeof m === "string" ? m : `${m.name || "Option"}${m.confidence ? ` · ${Math.round(Number(m.confidence) * 100)}%` : ""}`)}</span>`).join("")}</div>` : "";
+  return matches.length ? `<div class="match-list"><span class="small muted">Possible variety matches · confidence only</span>${matches.map(m => `<span class="pill">${escapeHtml(typeof m === "string" ? m : `${m.name || "Option"}${m.confidence ? ` · ${Math.round(confidenceValue({ confidence: m.confidence }) * 100)}%` : ""}`)}</span>`).join("")}</div>` : "";
 }
 
 
@@ -557,7 +567,7 @@ async function diagnoseFromState() {
   out.innerHTML = `<div class="card soft"><strong>Checking plant health...</strong><p class="subtitle">Please wait. The scan result will appear here.</p></div>`;
   const result = await diagnoseImage({ image: state.scanImage, draft });
   const data = result.data;
-  out.innerHTML = `<div class="card scan-result"><div class="card-title"><div><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><p class="subtitle">Identification confidence: <span class="pill ${confidenceClass(data)}">${confidenceLabel(data)}</span>${data.requires_manual_confirmation ? ` <span class="pill monitor">Manual confirmation needed</span>` : ""}</p></div><span class="pill ${healthClass(result.category)}">${result.category} · ${result.score}/10</span></div>${possibleMatchesMarkup(data)}<div class="diagnosis-grid"><div><span class="small muted">Main issue</span><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">Likely root cause</span><p>${escapeHtml(data.root_cause || "Not specified")}</p></div></div><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${data.photo_quality ? `<p class="small muted">Photo quality: ${escapeHtml(data.photo_quality)}</p>` : ""}${result.category === "Critical" ? `<p class="danger-text">Critical plant logged and ticket created.</p>` : ""}</div>`;
+  out.innerHTML = `<div class="card scan-result"><div class="scan-result-hero"><div><span class="eyebrow dark">AI diagnosis result</span><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><div class="mobile-health-inline ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div><p class="subtitle">Variety match confidence, not health score: <span class="pill ${confidenceClass(data)}">${confidenceLabel(data)}</span>${data.requires_manual_confirmation ? ` <span class="pill monitor">Manual confirmation needed</span>` : ""}</p></div><div class="health-score-card ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div></div>${possibleMatchesMarkup(data)}<div class="diagnosis-grid"><div><span class="small muted">Main issue</span><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">Likely root cause</span><p>${escapeHtml(data.root_cause || "Not specified")}</p></div></div><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${data.photo_quality ? `<p class="small muted">Photo quality: ${escapeHtml(data.photo_quality)}</p>` : ""}${result.category === "Critical" ? `<p class="danger-text">Critical plant logged and ticket created.</p>` : ""}</div>`;
   toast("Diagnosis saved. Dashboard updated.");
 }
 
@@ -572,8 +582,9 @@ async function diagnoseImage({ image, draft, batchId = "" }) {
   const res = await fetch(APP.diagnosisEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Diagnosis failed");
+  const score = normalizeHealthScore(data.condition_score ?? data.score ?? 5);
+  data.condition_score = score;
   createScanRecord({ siteId, zone: draft.zone, plantType: draft.plantType, note: draft.note, batchId, createdBy: currentUser()?.id || "field-user" }, data, image);
-  const score = Number(data.condition_score ?? data.score ?? 5);
   const category = score >= 7 ? "Healthy" : score >= 6 ? "Monitor" : "Critical";
   return { data, score, category, label: data.plant_identified || data.issue_detected || "Diagnosis saved" };
 }

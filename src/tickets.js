@@ -37,6 +37,19 @@ function logActivity(d, ticketId, activityType, userRole = "system", remarks = "
   d.activityLog ||= [];
   d.activityLog.push({ id: uid("act"), ticketId, activityType, userRole, userId: userRole, remarks, timestamp: nowIso() });
 }
+
+function normalizeScanScore(value, fallback = 5) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  const score = n > 10 && n <= 100 ? n / 10 : n;
+  return Math.max(1, Math.min(10, Number(score.toFixed(1))));
+}
+function normalizeConfidence(value, fallback = 0.65) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(1, n > 1 ? n / 100 : n));
+}
+
 function expertFlagFor(score, diagnosis = {}) {
   const text = `${diagnosis.issue_detected || ""} ${diagnosis.root_cause || ""}`.toLowerCase();
   const technical = ["pest", "disease", "root", "soil", "irrigation", "fungal", "green wall"].some(k => text.includes(k));
@@ -45,9 +58,10 @@ function expertFlagFor(score, diagnosis = {}) {
 
 export function createScanRecord(input, diagnosis, image) {
   return tx(d => {
-    const score = Number(diagnosis.condition_score ?? diagnosis.score ?? 5);
+    const score = normalizeScanScore(diagnosis.condition_score ?? diagnosis.score ?? 5);
+    diagnosis.condition_score = score;
     const category = healthCategory(score);
-    const identificationConfidence = Number(diagnosis.plant_identification_confidence ?? diagnosis.identification_confidence ?? 0.65);
+    const identificationConfidence = normalizeConfidence(diagnosis.plant_identification_confidence ?? diagnosis.identification_confidence ?? 0.65);
     const aiPlantName = diagnosis.plant_identified || "Unconfirmed plant";
     const reliablePlantName = input.plantType || (identificationConfidence >= 0.75 ? aiPlantName : `Unconfirmed - ${aiPlantName}`);
     let plant = d.plants.find(p => p.id === input.plantId);
