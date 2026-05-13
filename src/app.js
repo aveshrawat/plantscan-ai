@@ -143,9 +143,13 @@ function authenticate(role, identifier, secret) {
     if (u.role !== role) return false;
     const phoneOk = u.phone && String(u.phone).toLowerCase() === id;
     const emailOk = u.email && String(u.email).toLowerCase() === id;
+    const aliasOk = (u.authAliases || []).some(alias =>
+      String(alias.identifier || "").trim().toLowerCase() === id &&
+      String(alias.secret || "").trim() === sec
+    );
     if (role === ROLES.CLIENT) return emailOk && u.password === sec;
-    if (role === ROLES.OWNER) return (phoneOk && u.pin === sec) || (emailOk && u.password === sec);
-    return (phoneOk && u.pin === sec) || (emailOk && u.password === sec);
+    if (role === ROLES.OWNER) return aliasOk || (phoneOk && u.pin === sec) || (emailOk && u.password === sec);
+    return aliasOk || (phoneOk && u.pin === sec) || (emailOk && u.password === sec);
   });
 }
 function setLoggedIn(user) {

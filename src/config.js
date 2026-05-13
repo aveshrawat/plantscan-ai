@@ -46,10 +46,16 @@ export const INITIAL_DB = {
       id: "u-owner-1",
       name: "Avesh Rawat",
       role: ROLES.OWNER,
-      phone: "9999999999",
-      pin: "0000",
-      email: "owner@greenops.demo",
+      phone: "9000000000",
+      pin: "1234",
+      email: "owner@onescape.in",
       password: "owner123",
+      authAliases: [
+        { identifier: "9000000000", secret: "1234" },
+        { identifier: "owner@onescape.in", secret: "owner123" },
+        { identifier: "9999999999", secret: "0000" },
+        { identifier: "owner@greenops.demo", secret: "owner123" }
+      ],
       cityAccess: ["Bangalore", "Kolkata"],
       clientAccess: ["client-servicenow", "client-mckinsey", "client-marriott"],
       siteAccess: ["site-sn-blr", "site-mck-blr", "site-mar-blr", "site-sn-kol"]

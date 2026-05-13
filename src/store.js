@@ -41,12 +41,44 @@ function pushTicket(d, ticket) {
 
 let db = load();
 
+function mergeDefaultRecords(merged, base, key) {
+  merged[key] ||= [];
+  const existingIds = new Set(merged[key].map(item => item.id));
+  (base[key] || []).forEach(item => {
+    if (!existingIds.has(item.id)) merged[key].push(item);
+  });
+}
+
+function hydrateStoredDb(parsed) {
+  const base = clone(INITIAL_DB);
+  if (!parsed) return base;
+  const merged = { ...base, ...parsed, activityLog: parsed.activityLog || [] };
+
+  // Preserve user-created demo data, but never allow stale browser storage
+  // to remove or corrupt the master owner login.
+  merged.users ||= [];
+  const usersById = new Map(merged.users.map(user => [user.id, user]));
+  (base.users || []).forEach(defaultUser => {
+    if (!usersById.has(defaultUser.id)) {
+      merged.users.push(defaultUser);
+      return;
+    }
+    if (defaultUser.id === "u-owner-1") {
+      Object.assign(usersById.get(defaultUser.id), defaultUser);
+    }
+  });
+
+  mergeDefaultRecords(merged, base, "clients");
+  mergeDefaultRecords(merged, base, "sites");
+
+  return merged;
+}
+
 function load() {
   try {
     const stored = localStorage.getItem(APP.storageKey);
-    const base = clone(INITIAL_DB);
     const parsed = stored ? JSON.parse(stored) : null;
-    return parsed ? { ...base, ...parsed, activityLog: parsed.activityLog || [] } : base;
+    return hydrateStoredDb(parsed);
   } catch {
     return clone(INITIAL_DB);
   }
