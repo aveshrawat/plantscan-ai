@@ -534,6 +534,19 @@ input[type=date]{color-scheme:light}
       <div class="tf-lbl">AI Diagnosis Reference (optional)</div>
       <textarea class="tf-ta" id="tk-ai" rows="3" placeholder="If you ran a scan, paste the AI diagnosis summary here for reference..."></textarea>
     </div>
+    <div class="tf-fld">
+      <div class="tf-lbl">Photo Reference (optional)</div>
+      <div class="ticket-photo-box" id="tk-photo-box">
+        <div class="ticket-photo-empty"><div class="ticket-photo-icon">📷</div><div>Add a live photo or choose one from gallery</div></div>
+      </div>
+      <div class="ticket-photo-row">
+        <button class="ghostbtn primary" type="button" onclick="openCameraCapture('ticket')">Take photo</button>
+        <button class="ghostbtn" type="button" onclick="document.getElementById('tk-fileinp').click()">Choose photo</button>
+      </div>
+      <div class="ticket-photo-note">On supported mobile browsers, the selected photo can be shared as an attachment. Where attachment is not supported, the app will still open your mail draft and include the photo filename in the ticket body.</div>
+      <input type="file" id="tk-fileinp" accept="image/*" style="display:none">
+      <input type="file" id="tk-camerainp" accept="image/*" capture="environment" style="display:none">
+    </div>
     <button class="submit-ticket" onclick="sendTicket()">Send Ticket to Onescape</button>
     <div class="ticket-note">This will open your phone's email app with all details pre-filled.<br>Simply press Send — the ticket goes directly to info@onescape.in</div>
   </div>
