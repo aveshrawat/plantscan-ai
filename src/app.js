@@ -270,7 +270,7 @@ function scanView() {
   const sites = allowedSites();
   const draft = state.scanDraft;
   const selectedSite = draft.siteId || sites[0]?.id || "";
-  return `<div class="split scan-workbench"><section class="card scan-card"><div class="card-title"><div><h3>AI Plant Health Scan</h3><p class="subtitle">Capture a live field photo, verify the plant variety, generate a health score, and auto-log critical issues.</p></div><span class="pill good">Field Capture</span></div><div class="form" id="scanPanel"><div class="grid grid-2"><div class="field"><label>Assigned site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Drop-off / Lobby" /></div></div><div class="field"><label>Expected plant variety, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily / Dracaena" /></div><div class="field"><label>Technician note</label><textarea class="textarea" data-scan-field="note" placeholder="Add visible symptoms, watering condition, light exposure, or pest signs.">${escapeHtml(draft.note)}</textarea></div><div class="filebox capture-box"><strong>Capture plant image</strong><br><span class="small muted">Best result: one clear photo of the full plant plus visible leaves. Avoid blurry, dark, or backlit photos.</span><div class="btn-row capture-actions" style="justify-content:center;margin-top:12px"><button class="mini-btn primary-capture" type="button" data-action="open-camera">Open live camera</button><label class="mini-btn">Quick phone camera<input class="hidden" type="file" accept="image/*" capture="environment" data-scan-camera /></label><label class="mini-btn">Upload from gallery<input class="hidden" type="file" accept="image/*" data-scan-image /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div></div><button class="btn ${state.scanImage ? "" : "secondary"}" id="runDiagnosisBtn" type="button" data-action="run-diagnosis" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button></div><div id="scanOutput"></div></section><section class="card soft scan-guidance"><h3>CEO-ready proof path</h3><div class="proof-stack"><div class="ticket-card"><div class="ticket-head"><strong>1. Capture</strong><span class="pill good">Live photo</span></div><p class="small muted">Field team captures evidence directly from site.</p></div><div class="ticket-card"><div class="ticket-head"><strong>2. Score</strong><span class="pill monitor">AI + confidence</span></div><p class="small muted">Health score is separated from plant-variety confidence to avoid false certainty.</p></div><div class="ticket-card"><div class="ticket-head"><strong>3. Close</strong><span class="pill critical">Ticket if critical</span></div><p class="small muted">Low-score plants create an accountable work item with closure evidence.</p></div></div></section></div>`;
+  return `<div class="split scan-workbench"><section class="card scan-card"><div class="card-title"><div><h3>AI Plant Health Scan</h3><p class="subtitle">Capture a live field photo, verify the plant variety, generate a health score, and auto-log critical issues.</p></div><span class="pill good">Field Capture</span></div><div class="form" id="scanPanel"><div class="grid grid-2"><div class="field"><label>Assigned site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Drop-off / Lobby" /></div></div><div class="field"><label>Expected plant variety, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily / Dracaena" /></div><div class="field"><label>Technician note</label><textarea class="textarea" data-scan-field="note" placeholder="Add visible symptoms, watering condition, light exposure, or pest signs.">${escapeHtml(draft.note)}</textarea></div><div class="filebox capture-box"><strong>Capture plant image</strong><br><span class="small muted">Best result: one clear photo of the full plant plus visible leaves. Avoid blurry, dark, or backlit photos.</span><div class="btn-row capture-actions" style="justify-content:center;margin-top:12px"><button class="mini-btn primary-capture" type="button" data-action="open-camera">Open live camera</button><label class="mini-btn">Quick phone camera<input class="hidden" type="file" accept="image/*" capture="environment" data-scan-camera /></label><label class="mini-btn">Upload from gallery<input class="hidden" type="file" accept="image/*" data-scan-image /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div></div><button class="btn ${state.scanImage ? "" : "secondary"}" id="runDiagnosisBtn" type="button" data-action="run-diagnosis" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button></div><div id="scanOutput"></div></section><section class="card soft scan-guidance"><h3>Field scan checklist</h3><p class="subtitle">Use this only as the maintenance working flow. Leadership proof is generated later from the records created here.</p><div class="proof-stack"><div class="ticket-card"><div class="ticket-head"><strong>1. Clear photo</strong><span class="pill good">Required</span></div><p class="small muted">Capture one sharp photo with full plant shape and visible leaves. Avoid dark, blurry, or backlit photos.</p></div><div class="ticket-card"><div class="ticket-head"><strong>2. Confirm variety</strong><span class="pill monitor">When known</span></div><p class="small muted">Enter the expected plant name if the site label or supervisor instruction is available. This reduces wrong variety calls.</p></div><div class="ticket-card"><div class="ticket-head"><strong>3. Act and close</strong><span class="pill critical">Evidence</span></div><p class="small muted">If a ticket is created, complete the corrective action and upload a closure photo before closing the task.</p></div></div></section></div>`;
 }
 function scanImageMarkup() { return state.scanImage ? `<div class="image-ready" style="margin-top:12px"><span class="pill good">Plant image ready</span></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted" style="margin-top:12px">No image selected yet.</div>`; }
 function syncScanDraftFromDom() { const panel = document.querySelector("#scanPanel"); if (!panel) return; const next = { ...state.scanDraft }; panel.querySelectorAll("[data-scan-field]").forEach(el => { next[el.dataset.scanField] = el.value || ""; }); state.scanDraft = next; }
@@ -391,6 +391,95 @@ function reportsView(supervisor = true) {
   return `${executiveSnapshot(scans, tickets, supervisor ? "Report" : "Client Report")}<section class="card report-card"><div class="card-title"><div><h3>Reports</h3><p class="subtitle">Board-friendly summary plus exportable service records by date range, city, and site.</p></div><div class="btn-row report-actions"><button class="btn secondary report-download-btn" data-action="download-report">Download CSV</button><button class="btn report-print-btn" data-action="print-report">Print / Save PDF</button></div></div>${filterPanel({ client: supervisor })}${metrics(scans, tickets)}<div class="table-wrap"><table><thead><tr><th>Type</th><th>Site</th><th>Details</th><th>Status</th><th>Date</th></tr></thead><tbody>${[...scans.slice(-8).map(s => reportRow(s, "scan", db)), ...tickets.slice(-8).map(t => reportRow(t, "ticket", db))].join("") || `<tr><td colspan="5">No records yet.</td></tr>`}</tbody></table></div></section>`;
 }
 function reportRow(r, type, db) { const site = db.sites.find(s => s.id === r.siteId); const plant = db.plants.find(p => p.id === r.plantId); if (type === "scan") return `<tr><td>Scan</td><td>${escapeHtml(site?.name)}</td><td>${escapeHtml(plant?.type)} · score ${r.score}</td><td><span class="pill ${healthClass(r.category)}">${r.category}</span></td><td>${fmtDate(r.createdAt)}</td></tr>`; return `<tr><td>Ticket</td><td>${escapeHtml(site?.name)}</td><td>${escapeHtml(r.issue)}</td><td><span class="pill ${r.status === STATUS.CLOSED ? "closed" : r.status === STATUS.IN_PROGRESS ? "progress" : "open"}">${r.status}</span></td><td>${fmtDate(r.createdAt)}</td></tr>`; }
+function filterSummaryLabel() {
+  const db = getDb();
+  const site = state.filters.siteId !== "all" ? db.sites.find(s => s.id === state.filters.siteId) : null;
+  const client = state.filters.clientId !== "all" ? db.clients.find(c => c.id === state.filters.clientId) : null;
+  const parts = [];
+  if (client) parts.push(client.name);
+  if (state.filters.city !== "all") parts.push(state.filters.city);
+  parts.push(site ? site.name : "All assigned sites");
+  if (state.filters.from || state.filters.to) parts.push(`${state.filters.from || "Start"} to ${state.filters.to || "Today"}`);
+  return parts.filter(Boolean).join(" · ");
+}
+function printableReportRows(scans, tickets, db) {
+  const scanRows = scans.slice(-12).map(s => {
+    const site = db.sites.find(x => x.id === s.siteId);
+    const plant = db.plants.find(p => p.id === s.plantId);
+    return `<tr><td>Scan</td><td>${escapeHtml(site?.name || "—")}</td><td>${escapeHtml(plant?.zone || s.zone || "General")}</td><td>${escapeHtml(plant?.type || s.plantType || "Plant")}</td><td>${escapeHtml(String(s.score ?? "—"))}</td><td>${escapeHtml(s.category || "—")}</td><td>${fmtDate(s.createdAt)}</td></tr>`;
+  });
+  const ticketRows = tickets.slice(-12).map(t => {
+    const site = db.sites.find(x => x.id === t.siteId);
+    const plant = db.plants.find(p => p.id === t.plantId);
+    return `<tr><td>Ticket</td><td>${escapeHtml(site?.name || "—")}</td><td>${escapeHtml(plant?.zone || "General")}</td><td>${escapeHtml(t.issue || "Issue")}</td><td>${escapeHtml(t.priority || "—")}</td><td>${escapeHtml(t.status || "—")}</td><td>${fmtDate(t.createdAt)}</td></tr>`;
+  });
+  return [...scanRows, ...ticketRows].join("") || `<tr><td colspan="7">No records available for the selected report filters.</td></tr>`;
+}
+function buildPrintableReport() {
+  const { db } = dbx();
+  const { scans, tickets } = visibleRecords();
+  const hs = healthSummary(scans);
+  const open = tickets.filter(t => t.status !== STATUS.CLOSED);
+  const breached = open.filter(t => slaState(t).breached);
+  const closed = tickets.filter(t => t.status === STATUS.CLOSED);
+  const verified = closed.filter(t => t.closureEvidenceVerified || t.closureEvidence);
+  const generatedAt = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  const user = currentUser();
+  return `<section id="printReport" class="print-report" aria-label="Printable GreenOps report">
+    <header class="print-report-header">
+      <div>
+        <p class="print-kicker">GreenOps ITSM</p>
+        <h1>Plant Health & Service Visibility Report</h1>
+        <p class="print-subtitle">Structured summary of scan coverage, health condition, open issues, SLA risk, and verified closure evidence.</p>
+      </div>
+      <div class="print-report-meta">
+        <strong>${escapeHtml(APP.name)}</strong>
+        <span>Generated: ${escapeHtml(generatedAt)}</span>
+        <span>Prepared by: ${escapeHtml(user?.name || "GreenOps")}</span>
+      </div>
+    </header>
+
+    <section class="print-report-context">
+      <div><span>Report scope</span><strong>${escapeHtml(filterSummaryLabel())}</strong></div>
+      <div><span>Purpose</span><strong>Operational proof for green asset visibility and service accountability</strong></div>
+    </section>
+
+    <section class="print-report-metrics">
+      <div><span>Total scans</span><strong>${scans.length}</strong></div>
+      <div><span>Average health</span><strong>${hs.avg || "—"}</strong></div>
+      <div><span>Healthy</span><strong>${hs.healthy}</strong></div>
+      <div><span>Monitor</span><strong>${hs.monitor}</strong></div>
+      <div><span>Critical</span><strong>${hs.critical}</strong></div>
+      <div><span>Open issues</span><strong>${open.length}</strong></div>
+      <div><span>SLA risk</span><strong>${breached.length}</strong></div>
+      <div><span>Verified closures</span><strong>${verified.length}</strong></div>
+    </section>
+
+    <section class="print-report-summary">
+      <h2>Executive summary</h2>
+      <ul>
+        <li>${scans.length ? `${scans.length} scan record(s) captured under the selected scope.` : "No scan records captured yet under the selected scope."}</li>
+        <li>${open.length ? `${open.length} open work item(s) require operational follow-up.` : "No open work items under the selected scope."}</li>
+        <li>${breached.length ? `${breached.length} item(s) are currently at SLA risk.` : "No SLA-risk item currently visible under the selected scope."}</li>
+        <li>${verified.length ? `${verified.length} closure(s) have evidence retained for review.` : "Closure evidence will appear here once tickets are resolved with proof."}</li>
+      </ul>
+    </section>
+
+    <section class="print-report-table-block">
+      <h2>Recent operational records</h2>
+      <table class="print-report-table">
+        <thead><tr><th>Type</th><th>Site</th><th>Zone</th><th>Details</th><th>Score / Priority</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>${printableReportRows(scans, tickets, db)}</tbody>
+      </table>
+    </section>
+
+    <footer class="print-report-footer">This report is generated from GreenOps ITSM records. It is intended for internal property, FM, and leadership review.</footer>
+  </section>`;
+}
+function preparePrintReport() {
+  document.querySelector("#printReport")?.remove();
+  document.body.insertAdjacentHTML("beforeend", buildPrintableReport());
+}
 function historyView(scans, tickets) { const closed = tickets.filter(t => t.status === STATUS.CLOSED); return `<section class="card"><div class="card-title"><h3>Closed Work History</h3><button class="btn secondary" data-action="download-report">Export</button></div>${metrics(scans, tickets)}${ticketBoard(closed, { scope: "maintenance" })}</section>`; }
 function evidenceView(tickets) { const closed = tickets.filter(t => t.status === STATUS.CLOSED && t.closureEvidence); return `<section class="card"><h3>Closure Evidence</h3><p class="subtitle">Client-facing proof of work. Closure photos are accepted only after health check.</p>${closed.length ? `<div class="grid grid-3">${closed.map(t => `<div class="ticket-card"><img class="preview" src="${t.closureEvidence}" alt="Evidence"><strong>${escapeHtml(t.issue)}</strong><span class="small muted">${fmtDate(t.closedAt)} - ${resolutionTime(t)}</span><span class="pill good">Verified closure photo</span></div>`).join("")}</div>` : `<div class="empty">No closed tickets with evidence yet.</div>`}</section>`; }
 function healthBuckets(scans) {
@@ -571,7 +660,7 @@ function bindEvents() {
       if (action === "seed" && isOwner()) { seedDemoData(); toast("Demo data seeded."); render(); }
       if (action === "reset" && isOwner() && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = { siteId:"", zone:"", plantType:"", note:"" }; state.scanImage = ""; state.clientTicketImage = ""; state.batchImages = []; state.batchResults = []; toast("Local data reset."); render(); }
       if (action === "download-report") exportCsvReport(getDb(), roleFilter(getDb()));
-      if (action === "print-report") window.print();
+      if (action === "print-report") { preparePrintReport(); setTimeout(() => window.print(), 30); }
       if (action === "clear-scan-image") { syncScanDraftFromDom(); state.scanImage = ""; const input = document.querySelector("[data-scan-image]"); if (input) input.value = ""; updateScanImageUi(); toast("Plant image removed."); }
       if (action === "clear-client-ticket-image") { state.clientTicketImage = ""; const input = document.querySelector("[data-client-evidence]"); if (input) input.value = ""; updateClientTicketImageUi(); toast("Issue photo removed."); }
       if (action === "apply-qr") { const input = document.querySelector("[data-qr-text]"); applyQr(input?.value || state.qrText); }

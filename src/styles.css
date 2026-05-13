@@ -4215,3 +4215,191 @@ button.report-download-btn {
   table{min-width:0!important;font-size:11px!important}
   th,td{padding:8px!important}
 }
+
+/* CEO-send patch — restores visible internal header controls without changing the login page. */
+.topbar .user-menu{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:10px!important;
+  flex:0 0 auto!important;
+}
+.topbar .user-pill{
+  display:inline-flex!important;
+  align-items:center!important;
+  min-height:34px!important;
+  padding:7px 14px!important;
+  border-radius:999px!important;
+  background:var(--color-brand-light)!important;
+  color:var(--color-brand-primary)!important;
+  border:1px solid color-mix(in srgb,var(--color-brand-primary) 18%,transparent)!important;
+  font-size:13px!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+  opacity:1!important;
+}
+.topbar .logout-btn{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-height:36px!important;
+  padding:8px 16px!important;
+  border-radius:999px!important;
+  background:var(--color-surface-white)!important;
+  color:var(--color-brand-primary)!important;
+  border:1.5px solid var(--color-brand-primary)!important;
+  font-size:13px!important;
+  font-weight:800!important;
+  opacity:1!important;
+}
+.topbar .logout-btn:hover{
+  background:var(--color-brand-light)!important;
+}
+@media(max-width:720px){
+  .topbar .top-inner{padding:0 12px!important;gap:8px!important}
+  .topbar .brand p{display:none!important}
+  .topbar .user-menu{gap:6px!important;min-width:0!important}
+  .topbar .user-pill{max-width:132px!important;overflow:hidden!important;text-overflow:ellipsis!important;padding:7px 10px!important;font-size:11px!important}
+  .topbar .logout-btn{padding:7px 10px!important;font-size:11px!important;min-height:34px!important}
+}
+
+/* Formal print report. The PDF export now prints a generated report, not the visible dashboard screen. */
+.print-report{display:none!important}
+.print-report table{border-collapse:collapse;width:100%}
+
+@media print{
+  @page{size:A4 portrait;margin:14mm}
+  html,body{background:#fff!important;color:#101814!important;width:auto!important;min-height:auto!important}
+  .app-shell,.topbar,.hero-banner,.main,.toast,.camera-modal,.owner-mode,.tabs,.btn,.mini-btn,.filters{display:none!important}
+  .print-report{
+    display:block!important;
+    width:100%!important;
+    min-height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    background:#fff!important;
+    color:#101814!important;
+    font-family:var(--font-family),Arial,sans-serif!important;
+  }
+  .print-report *{box-shadow:none!important;text-shadow:none!important;filter:none!important}
+  .print-report-header{
+    display:grid!important;
+    grid-template-columns:1fr 190px!important;
+    gap:18px!important;
+    align-items:start!important;
+    border-bottom:2px solid #0f3b2e!important;
+    padding:0 0 12px!important;
+    margin:0 0 14px!important;
+  }
+  .print-kicker{
+    margin:0 0 6px!important;
+    color:#0f3b2e!important;
+    font-size:10px!important;
+    font-weight:900!important;
+    letter-spacing:.16em!important;
+    text-transform:uppercase!important;
+  }
+  .print-report h1{
+    margin:0!important;
+    color:#0b241c!important;
+    font-size:25px!important;
+    line-height:1.12!important;
+    letter-spacing:-.03em!important;
+  }
+  .print-subtitle{
+    margin:8px 0 0!important;
+    color:#53645d!important;
+    font-size:11px!important;
+    line-height:1.45!important;
+  }
+  .print-report-meta{
+    border:1px solid #d7e1dc!important;
+    border-radius:10px!important;
+    padding:10px!important;
+    background:#f7faf8!important;
+    font-size:10px!important;
+    line-height:1.45!important;
+  }
+  .print-report-meta strong,.print-report-meta span{display:block!important;color:#20342b!important}
+  .print-report-context{
+    display:grid!important;
+    grid-template-columns:1.1fr .9fr!important;
+    gap:10px!important;
+    margin:0 0 12px!important;
+  }
+  .print-report-context div,.print-report-summary,.print-report-table-block{
+    border:1px solid #d7e1dc!important;
+    border-radius:12px!important;
+    background:#fff!important;
+    padding:11px!important;
+  }
+  .print-report-context span,.print-report-metrics span{
+    display:block!important;
+    color:#66736e!important;
+    font-size:8px!important;
+    font-weight:900!important;
+    letter-spacing:.13em!important;
+    text-transform:uppercase!important;
+  }
+  .print-report-context strong{
+    display:block!important;
+    margin-top:4px!important;
+    color:#10251d!important;
+    font-size:11px!important;
+    line-height:1.35!important;
+  }
+  .print-report-metrics{
+    display:grid!important;
+    grid-template-columns:repeat(4,1fr)!important;
+    gap:8px!important;
+    margin:0 0 12px!important;
+  }
+  .print-report-metrics div{
+    border:1px solid #d7e1dc!important;
+    border-radius:10px!important;
+    padding:10px!important;
+    background:#f9fbfa!important;
+    min-height:58px!important;
+  }
+  .print-report-metrics strong{
+    display:block!important;
+    margin-top:6px!important;
+    color:#0c2b21!important;
+    font-size:22px!important;
+    line-height:1!important;
+  }
+  .print-report h2{
+    margin:0 0 8px!important;
+    color:#0b241c!important;
+    font-size:14px!important;
+    line-height:1.2!important;
+  }
+  .print-report-summary{margin:0 0 12px!important}
+  .print-report-summary ul{margin:0!important;padding-left:16px!important}
+  .print-report-summary li{margin:4px 0!important;color:#263c33!important;font-size:10.5px!important;line-height:1.35!important}
+  .print-report-table-block{break-inside:auto!important}
+  .print-report-table th,.print-report-table td{
+    border-bottom:1px solid #dfe8e4!important;
+    padding:7px 6px!important;
+    text-align:left!important;
+    vertical-align:top!important;
+    font-size:9.5px!important;
+    color:#162820!important;
+    background:#fff!important;
+  }
+  .print-report-table th{
+    background:#eef5f2!important;
+    color:#344a41!important;
+    font-size:8px!important;
+    font-weight:900!important;
+    letter-spacing:.11em!important;
+    text-transform:uppercase!important;
+  }
+  .print-report-footer{
+    margin-top:10px!important;
+    padding-top:8px!important;
+    border-top:1px solid #d7e1dc!important;
+    color:#66736e!important;
+    font-size:9px!important;
+  }
+}
