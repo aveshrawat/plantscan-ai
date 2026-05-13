@@ -567,7 +567,7 @@ async function diagnoseFromState() {
   out.innerHTML = `<div class="card soft"><strong>Checking plant health...</strong><p class="subtitle">Please wait. The scan result will appear here.</p></div>`;
   const result = await diagnoseImage({ image: state.scanImage, draft });
   const data = result.data;
-  out.innerHTML = `<div class="card scan-result"><div class="scan-result-hero"><div><span class="eyebrow dark">AI diagnosis result</span><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><div class="mobile-health-inline ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div><p class="subtitle">Variety match confidence, not health score: <span class="pill ${confidenceClass(data)}">${confidenceLabel(data)}</span>${data.requires_manual_confirmation ? ` <span class="pill monitor">Manual confirmation needed</span>` : ""}</p></div><div class="health-score-card ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div></div>${possibleMatchesMarkup(data)}<div class="diagnosis-grid"><div><span class="small muted">Main issue</span><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">Likely root cause</span><p>${escapeHtml(data.root_cause || "Not specified")}</p></div></div><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${data.photo_quality ? `<p class="small muted">Photo quality: ${escapeHtml(data.photo_quality)}</p>` : ""}${result.category === "Critical" ? `<p class="danger-text">Critical plant logged and ticket created.</p>` : ""}</div>`;
+  out.innerHTML = `<div class="card scan-result"><div class="scan-result-hero"><div><span class="eyebrow dark">AI diagnosis result</span><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><div class="mobile-health-inline ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div><p class="subtitle">Variety match confidence, not health score: <span class="pill ${confidenceClass(data)}">${confidenceLabel(data)}</span>${data.requires_manual_confirmation ? ` <span class="pill monitor">Manual confirmation needed</span>` : ""}</p></div><div class="health-score-card ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div></div>${possibleMatchesMarkup(data)}<div class="diagnosis-grid"><div><span class="small muted">Main issue</span><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">Likely root cause</span><p>${escapeHtml(data.root_cause || "Not specified")}</p></div></div><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("")}</ol>${data.photo_quality ? `<p class="small muted">Photo quality: ${escapeHtml(data.photo_quality)}</p>` : ""}${result.ticketCreated ? `<p class="danger-text">SLA-bound ticket created for health score ${healthScoreLabel(result.score)}.</p>` : ""}</div>`;
   toast("Diagnosis saved. Dashboard updated.");
 }
 
@@ -585,8 +585,9 @@ async function diagnoseImage({ image, draft, batchId = "" }) {
   const score = normalizeHealthScore(data.condition_score ?? data.score ?? 5);
   data.condition_score = score;
   createScanRecord({ siteId, zone: draft.zone, plantType: draft.plantType, note: draft.note, batchId, createdBy: currentUser()?.id || "field-user" }, data, image);
-  const category = score >= 7 ? "Healthy" : score >= 6 ? "Monitor" : "Critical";
-  return { data, score, category, label: data.plant_identified || data.issue_detected || "Diagnosis saved" };
+  const category = score >= 7 ? "Healthy" : score > 6 ? "Monitor" : "Critical";
+  const ticketCreated = score <= 6;
+  return { data, score, category, ticketCreated, label: data.plant_identified || data.issue_detected || "Diagnosis saved" };
 }
 
 async function runBatchDiagnosis() {
@@ -611,8 +612,8 @@ async function runBatchDiagnosis() {
     state.batchResults = results;
   }
   state.batchRunning = false;
-  const critical = results.filter(r => r.category === "Critical").length;
-  if (out) out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>Batch complete</h3><span class="pill ${critical ? "critical" : "good"}">${critical} critical</span></div><p>${results.length} photos processed. Critical plants have been logged as tickets.</p></div>`;
+  const slaTickets = results.filter(r => r.ticketCreated).length;
+  if (out) out.innerHTML = `<div class="card scan-result"><div class="card-title"><h3>Batch complete</h3><span class="pill ${slaTickets ? "critical" : "good"}">${slaTickets} SLA tickets</span></div><p>${results.length} photos processed. Scans with score 6/10 or below have been logged as SLA-bound tickets.</p></div>`;
   toast("Batch diagnosis completed.");
 }
 

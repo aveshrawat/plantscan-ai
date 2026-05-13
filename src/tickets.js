@@ -4,8 +4,9 @@ import { healthCategory } from "./health.js";
 import { nowIso, uid, hoursBetween } from "./utils.js";
 
 export function priorityForScan(score) {
-  if (Number(score) < 4.5) return PRIORITY.P1;
-  if (Number(score) < 6) return PRIORITY.P2;
+  const value = Number(score);
+  if (value <= 4.5) return PRIORITY.P1;
+  if (value <= 6) return PRIORITY.P2;
   return PRIORITY.P3;
 }
 function ticketNumber(d) {
@@ -106,7 +107,8 @@ export function createScanRecord(input, diagnosis, image) {
       raw: diagnosis
     };
     d.scans.push(scan);
-    if (category === HEALTH.CRITICAL) {
+    const shouldCreateSlaTicket = score <= 6;
+    if (shouldCreateSlaTicket) {
       const expertRequired = expertFlagFor(score, diagnosis);
       const ticket = defaultTicketFields({
         id: uid("tkt"),
@@ -116,8 +118,8 @@ export function createScanRecord(input, diagnosis, image) {
         priority: priorityForScan(score),
         status: STATUS.OPEN,
         source: input.batchId ? "Batch Scan" : "Auto Scan",
-        issueType: "Critical plant health",
-        issue: `Critical plant health: ${plant.type}`,
+        issueType: score <= 6 ? "SLA-bound plant health action" : "Critical plant health",
+        issue: `${category === HEALTH.CRITICAL ? "Critical" : "SLA-bound"} plant health: ${plant.type}`,
         description: input.note || "",
         assignedTo: "Unassigned",
         createdAt: nowIso(),
@@ -133,7 +135,7 @@ export function createScanRecord(input, diagnosis, image) {
       });
       d.tickets.push(ticket);
       scan.linkedTicketId = ticket.id;
-      logActivity(d, ticket.id, "created_from_scan", "system", `AI scan score ${score}/10 created ${ticket.priority} ticket`);
+      logActivity(d, ticket.id, "created_from_scan", "system", `AI scan score ${score}/10 triggered SLA-bound ${ticket.priority} ticket`);
       if (expertRequired) logActivity(d, ticket.id, "expert_flagged", "system", ticket.expertReason);
     }
     return d;

@@ -4,7 +4,7 @@ import { clamp } from "./utils.js";
 export const healthCategory = score => {
   const s = clamp(score, 0, 10);
   if (s >= 7) return HEALTH.HEALTHY;
-  if (s >= 6) return HEALTH.MONITOR;
+  if (s > 6) return HEALTH.MONITOR;
   return HEALTH.CRITICAL;
 };
 export const healthClass = category => category === HEALTH.CRITICAL ? "critical" : category === HEALTH.MONITOR ? "monitor" : "good";

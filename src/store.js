@@ -142,11 +142,11 @@ export function seedDemoData() {
       siteIds.forEach((siteId, sIndex) => {
         Array.from({ length: 10 }).forEach((_, i) => {
           const score = [8.4, 7.5, 6.6, 5.8, 5.1, 8.9, 6.2, 7.1, 4.4, 8.0][(i + sIndex) % 10];
-          const plant = { id: uid("plt"), siteId, type: plantTypes[(i + sIndex) % plantTypes.length], zone: zones[i % zones.length], latestScore: score, latestCategory: score >= 7 ? "Healthy" : score >= 6 ? "Monitor" : "Critical", createdAt: nowIso() };
+          const plant = { id: uid("plt"), siteId, type: plantTypes[(i + sIndex) % plantTypes.length], zone: zones[i % zones.length], latestScore: score, latestCategory: score >= 7 ? "Healthy" : score > 6 ? "Monitor" : "Critical", createdAt: nowIso() };
           d.plants.push(plant);
           const createdAt = new Date(Date.now() - offsets[(i + sIndex) % offsets.length] * 86400000).toISOString();
-          d.scans.push({ id: uid("scn"), plantId: plant.id, siteId, score, category: plant.latestCategory, diagnosis: score < 6 ? "Visible stress and decline pattern detected" : score < 7 ? "Mild stress, monitor closely" : "Plant appears stable", rootCause: score < 6 ? "Likely watering/light imbalance" : "Routine observation", instructions: score < 6 ? ["Isolate from AC draft", "Check soil moisture", "Remove damaged leaves", "Recheck within 48 hours"] : ["Continue scheduled maintenance"], image: "", createdAt, createdBy: "u-maint-1" });
-          if (score < 6) pushTicket(d, { plantId: plant.id, siteId, priority: score < 4.5 ? "P1" : "P2", status: i % 3 === 0 ? STATUS.IN_PROGRESS : STATUS.OPEN, source: "Auto Scan", issueType: "Critical plant health", issue: `Critical plant health: ${plant.type}`, assignedTo: "Maintenance Staff", createdAt, startedAt: i % 3 === 0 ? new Date(Date.now() - 18 * 36e5).toISOString() : null, closedAt: null, closureEvidence: "", closureRemark: "", createdBy: "system" });
+          d.scans.push({ id: uid("scn"), plantId: plant.id, siteId, score, category: plant.latestCategory, diagnosis: score <= 6 ? "Visible stress and decline pattern detected" : score < 7 ? "Mild stress, monitor closely" : "Plant appears stable", rootCause: score <= 6 ? "Likely watering/light imbalance" : "Routine observation", instructions: score <= 6 ? ["Isolate from AC draft", "Check soil moisture", "Remove damaged leaves", "Recheck within 48 hours"] : ["Continue scheduled maintenance"], image: "", createdAt, createdBy: "u-maint-1" });
+          if (score <= 6) pushTicket(d, { plantId: plant.id, siteId, priority: score <= 4.5 ? "P1" : "P2", status: i % 3 === 0 ? STATUS.IN_PROGRESS : STATUS.OPEN, source: "Auto Scan", issueType: "Critical plant health", issue: `Critical plant health: ${plant.type}`, assignedTo: "Maintenance Staff", createdAt, startedAt: i % 3 === 0 ? new Date(Date.now() - 18 * 36e5).toISOString() : null, closedAt: null, closureEvidence: "", closureRemark: "", createdBy: "system" });
         });
       });
     }
