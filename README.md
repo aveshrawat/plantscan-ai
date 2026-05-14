@@ -94,3 +94,17 @@ V3:
 - WhatsApp/email alerts
 - Sensor integrations
 - ServiceNow/Salesforce integration layer
+
+## V1.1 additions in this build
+
+Added client-portal commercial features for Model 3 / competitor-displacement demos:
+
+- Client Operations Assistant (`Ask GreenOps`) for status, tickets, invoices, recurring issue signals, reports, last serviced status, and WhatsApp notification status.
+- Client Invoices tab with fixed monthly AMC invoice generation.
+- SLA service credit rule: ₹50 per breached plant/ticket for the current billing month.
+- Downloadable invoice as an HTML file with SLA billing summary.
+- WhatsApp demo notification log for client-raised P1 tickets.
+- WhatsApp demo uses +91-8799765307 and creates prefilled `wa.me` links.
+- `/api/notify-whatsapp` stub added for future provider integration.
+
+Important: WhatsApp is demo-link mode in this build. Truly automatic WhatsApp delivery needs a WhatsApp Business API provider such as Meta Cloud API, Twilio, Interakt, Gupshup, or 360dialog.
