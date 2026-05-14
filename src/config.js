@@ -48,7 +48,7 @@ export const BILLING = {
 };
 
 export const NOTIFICATIONS = {
-  demoWhatsappNumber: "+918799765307",
+  demoWhatsappNumber: "+91-8799765307",
   whatsappEnabled: true
 };
 

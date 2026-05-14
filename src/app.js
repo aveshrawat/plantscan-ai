@@ -75,40 +75,34 @@ function loginScreen() {
   const role = state.loginRole;
   const isClient = role === ROLES.CLIENT;
   const isOwnerLogin = role === ROLES.OWNER;
-  const credentialLabel = isClient ? "Registered email" : isOwnerLogin ? "Owner phone or email" : "Registered phone number";
+  const credentialLabel = isClient ? "Registered email" : isOwnerLogin ? "Admin phone or email" : "Registered phone number";
   const secretLabel = isClient ? "Password" : isOwnerLogin ? "PIN or password" : "PIN";
-  return `<main class="login-shell enterprise-login-shell">
-    <section class="login-card enterprise-login-card">
-      <aside class="login-visual" aria-label="GreenOps service management preview">
-        <div class="login-visual-overlay"></div>
-        <div class="login-visual-content">
-          <div class="visual-badge">GreenOps ITSM</div>
-          <h2>Every plant<br/>Every site<br/>Fully accounted for</h2>
-          <p>AI-assisted diagnosis, SLA tickets, field evidence, reports, invoices, and client notifications in one operating layer.</p>
-          <div class="visual-card-stack">
-            <div class="visual-card"><span>Live SLA</span><strong>P1 alert ready</strong></div>
-            <div class="visual-card"><span>Client portal</span><strong>Reports + invoices</strong></div>
-            <div class="visual-card"><span>Field proof</span><strong>Photo-backed closure</strong></div>
-          </div>
+  return `<main class="login-shell approved-login-shell">
+    <div class="login-bg-overlay"></div>
+    <div class="onescape-wordmark" aria-label="OneScape">one scape</div>
+    <section class="approved-login-copy" aria-label="GreenOps promise">
+      <h2>Every Plant<br/>Every Facility<br/>Fully accounted for</h2>
+    </section>
+    <section class="login-card approved-login-card" aria-label="Sign in form">
+      <div class="brand login-brand approved-login-brand">
+        <div class="logo leaf-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" role="img" focusable="false"><path d="M20.5 3.5C13.7 4 8.4 6.4 5.4 10.3c-2.3 3-2.4 6.5-.7 8.7 2.4-5.4 6.3-8.7 11.6-10.4-4.2 2.4-7.2 5.9-9 10.7 2.7 1.1 6.4.3 9-2.4 3.1-3.2 4.2-8.4 4.2-13.4Z"/></svg>
         </div>
-      </aside>
-      <section class="login-panel">
-        <div class="brand login-brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
-        <h2>Sign in to your workspace</h2>
-        <p class="subtitle">Each user sees only the interface and sites assigned to them.</p>
-        <div class="login-role-grid">
-          ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "Phone + PIN")}
-          ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "Phone + PIN")}
-          ${loginRoleButton(ROLES.CLIENT, "Client", "Email + password")}
-          ${loginRoleButton(ROLES.OWNER, "Owner", "Master access")}
-        </div>
-        <form id="loginForm" class="form login-form">
-          <input type="hidden" name="role" value="${role}" />
-          <div class="field"><label>${credentialLabel}</label><input class="input" name="identifier" autocomplete="username" required /></div>
-          <div class="field"><label>${secretLabel}</label><input class="input" name="secret" type="password" autocomplete="current-password" required /></div>
-          <button class="btn" type="submit">Sign In</button>
-        </form>
-      </section>
+        <div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div>
+      </div>
+      <h2>Sign in to your workplace</h2>
+      <div class="login-role-grid approved-role-grid">
+        ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "")}
+        ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "")}
+        ${loginRoleButton(ROLES.CLIENT, "Client", "")}
+        ${loginRoleButton(ROLES.OWNER, "Admin", "")}
+      </div>
+      <form id="loginForm" class="form login-form approved-login-form">
+        <input type="hidden" name="role" value="${role}" />
+        <div class="field"><label>${credentialLabel}</label><input class="input" name="identifier" autocomplete="username" placeholder="${isClient ? "Enter registered email" : "Enter registered phone number"}" required /></div>
+        <div class="field"><label>${secretLabel}</label><input class="input" name="secret" type="password" autocomplete="current-password" placeholder="****" required /></div>
+        <button class="btn" type="submit">Sign In</button>
+      </form>
     </section>
   </main>`;
 }
