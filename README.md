@@ -94,3 +94,34 @@ V3:
 - WhatsApp/email alerts
 - Sensor integrations
 - ServiceNow/Salesforce integration layer
+
+EY UI deployment trigger after Vercel reconnect.
+
+## Efficiency Intelligence Layer added
+
+This version adds a manager-facing `Efficiency` tab and a compact client-facing `Service Assurance` block without changing the AI diagnosis or closure verification endpoints.
+
+New manager metrics are derived from existing work items, not maintained as separate manual records:
+
+- Scan Compliance / Coverage Score
+- Last Checked Freshness
+- FM Intervention Avoidance Metric
+- Recurring Issue Intelligence
+- Reopen Rate
+- Action Required from Client / IFM
+- Blocker Attribution + SLA Pause
+- Horticulture Expert Required Flag
+
+Data flow:
+
+```text
+scans + tickets + SLA state + activityLog + closure evidence
+↓
+Efficiency Intelligence metrics
+↓
+clickable KPI cards
+↓
+linked source work-item table
+```
+
+Demo note: if you already had localStorage data from an older version, login as owner and use `Seed demo data` again. The seed function upgrades demo data to version 3 and adds paused/action-required/expert/recurring/reopen examples.
