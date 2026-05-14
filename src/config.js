@@ -5,7 +5,8 @@ export const APP = {
   sessionRoleKey: "greenops_role_v1",
   sessionTabKey: "greenops_tab_v1",
   diagnosisEndpoint: "/api/diagnose",
-  verifyEvidenceEndpoint: "/api/verify-evidence"
+  verifyEvidenceEndpoint: "/api/verify-evidence",
+  whatsappNotificationEndpoint: "/api/notify-whatsapp"
 };
 
 export const ROLES = {
@@ -39,6 +40,18 @@ export const SLA_RULES = {
   P3: { responseHours: 72, closureHours: 120, label: "Monitor / planned" }
 };
 
+export const BILLING = {
+  slaFinePerBreachedPlant: 50,
+  defaultMonthlyAmount: 50000,
+  defaultDueDays: 15,
+  currency: "INR"
+};
+
+export const NOTIFICATIONS = {
+  demoWhatsappNumber: "+918799765307",
+  whatsappEnabled: true
+};
+
 export const INITIAL_DB = {
   users: [
     {
@@ -51,7 +64,9 @@ export const INITIAL_DB = {
       password: "owner123",
       cityAccess: ["Bangalore", "Kolkata"],
       clientAccess: ["client-servicenow", "client-mckinsey", "client-marriott"],
-      siteAccess: ["site-sn-blr", "site-mck-blr", "site-mar-blr", "site-sn-kol"]
+      siteAccess: ["site-sn-blr", "site-mck-blr", "site-mar-blr", "site-sn-kol"],
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     },
     {
       id: "u-maint-1",
@@ -69,7 +84,9 @@ export const INITIAL_DB = {
       phone: "9876543211",
       pin: "1234",
       cityAccess: ["Bangalore"],
-      siteAccess: ["site-mar-blr"]
+      siteAccess: ["site-mar-blr"],
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     },
     {
       id: "u-super-1",
@@ -79,7 +96,9 @@ export const INITIAL_DB = {
       pin: "4321",
       email: "blr.supervisor@greenops.demo",
       password: "super123",
-      cityAccess: ["Bangalore"]
+      cityAccess: ["Bangalore"],
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     },
     {
       id: "u-super-2",
@@ -89,7 +108,9 @@ export const INITIAL_DB = {
       pin: "4321",
       email: "kol.supervisor@greenops.demo",
       password: "super123",
-      cityAccess: ["Kolkata"]
+      cityAccess: ["Kolkata"],
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     },
     {
       id: "u-client-marriott",
@@ -98,7 +119,9 @@ export const INITIAL_DB = {
       email: "marriott@test.com",
       password: "demo123",
       clientAccess: ["client-marriott"],
-      siteAccess: ["site-mar-blr"]
+      siteAccess: ["site-mar-blr"],
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     },
     {
       id: "u-client-servicenow",
@@ -107,7 +130,9 @@ export const INITIAL_DB = {
       email: "servicenow@test.com",
       password: "demo123",
       clientAccess: ["client-servicenow"],
-      siteAccess: ["site-sn-blr", "site-sn-kol"]
+      siteAccess: ["site-sn-blr", "site-sn-kol"],
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     },
     {
       id: "u-client-mckinsey",
@@ -116,7 +141,9 @@ export const INITIAL_DB = {
       email: "mckinsey@test.com",
       password: "demo123",
       clientAccess: ["client-mckinsey"],
-      siteAccess: ["site-mck-blr"]
+      siteAccess: ["site-mck-blr"],
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     }
   ],
   clients: [
@@ -125,10 +152,10 @@ export const INITIAL_DB = {
     { id: "client-marriott", name: "Marriott" }
   ],
   sites: [
-    { id: "site-sn-blr", clientId: "client-servicenow", name: "ServiceNow Bangalore Campus", city: "Bangalore", zones: ["Reception", "Drop-off", "Lobby", "Workbay A"] },
-    { id: "site-mck-blr", clientId: "client-mckinsey", name: "McKinsey RMZ Ecoworld", city: "Bangalore", zones: ["Reception", "Boardroom", "Cafe", "Lift Lobby"] },
-    { id: "site-mar-blr", clientId: "client-marriott", name: "Marriott Bellandur", city: "Bangalore", zones: ["Entrance", "Drop-off", "Lobby", "Service Apartment"] },
-    { id: "site-sn-kol", clientId: "client-servicenow", name: "ServiceNow Kolkata Office", city: "Kolkata", zones: ["Reception", "Atrium", "Cafe", "Workbay B"] }
+    { id: "site-sn-blr", clientId: "client-servicenow", name: "ServiceNow Bangalore Campus", city: "Bangalore", zones: ["Reception", "Drop-off", "Lobby", "Workbay A"], baseMonthlyAmount: 50000 },
+    { id: "site-mck-blr", clientId: "client-mckinsey", name: "McKinsey RMZ Ecoworld", city: "Bangalore", zones: ["Reception", "Boardroom", "Cafe", "Lift Lobby"], baseMonthlyAmount: 65000 },
+    { id: "site-mar-blr", clientId: "client-marriott", name: "Marriott Bellandur", city: "Bangalore", zones: ["Entrance", "Drop-off", "Lobby", "Service Apartment"], baseMonthlyAmount: 55000 },
+    { id: "site-sn-kol", clientId: "client-servicenow", name: "ServiceNow Kolkata Office", city: "Kolkata", zones: ["Reception", "Atrium", "Cafe", "Workbay B"], baseMonthlyAmount: 45000 }
   ],
-  plants: [], scans: [], tickets: [], evidence: [], meta: { seeded: false, version: 2 }
+  plants: [], scans: [], tickets: [], evidence: [], notifications: [], invoices: [], meta: { seeded: false, version: 3 }
 };
