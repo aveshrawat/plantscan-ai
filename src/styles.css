@@ -48,3 +48,156 @@ button,input,textarea,select{font:inherit} button{cursor:pointer} .hidden{displa
   .voice-row { grid-template-columns: 1fr; }
   .qr-input { width: 100%; max-width: none; }
 }
+
+/* Regression fix: preserve enterprise login layout after V1.1 feature additions. */
+.enterprise-login-shell{
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  padding:32px;
+  background:
+    radial-gradient(circle at 8% 10%, rgba(102,166,129,.22), transparent 30%),
+    linear-gradient(135deg, #f7f6f1 0%, #f3f1ea 42%, #eef5ee 100%);
+}
+.enterprise-login-card{
+  width:min(1180px, calc(100vw - 48px));
+  min-height:650px;
+  display:grid;
+  grid-template-columns:minmax(380px, 1.05fr) minmax(420px, .95fr);
+  padding:0;
+  overflow:hidden;
+  border-radius:30px;
+  background:#fffefb;
+  box-shadow:0 30px 90px rgba(15,47,36,.16);
+}
+.login-visual{
+  position:relative;
+  min-height:650px;
+  overflow:hidden;
+  background:
+    linear-gradient(145deg, rgba(11,51,38,.94), rgba(14,84,61,.82)),
+    radial-gradient(circle at 24% 20%, rgba(230,246,237,.26), transparent 16%),
+    radial-gradient(circle at 82% 16%, rgba(230,246,237,.18), transparent 20%),
+    linear-gradient(45deg, #0f2f24, #1c6048);
+}
+.login-visual:before,
+.login-visual:after{
+  content:"";
+  position:absolute;
+  border-radius:999px 999px 40px 999px;
+  background:rgba(228,244,236,.14);
+  transform:rotate(-18deg);
+}
+.login-visual:before{width:260px;height:420px;right:-80px;top:70px;}
+.login-visual:after{width:210px;height:340px;left:-86px;bottom:-60px;}
+.login-visual-overlay{
+  position:absolute;
+  inset:0;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.28)),
+    repeating-linear-gradient(135deg, rgba(255,255,255,.035) 0 1px, transparent 1px 18px);
+}
+.login-visual-content{
+  position:relative;
+  z-index:1;
+  min-height:650px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  padding:46px;
+  color:white;
+}
+.visual-badge{
+  width:max-content;
+  border:1px solid rgba(255,255,255,.32);
+  background:rgba(255,255,255,.12);
+  backdrop-filter:blur(14px);
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.login-visual h2{
+  margin:64px 0 0;
+  font-size:54px;
+  line-height:.96;
+  letter-spacing:-.06em;
+  color:white;
+}
+.login-visual p{
+  max-width:470px;
+  margin:18px 0 0;
+  color:rgba(255,255,255,.78);
+  line-height:1.6;
+  font-size:15px;
+}
+.visual-card-stack{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:12px;
+  margin-top:38px;
+}
+.visual-card{
+  border:1px solid rgba(255,255,255,.22);
+  background:rgba(255,255,255,.12);
+  backdrop-filter:blur(14px);
+  border-radius:18px;
+  padding:14px;
+}
+.visual-card span{
+  display:block;
+  color:rgba(255,255,255,.68);
+  font-size:11px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.visual-card strong{
+  display:block;
+  margin-top:8px;
+  font-size:14px;
+  line-height:1.25;
+}
+.login-panel{
+  padding:48px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.login-panel .login-brand{margin-bottom:26px;}
+.login-panel h2{
+  font-size:44px;
+  line-height:1;
+  letter-spacing:-.05em;
+  margin:0 0 12px;
+}
+.login-panel .subtitle{margin:0 0 24px;font-size:15px;}
+.login-panel .login-role-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 18px;}
+.login-panel .login-role{min-height:76px;padding:16px;}
+.login-panel .login-role strong{font-size:15px;}
+.login-panel .login-role span{font-size:12px;}
+.login-panel .login-form{margin-top:0;gap:14px;}
+.login-panel .input{min-height:52px;}
+.login-panel .btn{min-height:52px;font-size:16px;}
+@media(max-width:980px){
+  .enterprise-login-card{grid-template-columns:1fr;width:min(720px, calc(100vw - 32px));min-height:0;}
+  .login-visual{min-height:320px;}
+  .login-visual-content{min-height:320px;padding:32px;}
+  .login-visual h2{font-size:42px;margin:34px 0 0;}
+  .visual-card-stack{display:none;}
+  .login-panel{padding:34px;}
+  .login-panel h2{font-size:36px;}
+}
+@media(max-width:620px){
+  .enterprise-login-shell{padding:12px;place-items:start center;}
+  .enterprise-login-card{width:100%;border-radius:22px;}
+  .login-visual{min-height:240px;}
+  .login-visual-content{min-height:240px;padding:24px;}
+  .login-visual h2{font-size:34px;margin:28px 0 0;}
+  .login-visual p{font-size:13px;}
+  .login-panel{padding:22px;}
+  .login-panel h2{font-size:30px;}
+  .login-panel .login-role-grid{grid-template-columns:1fr;}
+}

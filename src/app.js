@@ -77,23 +77,38 @@ function loginScreen() {
   const isOwnerLogin = role === ROLES.OWNER;
   const credentialLabel = isClient ? "Registered email" : isOwnerLogin ? "Owner phone or email" : "Registered phone number";
   const secretLabel = isClient ? "Password" : isOwnerLogin ? "PIN or password" : "PIN";
-  return `<main class="login-shell">
-    <section class="login-card">
-      <div class="brand login-brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
-      <h2>Sign in to your workspace</h2>
-      <p class="subtitle">Each user sees only the interface and sites assigned to them.</p>
-      <div class="login-role-grid">
-        ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "Phone + PIN")}
-        ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "Phone + PIN")}
-        ${loginRoleButton(ROLES.CLIENT, "Client", "Email + password")}
-        ${loginRoleButton(ROLES.OWNER, "Owner", "Master access")}
-      </div>
-      <form id="loginForm" class="form login-form">
-        <input type="hidden" name="role" value="${role}" />
-        <div class="field"><label>${credentialLabel}</label><input class="input" name="identifier" autocomplete="username" required /></div>
-        <div class="field"><label>${secretLabel}</label><input class="input" name="secret" type="password" autocomplete="current-password" required /></div>
-        <button class="btn" type="submit">Sign In</button>
-      </form>
+  return `<main class="login-shell enterprise-login-shell">
+    <section class="login-card enterprise-login-card">
+      <aside class="login-visual" aria-label="GreenOps service management preview">
+        <div class="login-visual-overlay"></div>
+        <div class="login-visual-content">
+          <div class="visual-badge">GreenOps ITSM</div>
+          <h2>Every plant<br/>Every site<br/>Fully accounted for</h2>
+          <p>AI-assisted diagnosis, SLA tickets, field evidence, reports, invoices, and client notifications in one operating layer.</p>
+          <div class="visual-card-stack">
+            <div class="visual-card"><span>Live SLA</span><strong>P1 alert ready</strong></div>
+            <div class="visual-card"><span>Client portal</span><strong>Reports + invoices</strong></div>
+            <div class="visual-card"><span>Field proof</span><strong>Photo-backed closure</strong></div>
+          </div>
+        </div>
+      </aside>
+      <section class="login-panel">
+        <div class="brand login-brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
+        <h2>Sign in to your workspace</h2>
+        <p class="subtitle">Each user sees only the interface and sites assigned to them.</p>
+        <div class="login-role-grid">
+          ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "Phone + PIN")}
+          ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "Phone + PIN")}
+          ${loginRoleButton(ROLES.CLIENT, "Client", "Email + password")}
+          ${loginRoleButton(ROLES.OWNER, "Owner", "Master access")}
+        </div>
+        <form id="loginForm" class="form login-form">
+          <input type="hidden" name="role" value="${role}" />
+          <div class="field"><label>${credentialLabel}</label><input class="input" name="identifier" autocomplete="username" required /></div>
+          <div class="field"><label>${secretLabel}</label><input class="input" name="secret" type="password" autocomplete="current-password" required /></div>
+          <button class="btn" type="submit">Sign In</button>
+        </form>
+      </section>
     </section>
   </main>`;
 }
