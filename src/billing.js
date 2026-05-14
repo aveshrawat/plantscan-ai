@@ -1,67 +1,61 @@
-import { BILLING } from "./config.js";
+import { BILLING, STATUS } from "./config.js";
 import { slaState } from "./sla.js";
-import { downloadFile, escapeHtml } from "./utils.js";
 
-export const currency = amount => new Intl.NumberFormat("en-IN", { style: "currency", currency: BILLING.currency || "INR", maximumFractionDigits: 0 }).format(Number(amount || 0));
+const monthKey = date => {
+  const d = date ? new Date(date) : new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+const monthLabel = key => {
+  const [year, month] = String(key || monthKey()).split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleString("en-IN", { month: "long", year: "numeric" });
+};
+const inMonth = (iso, key) => monthKey(iso) === key;
+const money = value => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
-export function currentBillingMonth(date = new Date()) {
-  return date.toISOString().slice(0, 7);
-}
-export function monthLabel(month = currentBillingMonth()) {
-  const [year, m] = month.split("-").map(Number);
-  return new Date(year, m - 1, 1).toLocaleString("en-IN", { month: "long", year: "numeric" });
-}
-function withinMonth(iso, month) {
-  return String(iso || "").slice(0, 7) === month;
-}
-export function invoiceForSite(db, siteId, month = currentBillingMonth()) {
-  const site = db.sites.find(s => s.id === siteId);
-  const client = db.clients.find(c => c.id === site?.clientId);
-  const tickets = (db.tickets || []).filter(t => t.siteId === siteId && withinMonth(t.createdAt, month));
+export function invoiceForSite(db, siteId, billingMonth = monthKey()) {
+  const site = (db.sites || []).find(s => s.id === siteId);
+  const client = (db.clients || []).find(c => c.id === site?.clientId);
+  const tickets = (db.tickets || []).filter(t => t.siteId === siteId && inMonth(t.createdAt, billingMonth));
   const breachedTickets = tickets.filter(t => slaState(t).breached);
-  const breachedPlants = breachedTickets.length;
-  const baseMonthlyAmount = Number(site?.baseMonthlyAmount || BILLING.defaultMonthlyAmount || 0);
-  const slaFinePerBreach = Number(BILLING.slaFinePerBreachedPlant || 50);
-  const slaCreditAmount = breachedPlants * slaFinePerBreach;
-  const netPayable = Math.max(0, baseMonthlyAmount - slaCreditAmount);
-  const invoiceNo = `GO/${String(site?.name || "SITE").replace(/[^A-Z0-9]+/gi, "").slice(0, 6).toUpperCase()}/${month.replace("-", "")}/001`;
+  const baseMonthlyAmc = Number(site?.monthlyAmc || BILLING.defaultMonthlyAmc || 0);
+  const finePerBreach = Number(BILLING.slaFinePerBreachedItem || 50);
+  const slaCreditAmount = breachedTickets.length * finePerBreach;
+  const netPayable = Math.max(0, baseMonthlyAmc - slaCreditAmount);
   return {
-    id: `${siteId}-${month}`,
-    invoiceNo,
-    clientId: site?.clientId,
+    id: `inv-${siteId}-${billingMonth}`,
+    invoiceNo: `${BILLING.invoicePrefix}/${String(siteId).replace("site-", "").toUpperCase()}/${billingMonth}`,
+    clientId: site?.clientId || "",
     clientName: client?.name || "Client",
     siteId,
     siteName: site?.name || "Site",
-    city: site?.city || "",
-    billingMonth: month,
-    billingLabel: monthLabel(month),
-    baseMonthlyAmount,
-    totalTickets: tickets.length,
-    breachedTickets: breachedTickets.length,
-    breachedPlants,
-    slaFinePerBreach,
+    billingMonth,
+    billingLabel: monthLabel(billingMonth),
+    baseMonthlyAmc,
+    finePerBreach,
+    breachedCount: breachedTickets.length,
     slaCreditAmount,
     netPayable,
     status: "Generated",
-    dueDate: new Date(new Date(`${month}-01T00:00:00`).getTime() + (BILLING.defaultDueDays || 15) * 86400000).toISOString().slice(0, 10),
-    breachedTicketNos: breachedTickets.map(t => t.ticketNo ? `#${String(t.ticketNo).padStart(6, "0").slice(-6)}` : t.id)
+    tickets,
+    breachedTickets
   };
 }
-export function invoicesForSites(db, siteIds, month = currentBillingMonth()) {
-  return siteIds.map(siteId => invoiceForSite(db, siteId, month));
+
+export function invoicesForSites(db, siteIds = [], billingMonth = monthKey()) {
+  return siteIds.map(siteId => invoiceForSite(db, siteId, billingMonth));
 }
-export function downloadInvoiceHtml(invoice) {
-  const rows = [
-    ["Fixed monthly plant maintenance service", invoice.baseMonthlyAmount],
-    [`SLA service credit — ${invoice.breachedPlants} breached plant/ticket × ${currency(invoice.slaFinePerBreach)}`, -invoice.slaCreditAmount]
-  ];
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(invoice.invoiceNo)}</title><style>
-    body{font-family:Inter,Arial,sans-serif;margin:40px;color:#111815} .wrap{max-width:860px;margin:auto}.head{display:flex;justify-content:space-between;border-bottom:2px solid #0f2f24;padding-bottom:18px;margin-bottom:24px}.brand{font-weight:800;font-size:22px;color:#0f2f24}.muted{color:#6d756f}.box{border:1px solid #e4e0d7;border-radius:14px;padding:16px;margin:16px 0}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{text-align:left;padding:12px;border-bottom:1px solid #e4e0d7}th{background:#faf8f2}.right{text-align:right}.total{font-size:20px;font-weight:800}.credit{color:#b42318}.good{color:#1c6048}.note{font-size:13px;line-height:1.6;color:#4b5550}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}</style></head><body><div class="wrap">
-      <div class="head"><div><div class="brand">GreenOps ITSM</div><div class="muted">Monthly Fixed Service Invoice</div></div><div><strong>${escapeHtml(invoice.invoiceNo)}</strong><br><span class="muted">${escapeHtml(invoice.billingLabel)}</span></div></div>
-      <div class="grid"><div class="box"><strong>Bill To</strong><br>${escapeHtml(invoice.clientName)}<br>${escapeHtml(invoice.siteName)}<br>${escapeHtml(invoice.city)}</div><div class="box"><strong>Status</strong><br>${escapeHtml(invoice.status)}<br><span class="muted">Due: ${escapeHtml(invoice.dueDate)}</span></div></div>
-      <table><thead><tr><th>Description</th><th class="right">Amount</th></tr></thead><tbody>${rows.map(([label, amount]) => `<tr><td>${escapeHtml(label)}</td><td class="right ${amount < 0 ? "credit" : ""}">${currency(amount)}</td></tr>`).join("")}<tr><td class="total">Net Payable</td><td class="right total good">${currency(invoice.netPayable)}</td></tr></tbody></table>
-      <div class="box"><strong>SLA Billing Summary</strong><p class="note">Total tickets in billing month: ${invoice.totalTickets}. Breached SLA items: ${invoice.breachedPlants}. Current demo rule: ${currency(invoice.slaFinePerBreach)} service credit per breached plant/ticket. This is configurable once final SLA terms are agreed.</p>${invoice.breachedTicketNos.length ? `<p class="note">Breached ticket references: ${invoice.breachedTicketNos.map(escapeHtml).join(", ")}</p>` : `<p class="note">No SLA service credit applied for this period.</p>`}</div>
-      <p class="note">This invoice is generated from GreenOps ITSM operational records. Final commercial terms remain subject to the signed agreement.</p>
-    </div></body></html>`;
-  downloadFile(`greenops-invoice-${invoice.siteName.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${invoice.billingMonth}.html`, html, "text/html");
+
+export function invoiceHtml(invoice) {
+  const rows = invoice.breachedTickets.length
+    ? invoice.breachedTickets.map(t => `<tr><td>#${t.ticketNo || t.id}</td><td>${escapeInvoice(t.issue)}</td><td>${t.priority}</td><td>${escapeInvoice(slaState(t).label)}</td><td>${money(invoice.finePerBreach)}</td></tr>`).join("")
+    : `<tr><td colspan="5">No SLA breaches recorded for this billing month.</td></tr>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeInvoice(invoice.invoiceNo)}</title><style>body{font-family:Inter,Arial,sans-serif;color:#111815;margin:32px}h1{margin:0 0 4px}.muted{color:#6d756f}.box{border:1px solid #e4e0d7;border-radius:14px;padding:16px;margin:16px 0}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{text-align:left;border-bottom:1px solid #e4e0d7;padding:10px;font-size:13px}th{font-size:11px;text-transform:uppercase;color:#6d756f}.total{font-size:22px;font-weight:800;color:#0f2f24}.credit{color:#b42318;font-weight:800}</style></head><body><h1>GreenOps ITSM Invoice</h1><div class="muted">${escapeInvoice(invoice.billingLabel)} · ${escapeInvoice(invoice.invoiceNo)}</div><div class="box"><strong>Client:</strong> ${escapeInvoice(invoice.clientName)}<br><strong>Site:</strong> ${escapeInvoice(invoice.siteName)}<br><strong>Status:</strong> ${escapeInvoice(invoice.status)}</div><table><thead><tr><th>Description</th><th>Amount</th></tr></thead><tbody><tr><td>Fixed monthly plant maintenance / GreenOps service</td><td>${money(invoice.baseMonthlyAmc)}</td></tr><tr><td>SLA service credit (${invoice.breachedCount} breached item(s) × ${money(invoice.finePerBreach)})</td><td class="credit">-${money(invoice.slaCreditAmount)}</td></tr><tr><td><strong>Net payable</strong></td><td class="total">${money(invoice.netPayable)}</td></tr></tbody></table><h2>SLA Summary</h2><div class="box">Total tickets this month: ${invoice.tickets.length}<br>SLA breached items: ${invoice.breachedCount}<br>Service credit rule: ${money(invoice.finePerBreach)} per breached SLA item / plant</div><table><thead><tr><th>Ticket</th><th>Issue</th><th>Priority</th><th>SLA Status</th><th>Credit</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+}
+
+export function invoiceText(invoice) {
+  return `Invoice ${invoice.invoiceNo} for ${invoice.billingLabel}: base AMC ${money(invoice.baseMonthlyAmc)}, SLA credit ${money(invoice.slaCreditAmount)} for ${invoice.breachedCount} breached item(s), net payable ${money(invoice.netPayable)}.`;
+}
+
+function escapeInvoice(value) {
+  return String(value ?? "").replace(/[&<>'"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[c]));
 }

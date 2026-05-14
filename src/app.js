@@ -1,11 +1,11 @@
-import { APP, ROLES, STATUS, BILLING } from "./config.js";
+import { APP, ROLES, STATUS } from "./config.js";
 import { getDb, resetDb, seedDemoData } from "./store.js";
 import { createScanRecord, createClientTicket, markInProgress, attachEvidence, closeTicket } from "./tickets.js";
 import { healthClass, healthSummary, trendByDay } from "./health.js";
 import { exportCsvReport, joinRecords } from "./reports.js";
-import { currency, currentBillingMonth, downloadInvoiceHtml, invoiceForSite, invoicesForSites } from "./billing.js";
+import { invoiceForSite, invoicesForSites, invoiceHtml, invoiceText } from "./billing.js";
 import { slaState, resolutionTime } from "./sla.js";
-import { $, $$, dataUrlToBase64, escapeHtml, fmtDate, imageToDataUrl, option, toast } from "./utils.js";
+import { $, $$, dataUrlToBase64, downloadFile, escapeHtml, fmtDate, imageToDataUrl, option, toast } from "./utils.js";
 
 const savedUser = (() => { try { return JSON.parse(sessionStorage.getItem(APP.sessionUserKey) || "null"); } catch { return null; } })();
 
@@ -20,8 +20,8 @@ const state = {
   batchImages: [],
   batchResults: [],
   batchRunning: false,
-  assistantInput: "",
-  assistantReply: "",
+  assistantPrompt: "",
+  assistantAnswer: "",
   scanDraft: { siteId: "", zone: "", plantType: "", note: "" },
   filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" }
 };
@@ -75,32 +75,23 @@ function loginScreen() {
   const role = state.loginRole;
   const isClient = role === ROLES.CLIENT;
   const isOwnerLogin = role === ROLES.OWNER;
-  const credentialLabel = isClient ? "Registered email" : isOwnerLogin ? "Admin phone or email" : "Registered phone number";
+  const credentialLabel = isClient ? "Registered email" : isOwnerLogin ? "Owner phone or email" : "Registered phone number";
   const secretLabel = isClient ? "Password" : isOwnerLogin ? "PIN or password" : "PIN";
-  return `<main class="login-shell approved-login-shell">
-    <div class="login-bg-overlay"></div>
-    <div class="onescape-wordmark" aria-label="OneScape">one scape</div>
-    <section class="approved-login-copy" aria-label="GreenOps promise">
-      <h2>Every Plant<br/>Every Facility<br/>Fully accounted for</h2>
-    </section>
-    <section class="login-card approved-login-card" aria-label="Sign in form">
-      <div class="brand login-brand approved-login-brand">
-        <div class="logo leaf-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" role="img" focusable="false"><path d="M20.5 3.5C13.7 4 8.4 6.4 5.4 10.3c-2.3 3-2.4 6.5-.7 8.7 2.4-5.4 6.3-8.7 11.6-10.4-4.2 2.4-7.2 5.9-9 10.7 2.7 1.1 6.4.3 9-2.4 3.1-3.2 4.2-8.4 4.2-13.4Z"/></svg>
-        </div>
-        <div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div>
+  return `<main class="login-shell">
+    <section class="login-card">
+      <div class="brand login-brand"><div class="logo">G</div><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
+      <h2>Sign in to your workspace</h2>
+      <p class="subtitle">Each user sees only the interface and sites assigned to them.</p>
+      <div class="login-role-grid">
+        ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "Phone + PIN")}
+        ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "Phone + PIN")}
+        ${loginRoleButton(ROLES.CLIENT, "Client", "Email + password")}
+        ${loginRoleButton(ROLES.OWNER, "Owner", "Master access")}
       </div>
-      <h2>Sign in to your workplace</h2>
-      <div class="login-role-grid approved-role-grid">
-        ${loginRoleButton(ROLES.MAINTENANCE, "Maintenance", "")}
-        ${loginRoleButton(ROLES.SUPERVISOR, "Supervisor", "")}
-        ${loginRoleButton(ROLES.CLIENT, "Client", "")}
-        ${loginRoleButton(ROLES.OWNER, "Admin", "")}
-      </div>
-      <form id="loginForm" class="form login-form approved-login-form">
+      <form id="loginForm" class="form login-form">
         <input type="hidden" name="role" value="${role}" />
-        <div class="field"><label>${credentialLabel}</label><input class="input" name="identifier" autocomplete="username" placeholder="${isClient ? "Enter registered email" : "Enter registered phone number"}" required /></div>
-        <div class="field"><label>${secretLabel}</label><input class="input" name="secret" type="password" autocomplete="current-password" placeholder="****" required /></div>
+        <div class="field"><label>${credentialLabel}</label><input class="input" name="identifier" autocomplete="username" required /></div>
+        <div class="field"><label>${secretLabel}</label><input class="input" name="secret" type="password" autocomplete="current-password" required /></div>
         <button class="btn" type="submit">Sign In</button>
       </form>
     </section>
@@ -135,8 +126,8 @@ function setLoggedIn(user) {
   state.batchImages = [];
   state.batchResults = [];
   state.batchRunning = false;
-  state.assistantInput = "";
-  state.assistantReply = "";
+  state.assistantPrompt = "";
+  state.assistantAnswer = "";
 }
 function logout() {
   state.user = null;
@@ -191,7 +182,7 @@ function heroSubtitle() {
   const r = effectiveRole();
   if (r === ROLES.MAINTENANCE) return "Staff sees only assigned sites and tasks. Scan, follow instructions, upload evidence, and close work.";
   if (r === ROLES.SUPERVISOR) return "City-restricted dashboard with plant health, SLA ageing, tickets, and downloadable reports.";
-  if (r === ROLES.CLIENT) return "Client view is restricted to your mapped locations only. Ask GreenOps, raise P1 tickets, download invoices, and track proof.";
+  if (r === ROLES.CLIENT) return "Client view is restricted to your mapped locations only. Raise P1 tickets and download reports.";
   return "Master owner access can view all sites, seed demo data, reset demo data, and test role modes.";
 }
 
@@ -226,82 +217,6 @@ function metrics(scans, tickets) {
   return `<div class="kpi-strip"><div class="metric"><span>Avg Health</span><strong>${hs.avg || "—"}</strong></div><div class="metric good"><span>Healthy</span><strong>${hs.healthy}</strong></div><div class="metric monitor"><span>Monitor</span><strong>${hs.monitor}</strong></div><div class="metric critical"><span>Critical / SLA</span><strong>${hs.critical}/${breached.length}</strong></div></div>`;
 }
 
-
-function latestNotifications(limit = 5) {
-  const db = getDb();
-  const ids = new Set(allowedSiteIds(db));
-  return (db.notifications || [])
-    .filter(n => db.tickets.find(t => t.id === n.ticketId && ids.has(t.siteId)))
-    .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
-    .slice(0, limit);
-}
-function whatsappNotificationPanel(limit = 4) {
-  const notifications = latestNotifications(limit);
-  if (!notifications.length) return `<div class="empty">No WhatsApp ticket notifications yet.</div>`;
-  return `<div class="grid">${notifications.map(n => `<div class="ticket-card"><div class="ticket-head"><strong>${notificationLabel(n.type)}</strong><span class="pill good">WhatsApp demo</span></div><div class="small muted">Ticket #${String(n.ticketNo || "").padStart(6,"0").slice(-6)} · ${fmtDate(n.sentAt)} · ${escapeHtml(n.sentTo)}</div><div class="btn-row"><button class="mini-btn" data-action="open-wa" data-url="${escapeHtml(n.waUrl)}">Open WhatsApp</button></div></div>`).join("")}</div>`;
-}
-function notificationLabel(type = "") {
-  return type === "p1_supervisor_alert" ? "Supervisor P1 alert ready" : type === "ticket_in_progress" ? "Client work-start update ready" : type === "ticket_closed" ? "Client closure update ready" : "Client ticket confirmation ready";
-}
-function invoiceRowsMarkup(invoices) {
-  return `<div class="table-wrap"><table><thead><tr><th>Month</th><th>Site</th><th>Base AMC</th><th>SLA Credit</th><th>Net Payable</th><th>Status</th><th>Action</th></tr></thead><tbody>${invoices.map(inv => `<tr><td><strong>${escapeHtml(inv.billingLabel)}</strong><br><span class="small muted">${escapeHtml(inv.invoiceNo)}</span></td><td>${escapeHtml(inv.siteName)}<br><span class="small muted">${escapeHtml(inv.city)}</span></td><td>${currency(inv.baseMonthlyAmount)}</td><td><span class="pill ${inv.slaCreditAmount ? "critical" : "good"}">${currency(inv.slaCreditAmount)}</span><br><span class="small muted">${inv.breachedPlants} breach(es) × ${currency(inv.slaFinePerBreach)}</span></td><td><strong>${currency(inv.netPayable)}</strong></td><td><span class="pill good">${escapeHtml(inv.status)}</span></td><td><button class="mini-btn" data-action="download-invoice" data-invoice-site="${escapeHtml(inv.siteId)}" data-invoice-month="${escapeHtml(inv.billingMonth)}">Download invoice</button></td></tr>`).join("")}</tbody></table></div>`;
-}
-function invoicesView() {
-  const db = getDb();
-  const month = currentBillingMonth();
-  const invoices = invoicesForSites(db, allowedSiteIds(db), month);
-  const totalBase = invoices.reduce((sum, inv) => sum + inv.baseMonthlyAmount, 0);
-  const totalCredit = invoices.reduce((sum, inv) => sum + inv.slaCreditAmount, 0);
-  const totalNet = invoices.reduce((sum, inv) => sum + inv.netPayable, 0);
-  return `<section class="card"><div class="card-title"><div><h3>Invoices</h3><p class="subtitle">Fixed monthly invoice with SLA service credit. Current demo rule: ${currency(BILLING.slaFinePerBreachedPlant)} per breached plant/ticket.</p></div><span class="pill good">${escapeHtml(month)}</span></div><div class="kpi-strip"><div class="metric"><span>Base AMC</span><strong>${currency(totalBase)}</strong></div><div class="metric critical"><span>SLA Credit</span><strong>${currency(totalCredit)}</strong></div><div class="metric good"><span>Net Payable</span><strong>${currency(totalNet)}</strong></div><div class="metric"><span>Fine Rule</span><strong>${currency(BILLING.slaFinePerBreachedPlant)}</strong></div></div>${invoiceRowsMarkup(invoices)}<p class="footer-note">SLA credit is calculated from ticket records for the billing month. This V1 keeps it transparent and simple; advanced SLA slabs can be added later after contract terms are fixed.</p></section>`;
-}
-function assistantQuickPrompts() {
-  const prompts = ["Summarize my site status", "Show pending tickets", "Explain latest invoice", "Any recurring issues?", "When was the site last serviced?", "What needs attention?", "Show WhatsApp notifications", "Download this month's report"];
-  return `<div class="btn-row">${prompts.map(p => `<button type="button" class="mini-btn" data-assistant-prompt="${escapeHtml(p)}">${escapeHtml(p)}</button>`).join("")}</div>`;
-}
-function generateAssistantResponse(promptText = "") {
-  const prompt = String(promptText || "").toLowerCase();
-  const db = getDb();
-  const { scans, tickets } = visibleRecords();
-  const open = tickets.filter(t => t.status !== STATUS.CLOSED);
-  const p1 = open.filter(t => t.priority === "P1");
-  const breached = tickets.filter(t => slaState(t).breached);
-  const hs = healthSummary(scans);
-  const latestScan = [...scans].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
-  const siteIds = allowedSiteIds(db);
-  const invs = invoicesForSites(db, siteIds, currentBillingMonth());
-  const totalNet = invs.reduce((sum, inv) => sum + inv.netPayable, 0);
-  const totalCredit = invs.reduce((sum, inv) => sum + inv.slaCreditAmount, 0);
-  const byZone = tickets.reduce((acc, t) => { const plant = db.plants.find(p => p.id === t.plantId); const key = `${t.siteId}|${plant?.zone || "General"}`; acc[key] = (acc[key] || 0) + 1; return acc; }, {});
-  const recurring = Object.entries(byZone).filter(([, count]) => count >= 3).map(([key, count]) => ({ key, count }));
-  if (prompt.includes("invoice") || prompt.includes("bill") || prompt.includes("payable")) {
-    return `Current month invoice summary: ${invs.length} site invoice(s), net payable ${currency(totalNet)}, SLA service credit ${currency(totalCredit)}. The current demo SLA rule is ${currency(BILLING.slaFinePerBreachedPlant)} per breached plant/ticket. Use the Invoices tab to download the invoice HTML file.`;
-  }
-  if (prompt.includes("whatsapp") || prompt.includes("notification")) {
-    const notes = latestNotifications(3);
-    return notes.length ? `There are ${latestNotifications(20).length} WhatsApp demo notification(s) logged. Latest: ${notificationLabel(notes[0].type)} for ticket #${String(notes[0].ticketNo || "").padStart(6,"0").slice(-6)}. Open the WhatsApp notification cards below to send/view the prefilled message.` : "No WhatsApp ticket notifications have been generated yet. Raise a client P1 ticket to create a confirmation and supervisor alert.";
-  }
-  if (prompt.includes("pending") || prompt.includes("open ticket") || prompt.includes("ticket")) {
-    return open.length ? `You have ${open.length} open ticket(s), including ${p1.length} P1 item(s). ${open.slice(0,3).map(t => `#${String(t.ticketNo || "").padStart(6,"0").slice(-6)} ${t.issue} (${t.priority}, ${t.status})`).join("; ")}.` : "There are no open tickets for your assigned site(s).";
-  }
-  if (prompt.includes("recurring")) {
-    return recurring.length ? `${recurring.length} recurring issue zone(s) detected from ticket history. Top pattern: ${recurring[0].key.split("|")[1]} has ${recurring[0].count} ticket(s). Supervisor review is recommended.` : "No recurring issue zone has crossed the demo threshold yet. The platform will flag this once the same zone accumulates repeated tickets.";
-  }
-  if (prompt.includes("last serviced") || prompt.includes("last visited")) {
-    return latestScan ? `Latest service evidence: ${latestScan.site?.name || "assigned site"} was last scanned/serviced on ${fmtDate(latestScan.createdAt)}. Latest score: ${latestScan.score}/10, category: ${latestScan.category}.` : "No service scan is recorded yet for your assigned site(s).";
-  }
-  if (prompt.includes("report")) {
-    return `This month's operational summary: ${scans.length} scan record(s), ${tickets.length} ticket record(s), ${open.length} open ticket(s), ${breached.length} SLA breach record(s), average health score ${hs.avg || "—"}/10. Use Reports to download CSV.`;
-  }
-  if (prompt.includes("attention") || prompt.includes("status") || prompt.includes("summary")) {
-    return `Current status: average health ${hs.avg || "—"}/10 across ${hs.total} latest scanned asset(s). Healthy ${hs.healthy}, Monitor ${hs.monitor}, Critical ${hs.critical}. Open tickets: ${open.length}. P1 tickets: ${p1.length}. SLA breaches: ${breached.length}. Latest service evidence: ${latestScan ? fmtDate(latestScan.createdAt) : "not available"}.`;
-  }
-  return `I can answer from your GreenOps data: site status, pending tickets, invoice summary, SLA credit, recurring issues, last service timestamp, report summary, and WhatsApp notification status. Try one of the quick prompts above.`;
-}
-function clientAssistantView() {
-  return `<section class="card"><div class="card-title"><div><h3>Ask GreenOps</h3><p class="subtitle">Client operations assistant for status, reports, invoices, SLA credits, tickets, and WhatsApp updates. Answers are generated from current portal data only.</p></div><span class="pill good">Client Assistant</span></div>${assistantQuickPrompts()}<form id="assistantForm" class="form" style="margin-top:14px"><div class="field"><label>Ask a question</label><input class="input" name="assistantPrompt" value="${escapeHtml(state.assistantInput)}" placeholder="Example: Explain latest invoice / What needs attention?" /></div><button class="btn" type="submit">Ask GreenOps</button></form>${state.assistantReply ? `<div class="card soft" style="margin-top:16px"><strong>Answer</strong><p>${escapeHtml(state.assistantReply)}</p></div>` : `<div class="empty" style="margin-top:16px">Ask about invoices, reports, open tickets, recurring issues, last serviced status, or WhatsApp notifications.</div>`}<div style="height:16px"></div><section class="card soft"><div class="card-title"><h3>Latest WhatsApp Demo Notifications</h3><span class="pill good">${escapeHtml("+91-8799765307")}</span></div>${whatsappNotificationPanel(3)}</section></section>`;
-}
-
 function maintenanceView() {
   const { scans, tickets } = visibleRecords();
   if (state.tab === "scan") return scanView();
@@ -314,27 +229,11 @@ function scanView() {
   const sites = allowedSites();
   const draft = state.scanDraft;
   const selectedSite = draft.siteId || sites[0]?.id || "";
-  return `<div class="split"><section class="card"><div class="card-title"><h3>Scan Plant</h3><span class="pill good">AI Diagnosis</span></div><div class="form" id="scanPanel"><div class="grid grid-2"><div class="field"><label>Assigned site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Drop-off / Lobby" /></div></div><div class="field"><label>Plant type, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily" /></div><div class="field"><label>Technician note</label><textarea class="textarea" data-scan-field="note" placeholder="Type note for now. Voice note comes in next version.">${escapeHtml(draft.note)}</textarea></div><div class="filebox"><strong>Upload plant image</strong><br><span class="small muted">Image is saved locally for this scan.</span><div class="btn-row" style="justify-content:center;margin-top:12px"><label class="mini-btn">Upload / click photo<input class="hidden" type="file" accept="image/*" capture="environment" data-scan-image /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div></div><button class="btn" id="runDiagnosisBtn" type="button" data-action="run-diagnosis" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button></div><div id="scanOutput"></div></section><section class="card soft"><h3>Health Categories</h3><div class="grid"><div class="ticket-card"><div class="ticket-head"><strong>Healthy</strong><span class="pill good">7+</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Monitor</strong><span class="pill monitor">6–6.9</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Critical</strong><span class="pill critical">Below 6</span></div></div></div></section></div>`;
+  return `<div class="split"><section class="card"><div class="card-title"><h3>Scan Plant</h3><span class="pill good">AI Diagnosis</span></div><div class="form" id="scanPanel"><div class="grid grid-2"><div class="field"><label>Assigned site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Drop-off / Lobby" /></div></div><div class="field"><label>Plant type, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily" /></div><div class="field"><label>Technician note</label><textarea class="textarea" data-scan-field="note" placeholder="Type note for now. Voice note comes in next version.">${escapeHtml(draft.note)}</textarea></div><div class="filebox"><strong>Upload plant image</strong><br><span class="small muted">Image is saved locally for this scan.</span><div class="btn-row" style="justify-content:center;margin-top:12px"><label class="mini-btn">Choose image<input class="hidden" type="file" accept="image/*" capture="environment" data-scan-image /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div></div><button class="btn" id="runDiagnosisBtn" type="button" data-action="run-diagnosis" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button></div><div id="scanOutput"></div></section><section class="card soft"><h3>Health Categories</h3><div class="grid"><div class="ticket-card"><div class="ticket-head"><strong>Healthy</strong><span class="pill good">7+</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Monitor</strong><span class="pill monitor">6–6.9</span></div></div><div class="ticket-card"><div class="ticket-head"><strong>Critical</strong><span class="pill critical">Below 6</span></div></div></div></section></div>`;
 }
 function scanImageMarkup() { return state.scanImage ? `<div class="image-ready" style="margin-top:12px"><span class="pill good">Plant image ready</span></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted" style="margin-top:12px">No image selected yet.</div>`; }
 function syncScanDraftFromDom() { const panel = document.querySelector("#scanPanel"); if (!panel) return; const next = { ...state.scanDraft }; panel.querySelectorAll("[data-scan-field]").forEach(el => { next[el.dataset.scanField] = el.value || ""; }); state.scanDraft = next; }
 function updateScanImageUi() { const box = document.querySelector("#scanImageState"); if (box) box.innerHTML = scanImageMarkup(); const btn = document.querySelector("#runDiagnosisBtn"); if (btn) btn.disabled = !state.scanImage; const removeBtn = document.querySelector('[data-action="clear-scan-image"]'); if (removeBtn) removeBtn.classList.toggle("hidden", !state.scanImage); }
-function applyQr(raw = "") {
-  const text = String(raw || "").trim();
-  if (!text) throw new Error("Paste or scan a QR value first.");
-  syncScanDraftFromDom();
-  const parts = Object.fromEntries(text.split(/[;|,]/).map(x => x.split(/[:=]/).map(v => v?.trim())).filter(x => x.length === 2));
-  if (parts.siteId) state.scanDraft.siteId = parts.siteId;
-  if (parts.zone) state.scanDraft.zone = parts.zone;
-  if (parts.plantType) state.scanDraft.plantType = parts.plantType;
-  state.qrText = text;
-  toast("QR data applied to scan fields.");
-  render();
-}
-function batchResultsMarkup() {
-  if (!state.batchResults.length) return "";
-  return `<div class="batch-results">${state.batchResults.map((r, i) => `<div class="ticket-card"><div class="ticket-head"><strong>Photo ${i + 1}</strong><span class="pill ${healthClass(r.category)}">${escapeHtml(r.category || "Done")}</span></div><span class="small muted">${escapeHtml(r.label || "Processed")}</span></div>`).join("")}</div>`;
-}
 
 function supervisorView() {
   const { scans, tickets } = visibleRecords();
@@ -353,8 +252,53 @@ function clientView() {
   if (state.tab === "reports") return reportsView(false);
   if (state.tab === "invoices") return invoicesView();
   if (state.tab === "evidence") return evidenceView(tickets);
-  return `<section class="card">${filterPanel({ client: false })}${metrics(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><div class="grid grid-2"><section class="card"><div class="card-title"><h3>Your open tickets</h3><button class="btn" data-tab="raise ticket">Raise Priority 1 Ticket</button></div>${ticketBoard(tickets.filter(t => t.status !== STATUS.CLOSED), { scope: "client", compact: true })}</section><section class="card"><div class="card-title"><h3>Ask GreenOps</h3><button class="btn secondary" data-tab="assistant">Open Assistant</button></div><p class="subtitle">Ask for invoice summary, current status, pending tickets, recurring issues, or last serviced timestamp.</p>${whatsappNotificationPanel(2)}</section></div>`;
+  return `<section class="card">${filterPanel({ client: false })}${metrics(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><h3>Your open tickets</h3><button class="btn" data-tab="raise ticket">Raise Priority 1 Ticket</button></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
 }
+function money(value) { return `₹${Number(value || 0).toLocaleString("en-IN")}`; }
+function currentBillingMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
+function scopedNotifications(db = getDb()) {
+  const ids = new Set(allowedSiteIds(db));
+  const ticketMap = Object.fromEntries((db.tickets || []).map(t => [t.id, t]));
+  return (db.notifications || []).filter(n => ids.has(ticketMap[n.ticketId]?.siteId)).sort((a,b) => String(b.sentAt).localeCompare(String(a.sentAt)));
+}
+function clientAssistantView() {
+  const quick = ["Summarize my site status", "Show pending tickets", "Explain latest invoice", "Any recurring issues?", "When was the site last serviced?", "Show WhatsApp notifications"];
+  return `<section class="card"><div class="card-title"><div><h3>Ask GreenOps</h3><p class="subtitle">Client operations assistant for tickets, invoices, reports, SLA status, and site summary.</p></div><span class="pill good">Client portal</span></div><div class="grid grid-2"><div class="card soft"><h3>Quick questions</h3><div class="btn-row">${quick.map(q => `<button class="mini-btn" data-action="assistant-prompt" data-prompt="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join("")}</div><form id="assistantForm" class="form" style="margin-top:14px"><div class="field"><label>Ask a question</label><input class="input" name="prompt" value="${escapeHtml(state.assistantPrompt)}" placeholder="Example: What needs attention this month?" /></div><button class="btn" type="submit">Ask</button></form></div><div class="card soft"><h3>Answer</h3>${state.assistantAnswer ? `<p style="white-space:pre-line">${escapeHtml(state.assistantAnswer)}</p>` : `<div class="empty">Ask about current status, pending tickets, invoices, recurring issues, or WhatsApp notifications.</div>`}</div></div>${whatsappNotificationCards()}</section>`;
+}
+function assistantAnswerFor(prompt) {
+  const q = String(prompt || "").toLowerCase();
+  const { scans, tickets } = visibleRecords();
+  const db = getDb();
+  const open = tickets.filter(t => t.status !== STATUS.CLOSED);
+  const p1 = open.filter(t => t.priority === "P1");
+  const breached = open.filter(t => slaState(t).breached);
+  const lastScan = scans.slice().sort((a,b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+  const invoices = invoicesForSites(db, allowedSiteIds(db), currentBillingMonth());
+  const invoice = invoices[0];
+  const notes = scopedNotifications(db).slice(0, 5);
+  if (q.includes("invoice") || q.includes("billing") || q.includes("payable")) return invoice ? invoiceText(invoice) : "No invoice data is available for the selected client sites.";
+  if (q.includes("pending") || q.includes("ticket")) return open.length ? `There are ${open.length} open ticket(s), including ${p1.length} P1 ticket(s) and ${breached.length} breached SLA item(s).\n\n${open.slice(0,5).map(t => `#${t.ticketNo || t.id} · ${t.priority} · ${t.status} · ${t.issue}`).join("\n")}` : "There are no open tickets for your assigned sites.";
+  if (q.includes("whatsapp") || q.includes("notification")) return notes.length ? `Latest WhatsApp demo notifications:\n\n${notes.map(n => `${fmtDate(n.sentAt)} · ${n.type} · ${n.status}`).join("\n")}` : "No WhatsApp notifications are logged yet. Client-raised P1 tickets will create demo WhatsApp links.";
+  if (q.includes("recurring")) {
+    const byIssue = open.reduce((acc,t) => { const key = `${t.siteId}:${t.issue}`; acc[key] = (acc[key] || 0) + 1; return acc; }, {});
+    const recurring = Object.entries(byIssue).filter(([,count]) => count >= 2);
+    return recurring.length ? `Recurring signals found in ${recurring.length} issue group(s). Supervisor review is recommended for repeated tickets in the same issue pattern.` : "No recurring issue signal is visible from the current open ticket data.";
+  }
+  if (q.includes("last") || q.includes("serviced") || q.includes("visited")) return lastScan ? `The latest service scan visible to your account was recorded on ${fmtDate(lastScan.createdAt)}. Latest score: ${lastScan.score}/10, category: ${lastScan.category}.` : "No service scan is available yet for your assigned sites.";
+  const health = healthSummary(scans);
+  return `Current client status: ${scans.length} scan(s), ${open.length} open ticket(s), ${p1.length} P1 ticket(s), ${breached.length} breached SLA item(s). Average health score is ${health.avg || "not available"}. ${invoice ? `Latest invoice net payable is ${money(invoice.netPayable)} after SLA credit of ${money(invoice.slaCreditAmount)}.` : "No invoice is available yet."}`;
+}
+function invoicesView() {
+  const db = getDb();
+  const invoices = invoicesForSites(db, allowedSiteIds(db), currentBillingMonth());
+  return `<section class="card"><div class="card-title"><div><h3>Invoices</h3><p class="subtitle">Fixed monthly AMC invoice with SLA service credit. Current rule: ₹50 per breached SLA item / plant.</p></div></div><div class="table-wrap"><table><thead><tr><th>Month</th><th>Site</th><th>Base AMC</th><th>SLA Credit</th><th>Net Payable</th><th>Status</th><th>Action</th></tr></thead><tbody>${invoices.map(inv => `<tr><td>${escapeHtml(inv.billingLabel)}<br><span class="small muted">${escapeHtml(inv.invoiceNo)}</span></td><td>${escapeHtml(inv.siteName)}</td><td>${money(inv.baseMonthlyAmc)}</td><td><span class="pill ${inv.slaCreditAmount ? "critical" : "good"}">${money(inv.slaCreditAmount)}</span><br><span class="small muted">${inv.breachedCount} breach(es) × ${money(inv.finePerBreach)}</span></td><td><strong>${money(inv.netPayable)}</strong></td><td><span class="pill good">${escapeHtml(inv.status)}</span></td><td><button class="mini-btn" data-action="download-invoice" data-site="${escapeHtml(inv.siteId)}">Download</button></td></tr>`).join("") || `<tr><td colspan="7">No invoices available.</td></tr>`}</tbody></table></div></section>`;
+}
+function whatsappNotificationCards() {
+  const notes = scopedNotifications().slice(0, 4);
+  if (!notes.length) return "";
+  return `<div style="height:16px"></div><section class="card soft"><div class="card-title"><h3>WhatsApp demo notifications</h3><span class="pill monitor">Demo links</span></div><div class="grid grid-2">${notes.map(n => `<div class="ticket-card"><div class="ticket-head"><strong>${escapeHtml(n.type)}</strong><span class="pill good">${escapeHtml(n.status)}</span></div><p class="small muted">${fmtDate(n.sentAt)} · ${escapeHtml(n.sentTo)}</p><p class="small">${escapeHtml(n.message).slice(0, 170)}${String(n.message || "").length > 170 ? "..." : ""}</p>${n.waUrl ? `<a class="mini-btn" href="${escapeHtml(n.waUrl)}" target="_blank" rel="noreferrer">Open WhatsApp</a>` : ""}</div>`).join("")}</div></section>`;
+}
+
 function raiseTicketView() {
   const sites = allowedSites();
   return `<section class="card"><div class="card-title"><div><h3>Raise Client Ticket</h3><p class="subtitle">Every client-created ticket is automatically Priority 1. Photo evidence is optional.</p></div><span class="pill p1">P1</span></div><form class="form" id="clientTicketForm"><div class="field"><label>Your site</label><select class="select" name="siteId" required>${sites.map(s => option(s.id, `${s.city} · ${s.name}`)).join("")}</select></div><div class="field"><label>Issue</label><input class="input" name="issue" placeholder="Plant condition concern / area not serviced" required /></div><div class="field"><label>Description</label><textarea class="textarea" name="description" placeholder="Add exact location, concern, or expectation."></textarea></div><div class="filebox"><strong>Optional issue photo</strong><br><span class="small muted">Add a photo if it helps the operations team understand the issue.</span><div class="btn-row" style="justify-content:center;margin-top:12px"><label class="mini-btn">Upload / click photo<input class="hidden" type="file" accept="image/*" capture="environment" data-client-evidence /></label><button class="mini-btn danger ${state.clientTicketImage ? "" : "hidden"}" type="button" data-action="clear-client-ticket-image">Remove photo</button></div><div id="clientTicketImageState">${clientTicketImageMarkup()}</div></div><button class="btn" type="submit">Create Priority 1 Ticket</button></form></section>`;
@@ -497,16 +441,15 @@ function bindEvents() {
     const loginRole = e.target.closest("[data-login-role]")?.dataset.loginRole; if (loginRole) { state.loginRole = loginRole; render(); return; }
     const ownerView = e.target.closest("[data-owner-view]")?.dataset.ownerView; if (ownerView && isOwner()) { state.ownerViewRole = ownerView; sessionStorage.setItem("greenops_owner_view", ownerView); state.tab = firstTabFor(ownerView === ROLES.MAINTENANCE ? ROLES.MAINTENANCE : ownerView === ROLES.CLIENT ? ROLES.CLIENT : ROLES.OWNER); render(); return; }
     const tab = e.target.closest("[data-tab]")?.dataset.tab; if (tab) { state.tab = tab; sessionStorage.setItem(APP.sessionTabKey, tab); render(); return; }
-    const assistantPrompt = e.target.closest("[data-assistant-prompt]")?.dataset.assistantPrompt; if (assistantPrompt) { state.assistantInput = assistantPrompt; state.assistantReply = generateAssistantResponse(assistantPrompt); render(); return; }
     const action = e.target.closest("[data-action]")?.dataset.action; const id = e.target.closest("[data-id]")?.dataset.id;
     try {
       if (action === "logout") { logout(); render(); return; }
       if (!state.user) return;
       if (action === "seed" && isOwner()) { seedDemoData(); toast("Demo data seeded."); render(); }
-      if (action === "reset" && isOwner() && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = { siteId:"", zone:"", plantType:"", note:"" }; state.scanImage = ""; state.clientTicketImage = ""; state.batchImages = []; state.batchResults = []; state.assistantInput = ""; state.assistantReply = ""; toast("Local data reset."); render(); }
+      if (action === "reset" && isOwner() && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = { siteId:"", zone:"", plantType:"", note:"" }; state.scanImage = ""; state.clientTicketImage = ""; state.batchImages = []; state.batchResults = []; toast("Local data reset."); render(); }
       if (action === "download-report") exportCsvReport(getDb(), roleFilter(getDb()));
-      if (action === "open-wa") { const url = e.target.closest("[data-url]")?.dataset.url; if (url) window.open(url, "_blank", "noopener,noreferrer"); }
-      if (action === "download-invoice") { const btn = e.target.closest("[data-invoice-site]"); const inv = invoiceForSite(getDb(), btn?.dataset.invoiceSite, btn?.dataset.invoiceMonth || currentBillingMonth()); downloadInvoiceHtml(inv); toast("Invoice downloaded."); }
+      if (action === "assistant-prompt") { state.assistantPrompt = e.target.closest("[data-prompt]")?.dataset.prompt || ""; state.assistantAnswer = assistantAnswerFor(state.assistantPrompt); render(); return; }
+      if (action === "download-invoice") { const siteId = e.target.closest("[data-site]")?.dataset.site; const inv = invoiceForSite(getDb(), siteId, currentBillingMonth()); downloadFile(`${inv.invoiceNo.replaceAll("/", "-")}.html`, invoiceHtml(inv), "text/html"); return; }
       if (action === "clear-scan-image") { syncScanDraftFromDom(); state.scanImage = ""; const input = document.querySelector("[data-scan-image]"); if (input) input.value = ""; updateScanImageUi(); toast("Plant image removed."); }
       if (action === "clear-client-ticket-image") { state.clientTicketImage = ""; const input = document.querySelector("[data-client-evidence]"); if (input) input.value = ""; updateClientTicketImageUi(); toast("Issue photo removed."); }
       if (action === "apply-qr") { const input = document.querySelector("[data-qr-text]"); applyQr(input?.value || state.qrText); }
@@ -534,8 +477,8 @@ function bindEvents() {
     e.preventDefault();
     try {
       if (e.target.id === "loginForm") { const fd = new FormData(e.target); const user = authenticate(fd.get("role"), fd.get("identifier"), fd.get("secret")); if (!user) throw new Error("Login failed. Check registered credentials."); setLoggedIn(user); toast(`Welcome, ${user.name}.`); render(); return; }
-      if (e.target.id === "assistantForm") { const fd = new FormData(e.target); const prompt = fd.get("assistantPrompt") || ""; state.assistantInput = prompt; state.assistantReply = generateAssistantResponse(prompt); render(); return; }
-      if (e.target.id === "clientTicketForm") { const fd = new FormData(e.target); const siteId = fd.get("siteId"); if (!allowedSiteIds().includes(siteId)) throw new Error("This site is not assigned to your account."); const created = createClientTicket({ siteId, issue: fd.get("issue"), description: fd.get("description"), clientEvidence: state.clientTicketImage }); state.clientTicketImage = ""; toast(created?.notifications?.length ? "Priority 1 ticket created. WhatsApp demo notifications are ready." : "Priority 1 ticket created."); state.tab = "overview"; render(); }
+      if (e.target.id === "assistantForm") { const fd = new FormData(e.target); state.assistantPrompt = String(fd.get("prompt") || ""); state.assistantAnswer = assistantAnswerFor(state.assistantPrompt); render(); return; }
+      if (e.target.id === "clientTicketForm") { const fd = new FormData(e.target); const siteId = fd.get("siteId"); if (!allowedSiteIds().includes(siteId)) throw new Error("This site is not assigned to your account."); createClientTicket({ siteId, issue: fd.get("issue"), description: fd.get("description"), clientEvidence: state.clientTicketImage }); state.clientTicketImage = ""; toast("Priority 1 ticket created. WhatsApp demo notification logged."); state.tab = "overview"; render(); }
     } catch (err) { toast(err.message || "Submit failed"); }
   });
 }
