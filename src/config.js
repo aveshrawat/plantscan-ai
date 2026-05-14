@@ -5,8 +5,7 @@ export const APP = {
   sessionRoleKey: "greenops_role_v1",
   sessionTabKey: "greenops_tab_v1",
   diagnosisEndpoint: "/api/diagnose",
-  verifyEvidenceEndpoint: "/api/verify-evidence",
-  notifyWhatsappEndpoint: "/api/notify-whatsapp"
+  verifyEvidenceEndpoint: "/api/verify-evidence"
 };
 
 export const ROLES = {
@@ -25,24 +24,14 @@ export const HEALTH = {
 export const STATUS = {
   OPEN: "Open",
   IN_PROGRESS: "In Progress",
-  CLOSED: "Closed"
+  CLOSED: "Closed",
+  PAUSED: "Paused"
 };
 
 export const PRIORITY = {
   P1: "P1",
   P2: "P2",
   P3: "P3"
-};
-
-export const BILLING = {
-  defaultMonthlyAmc: 50000,
-  slaCreditPerBreach: 50,
-  currency: "INR"
-};
-
-export const NOTIFICATIONS = {
-  demoWhatsappNumber: "+918799765307",
-  mode: "demo_link"
 };
 
 export const SLA_RULES = {
@@ -57,10 +46,16 @@ export const INITIAL_DB = {
       id: "u-owner-1",
       name: "Avesh Rawat",
       role: ROLES.OWNER,
-      phone: "9999999999",
-      pin: "0000",
-      email: "owner@greenops.demo",
+      phone: "9000000000",
+      pin: "1234",
+      email: "owner@onescape.in",
       password: "owner123",
+      authAliases: [
+        { identifier: "9000000000", secret: "1234" },
+        { identifier: "owner@onescape.in", secret: "owner123" },
+        { identifier: "9999999999", secret: "0000" },
+        { identifier: "owner@greenops.demo", secret: "owner123" }
+      ],
       cityAccess: ["Bangalore", "Kolkata"],
       clientAccess: ["client-servicenow", "client-mckinsey", "client-marriott"],
       siteAccess: ["site-sn-blr", "site-mck-blr", "site-mar-blr", "site-sn-kol"]
@@ -137,10 +132,10 @@ export const INITIAL_DB = {
     { id: "client-marriott", name: "Marriott" }
   ],
   sites: [
-    { id: "site-sn-blr", clientId: "client-servicenow", name: "ServiceNow Bangalore Campus", city: "Bangalore", zones: ["Reception", "Drop-off", "Lobby", "Workbay A"], monthlyAmcAmount: 50000 },
-    { id: "site-mck-blr", clientId: "client-mckinsey", name: "McKinsey RMZ Ecoworld", city: "Bangalore", zones: ["Reception", "Boardroom", "Cafe", "Lift Lobby"], monthlyAmcAmount: 50000 },
-    { id: "site-mar-blr", clientId: "client-marriott", name: "Marriott Bellandur", city: "Bangalore", zones: ["Entrance", "Drop-off", "Lobby", "Service Apartment"], monthlyAmcAmount: 50000 },
-    { id: "site-sn-kol", clientId: "client-servicenow", name: "ServiceNow Kolkata Office", city: "Kolkata", zones: ["Reception", "Atrium", "Cafe", "Workbay B"], monthlyAmcAmount: 50000 }
+    { id: "site-sn-blr", clientId: "client-servicenow", name: "ServiceNow Bangalore Campus", city: "Bangalore", zones: ["Reception", "Drop-off", "Lobby", "Workbay A"] },
+    { id: "site-mck-blr", clientId: "client-mckinsey", name: "McKinsey RMZ Ecoworld", city: "Bangalore", zones: ["Reception", "Boardroom", "Cafe", "Lift Lobby"] },
+    { id: "site-mar-blr", clientId: "client-marriott", name: "Marriott Bellandur", city: "Bangalore", zones: ["Entrance", "Drop-off", "Lobby", "Service Apartment"] },
+    { id: "site-sn-kol", clientId: "client-servicenow", name: "ServiceNow Kolkata Office", city: "Kolkata", zones: ["Reception", "Atrium", "Cafe", "Workbay B"] }
   ],
-  plants: [], scans: [], tickets: [], evidence: [], notifications: [], invoices: [], meta: { seeded: false, version: 2 }
+  plants: [], scans: [], tickets: [], evidence: [], activityLog: [], meta: { seeded: false, version: 3 }
 };
