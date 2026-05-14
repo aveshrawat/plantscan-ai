@@ -8,60 +8,70 @@ export function priorityForScan(score) {
   if (Number(score) < 6) return PRIORITY.P2;
   return PRIORITY.P3;
 }
+
+function siteFor(d, siteId) { return (d.sites || []).find(s => s.id === siteId); }
+function clientFor(d, clientId) { return (d.clients || []).find(c => c.id === clientId); }
+function supervisorForSite(d, siteId) {
+  const site = siteFor(d, siteId);
+  return (d.users || []).find(u => u.role === "supervisor" && (u.cityAccess || []).includes(site?.city)) || null;
+}
+function whatsappUrl(phone, message) {
+  const clean = String(phone || NOTIFICATIONS.demoWhatsappNumber || "").replace(/\D/g, "");
+  return `https://wa.me/${clean}?text=${encodeURIComponent(message || "")}`;
+}
+function addWhatsappNotification(d, { ticket, type, recipientRole, sentTo, message }) {
+  if (!Array.isArray(d.notifications)) d.notifications = [];
+  d.notifications.push({
+    id: uid("ntf"),
+    ticketId: ticket.id,
+    ticketNo: ticket.ticketNo,
+    type,
+    channel: "whatsapp",
+    recipientRole,
+    sentTo: sentTo || NOTIFICATIONS.demoWhatsappNumber,
+    message,
+    waUrl: whatsappUrl(sentTo || NOTIFICATIONS.demoWhatsappNumber, message),
+    sentAt: nowIso(),
+    status: "ready",
+    mode: NOTIFICATIONS.mode || "demo_link"
+  });
+}
+function logClientTicketWhatsapp(d, ticket) {
+  const site = siteFor(d, ticket.siteId);
+  const client = clientFor(d, site?.clientId);
+  const supervisor = supervisorForSite(d, ticket.siteId);
+  const phone = NOTIFICATIONS.demoWhatsappNumber;
+  const ticketNo = String(ticket.ticketNo || "");
+  addWhatsappNotification(d, {
+    ticket,
+    type: "client_ticket_confirmation",
+    recipientRole: "client",
+    sentTo: phone,
+    message: `GreenOps Ticket Created\n\nTicket: #${ticketNo}\nClient: ${client?.name || "Client"}\nSite: ${site?.name || "Site"}\nZone: General\nIssue: ${ticket.issue}\nPriority: ${ticket.priority}\n\nOur team has been notified. You will receive an update once work starts.`
+  });
+  addWhatsappNotification(d, {
+    ticket,
+    type: "p1_supervisor_alert",
+    recipientRole: "supervisor",
+    sentTo: supervisor?.whatsappNumber || phone,
+    message: `P1 Alert — GreenOps ITSM\n\nTicket: #${ticketNo}\nSite: ${site?.name || "Site"}\nIssue: ${ticket.issue}\nRaised by: Client\n\nPlease review and move to In Progress.`
+  });
+}
+function logTicketStatusWhatsapp(d, ticket, type) {
+  const site = siteFor(d, ticket.siteId);
+  const phone = NOTIFICATIONS.demoWhatsappNumber;
+  const message = type === "ticket_closed"
+    ? `GreenOps Ticket Closed\n\nTicket #${ticket.ticketNo} has been marked as resolved with closure evidence uploaded.\n\nSite: ${site?.name || "Site"}`
+    : `GreenOps Update\n\nTicket #${ticket.ticketNo} is now In Progress.\nOur team has started working on the issue.\n\nSite: ${site?.name || "Site"}`;
+  addWhatsappNotification(d, { ticket, type, recipientRole: "client", sentTo: phone, message });
+}
+
 function ticketNumber(d) {
   const used = new Set((d.tickets || []).map(t => String(t.ticketNo || "")));
   let value = "";
   do value = String(Math.floor(100000 + Math.random() * 900000));
   while (used.has(value));
   return value;
-}
-
-function siteFor(d, siteId) { return (d.sites || []).find(s => s.id === siteId); }
-function clientFor(d, clientId) { return (d.clients || []).find(c => c.id === clientId); }
-function supervisorForSite(d, siteId) {
-  const site = siteFor(d, siteId);
-  return (d.users || []).find(u => u.role === "supervisor" && (u.cityAccess || []).includes(site?.city));
-}
-function whatsappUrl(number, message) {
-  const digits = String(number || NOTIFICATIONS.demoWhatsAppNumber || "").replace(/\D/g, "");
-  return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(message)}` : "";
-}
-function logWhatsapp(d, { ticket, type, recipientRole, number, message }) {
-  d.notifications ||= [];
-  d.notifications.push({
-    id: uid("ntf"),
-    ticketId: ticket.id,
-    ticketNo: ticket.ticketNo || "",
-    type,
-    channel: "whatsapp",
-    recipientRole,
-    sentTo: number || NOTIFICATIONS.demoWhatsAppNumber,
-    message,
-    waUrl: whatsappUrl(number || NOTIFICATIONS.demoWhatsAppNumber, message),
-    sentAt: nowIso(),
-    status: "ready",
-    mode: NOTIFICATIONS.mode || "demo_link"
-  });
-}
-function notifyClientTicketCreated(d, ticket) {
-  const site = siteFor(d, ticket.siteId);
-  const client = clientFor(d, site?.clientId);
-  const supervisor = supervisorForSite(d, ticket.siteId);
-  const clientUser = (d.users || []).find(u => u.role === "client" && ((u.siteAccess || []).includes(ticket.siteId) || (u.clientAccess || []).includes(site?.clientId)));
-  const zone = ticket.plantId ? ((d.plants || []).find(p => p.id === ticket.plantId)?.zone || "General") : "General";
-  const clientMsg = `GreenOps ticket created\n\nTicket: #${ticket.ticketNo}\nSite: ${site?.name || "Site"}\nZone: ${zone}\nIssue: ${ticket.issue}\nPriority: ${ticket.priority}\n\nOur team has been notified. You will receive an update once work starts.`;
-  const supervisorMsg = `P1 Alert - GreenOps ITSM\n\nTicket: #${ticket.ticketNo}\nClient: ${client?.name || "Client"}\nSite: ${site?.name || "Site"}\nZone: ${zone}\nIssue: ${ticket.issue}\nRaised by: Client\n\nPlease review and move to In Progress.`;
-  logWhatsapp(d, { ticket, type: "client_ticket_confirmation", recipientRole: "client", number: clientUser?.whatsappNumber || NOTIFICATIONS.demoWhatsAppNumber, message: clientMsg });
-  logWhatsapp(d, { ticket, type: "p1_supervisor_alert", recipientRole: "supervisor", number: supervisor?.whatsappNumber || NOTIFICATIONS.demoWhatsAppNumber, message: supervisorMsg });
-}
-function notifyTicketStatus(d, ticket, type) {
-  if (ticket.source !== "Client") return;
-  const site = siteFor(d, ticket.siteId);
-  const clientUser = (d.users || []).find(u => u.role === "client" && ((u.siteAccess || []).includes(ticket.siteId) || (u.clientAccess || []).includes(site?.clientId)));
-  const message = type === "ticket_closed"
-    ? `GreenOps ticket closed\n\nTicket #${ticket.ticketNo} has been marked resolved with closure evidence uploaded. You can view the closure proof in the client portal.`
-    : `GreenOps update\n\nTicket #${ticket.ticketNo} is now In Progress. Our team has started working on the issue.`;
-  logWhatsapp(d, { ticket, type, recipientRole: "client", number: clientUser?.whatsappNumber || NOTIFICATIONS.demoWhatsAppNumber, message });
 }
 
 export function createScanRecord(input, diagnosis, image) {
@@ -154,7 +164,7 @@ export function createClientTicket({ siteId, plantId = "", issue, description, c
       createdBy: "client"
     };
     d.tickets.push(ticket);
-    notifyClientTicketCreated(d, ticket);
+    logClientTicketWhatsapp(d, ticket);
     return d;
   });
 }
@@ -166,7 +176,7 @@ export function markInProgress(id) {
     const t = d.tickets.find(x => x.id === id);
     if (t) {
       Object.assign(t, { status: STATUS.IN_PROGRESS, startedAt: nowIso() });
-      notifyTicketStatus(d, t, "ticket_in_progress");
+      if (t.source === "Client") logTicketStatusWhatsapp(d, t, "ticket_in_progress");
     }
     return d;
   });
@@ -186,7 +196,7 @@ export function closeTicket(id, remark = "") {
     if (!t.closureEvidenceVerified) throw new Error("Closure photo must be accepted before closing this ticket.");
     const closedAt = nowIso();
     Object.assign(t, { status: STATUS.CLOSED, closedAt, closureRemark: remark, resolutionHours: +hoursBetween(t.createdAt, closedAt).toFixed(2) });
-    notifyTicketStatus(d, t, "ticket_closed");
+    if (t.source === "Client") logTicketStatusWhatsapp(d, t, "ticket_closed");
     return d;
   });
 }

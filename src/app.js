@@ -3,7 +3,7 @@ import { getDb, resetDb, seedDemoData } from "./store.js";
 import { createScanRecord, createClientTicket, markInProgress, attachEvidence, closeTicket } from "./tickets.js";
 import { healthClass, healthSummary, trendByDay } from "./health.js";
 import { exportCsvReport, joinRecords } from "./reports.js";
-import { invoiceForSite, invoicesForSites, invoiceHtml, invoiceText } from "./billing.js";
+import { buildInvoice, buildInvoicesForSites, currentMonthKey, invoiceHtml, invoiceSummaryText, money } from "./billing.js";
 import { slaState, resolutionTime } from "./sla.js";
 import { $, $$, dataUrlToBase64, downloadFile, escapeHtml, fmtDate, imageToDataUrl, option, toast } from "./utils.js";
 
@@ -20,16 +20,16 @@ const state = {
   batchImages: [],
   batchResults: [],
   batchRunning: false,
-  assistantPrompt: "",
-  assistantAnswer: "",
   scanDraft: { siteId: "", zone: "", plantType: "", note: "" },
-  filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" }
+  filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" },
+  assistantQuestion: "",
+  assistantAnswer: ""
 };
 
 const roleTabs = {
   [ROLES.MAINTENANCE]: ["dashboard", "scan", "my tickets", "history"],
   [ROLES.SUPERVISOR]: ["dashboard", "tickets", "sla breaches", "reports"],
-  [ROLES.CLIENT]: ["overview", "assistant", "raise ticket", "reports", "invoices", "evidence"],
+  [ROLES.CLIENT]: ["overview", "raise ticket", "assistant", "invoices", "reports", "evidence"],
   [ROLES.OWNER]: ["dashboard", "tickets", "sla breaches", "reports", "admin"]
 };
 
@@ -126,7 +126,7 @@ function setLoggedIn(user) {
   state.batchImages = [];
   state.batchResults = [];
   state.batchRunning = false;
-  state.assistantPrompt = "";
+  state.assistantQuestion = "";
   state.assistantAnswer = "";
 }
 function logout() {
@@ -247,58 +247,13 @@ function adminView() { return `<section class="card"><div class="card-title"><di
 
 function clientView() {
   const { scans, tickets } = visibleRecords();
-  if (state.tab === "assistant") return clientAssistantView();
   if (state.tab === "raise ticket") return raiseTicketView();
-  if (state.tab === "reports") return reportsView(false);
+  if (state.tab === "assistant") return assistantView();
   if (state.tab === "invoices") return invoicesView();
+  if (state.tab === "reports") return reportsView(false);
   if (state.tab === "evidence") return evidenceView(tickets);
   return `<section class="card">${filterPanel({ client: false })}${metrics(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><h3>Your open tickets</h3><button class="btn" data-tab="raise ticket">Raise Priority 1 Ticket</button></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
 }
-function money(value) { return `₹${Number(value || 0).toLocaleString("en-IN")}`; }
-function currentBillingMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
-function scopedNotifications(db = getDb()) {
-  const ids = new Set(allowedSiteIds(db));
-  const ticketMap = Object.fromEntries((db.tickets || []).map(t => [t.id, t]));
-  return (db.notifications || []).filter(n => ids.has(ticketMap[n.ticketId]?.siteId)).sort((a,b) => String(b.sentAt).localeCompare(String(a.sentAt)));
-}
-function clientAssistantView() {
-  const quick = ["Summarize my site status", "Show pending tickets", "Explain latest invoice", "Any recurring issues?", "When was the site last serviced?", "Show WhatsApp notifications"];
-  return `<section class="card"><div class="card-title"><div><h3>Ask GreenOps</h3><p class="subtitle">Client operations assistant for tickets, invoices, reports, SLA status, and site summary.</p></div><span class="pill good">Client portal</span></div><div class="grid grid-2"><div class="card soft"><h3>Quick questions</h3><div class="btn-row">${quick.map(q => `<button class="mini-btn" data-action="assistant-prompt" data-prompt="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join("")}</div><form id="assistantForm" class="form" style="margin-top:14px"><div class="field"><label>Ask a question</label><input class="input" name="prompt" value="${escapeHtml(state.assistantPrompt)}" placeholder="Example: What needs attention this month?" /></div><button class="btn" type="submit">Ask</button></form></div><div class="card soft"><h3>Answer</h3>${state.assistantAnswer ? `<p style="white-space:pre-line">${escapeHtml(state.assistantAnswer)}</p>` : `<div class="empty">Ask about current status, pending tickets, invoices, recurring issues, or WhatsApp notifications.</div>`}</div></div>${whatsappNotificationCards()}</section>`;
-}
-function assistantAnswerFor(prompt) {
-  const q = String(prompt || "").toLowerCase();
-  const { scans, tickets } = visibleRecords();
-  const db = getDb();
-  const open = tickets.filter(t => t.status !== STATUS.CLOSED);
-  const p1 = open.filter(t => t.priority === "P1");
-  const breached = open.filter(t => slaState(t).breached);
-  const lastScan = scans.slice().sort((a,b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
-  const invoices = invoicesForSites(db, allowedSiteIds(db), currentBillingMonth());
-  const invoice = invoices[0];
-  const notes = scopedNotifications(db).slice(0, 5);
-  if (q.includes("invoice") || q.includes("billing") || q.includes("payable")) return invoice ? invoiceText(invoice) : "No invoice data is available for the selected client sites.";
-  if (q.includes("pending") || q.includes("ticket")) return open.length ? `There are ${open.length} open ticket(s), including ${p1.length} P1 ticket(s) and ${breached.length} breached SLA item(s).\n\n${open.slice(0,5).map(t => `#${t.ticketNo || t.id} · ${t.priority} · ${t.status} · ${t.issue}`).join("\n")}` : "There are no open tickets for your assigned sites.";
-  if (q.includes("whatsapp") || q.includes("notification")) return notes.length ? `Latest WhatsApp demo notifications:\n\n${notes.map(n => `${fmtDate(n.sentAt)} · ${n.type} · ${n.status}`).join("\n")}` : "No WhatsApp notifications are logged yet. Client-raised P1 tickets will create demo WhatsApp links.";
-  if (q.includes("recurring")) {
-    const byIssue = open.reduce((acc,t) => { const key = `${t.siteId}:${t.issue}`; acc[key] = (acc[key] || 0) + 1; return acc; }, {});
-    const recurring = Object.entries(byIssue).filter(([,count]) => count >= 2);
-    return recurring.length ? `Recurring signals found in ${recurring.length} issue group(s). Supervisor review is recommended for repeated tickets in the same issue pattern.` : "No recurring issue signal is visible from the current open ticket data.";
-  }
-  if (q.includes("last") || q.includes("serviced") || q.includes("visited")) return lastScan ? `The latest service scan visible to your account was recorded on ${fmtDate(lastScan.createdAt)}. Latest score: ${lastScan.score}/10, category: ${lastScan.category}.` : "No service scan is available yet for your assigned sites.";
-  const health = healthSummary(scans);
-  return `Current client status: ${scans.length} scan(s), ${open.length} open ticket(s), ${p1.length} P1 ticket(s), ${breached.length} breached SLA item(s). Average health score is ${health.avg || "not available"}. ${invoice ? `Latest invoice net payable is ${money(invoice.netPayable)} after SLA credit of ${money(invoice.slaCreditAmount)}.` : "No invoice is available yet."}`;
-}
-function invoicesView() {
-  const db = getDb();
-  const invoices = invoicesForSites(db, allowedSiteIds(db), currentBillingMonth());
-  return `<section class="card"><div class="card-title"><div><h3>Invoices</h3><p class="subtitle">Fixed monthly AMC invoice with SLA service credit. Current rule: ₹50 per breached SLA item / plant.</p></div></div><div class="table-wrap"><table><thead><tr><th>Month</th><th>Site</th><th>Base AMC</th><th>SLA Credit</th><th>Net Payable</th><th>Status</th><th>Action</th></tr></thead><tbody>${invoices.map(inv => `<tr><td>${escapeHtml(inv.billingLabel)}<br><span class="small muted">${escapeHtml(inv.invoiceNo)}</span></td><td>${escapeHtml(inv.siteName)}</td><td>${money(inv.baseMonthlyAmc)}</td><td><span class="pill ${inv.slaCreditAmount ? "critical" : "good"}">${money(inv.slaCreditAmount)}</span><br><span class="small muted">${inv.breachedCount} breach(es) × ${money(inv.finePerBreach)}</span></td><td><strong>${money(inv.netPayable)}</strong></td><td><span class="pill good">${escapeHtml(inv.status)}</span></td><td><button class="mini-btn" data-action="download-invoice" data-site="${escapeHtml(inv.siteId)}">Download</button></td></tr>`).join("") || `<tr><td colspan="7">No invoices available.</td></tr>`}</tbody></table></div></section>`;
-}
-function whatsappNotificationCards() {
-  const notes = scopedNotifications().slice(0, 4);
-  if (!notes.length) return "";
-  return `<div style="height:16px"></div><section class="card soft"><div class="card-title"><h3>WhatsApp demo notifications</h3><span class="pill monitor">Demo links</span></div><div class="grid grid-2">${notes.map(n => `<div class="ticket-card"><div class="ticket-head"><strong>${escapeHtml(n.type)}</strong><span class="pill good">${escapeHtml(n.status)}</span></div><p class="small muted">${fmtDate(n.sentAt)} · ${escapeHtml(n.sentTo)}</p><p class="small">${escapeHtml(n.message).slice(0, 170)}${String(n.message || "").length > 170 ? "..." : ""}</p>${n.waUrl ? `<a class="mini-btn" href="${escapeHtml(n.waUrl)}" target="_blank" rel="noreferrer">Open WhatsApp</a>` : ""}</div>`).join("")}</div></section>`;
-}
-
 function raiseTicketView() {
   const sites = allowedSites();
   return `<section class="card"><div class="card-title"><div><h3>Raise Client Ticket</h3><p class="subtitle">Every client-created ticket is automatically Priority 1. Photo evidence is optional.</p></div><span class="pill p1">P1</span></div><form class="form" id="clientTicketForm"><div class="field"><label>Your site</label><select class="select" name="siteId" required>${sites.map(s => option(s.id, `${s.city} · ${s.name}`)).join("")}</select></div><div class="field"><label>Issue</label><input class="input" name="issue" placeholder="Plant condition concern / area not serviced" required /></div><div class="field"><label>Description</label><textarea class="textarea" name="description" placeholder="Add exact location, concern, or expectation."></textarea></div><div class="filebox"><strong>Optional issue photo</strong><br><span class="small muted">Add a photo if it helps the operations team understand the issue.</span><div class="btn-row" style="justify-content:center;margin-top:12px"><label class="mini-btn">Upload / click photo<input class="hidden" type="file" accept="image/*" capture="environment" data-client-evidence /></label><button class="mini-btn danger ${state.clientTicketImage ? "" : "hidden"}" type="button" data-action="clear-client-ticket-image">Remove photo</button></div><div id="clientTicketImageState">${clientTicketImageMarkup()}</div></div><button class="btn" type="submit">Create Priority 1 Ticket</button></form></section>`;
@@ -311,6 +266,50 @@ function updateClientTicketImageUi() {
   if (box) box.innerHTML = clientTicketImageMarkup();
   const removeBtn = document.querySelector('[data-action="clear-client-ticket-image"]');
   if (removeBtn) removeBtn.classList.toggle("hidden", !state.clientTicketImage);
+}
+
+
+
+function clientContext() {
+  const db = getDb();
+  const siteIds = allowedSiteIds(db);
+  const records = visibleRecords();
+  const openTickets = records.tickets.filter(t => t.status !== STATUS.CLOSED);
+  const breachedTickets = records.tickets.filter(t => slaState(t).breached);
+  const p1Tickets = openTickets.filter(t => t.priority === "P1");
+  const latestScan = [...records.scans].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  const invoices = buildInvoicesForSites(db, siteIds, currentMonthKey());
+  const notifications = (db.notifications || []).filter(n => records.tickets.some(t => t.id === n.ticketId)).slice(-8).reverse();
+  return { db, siteIds, records, openTickets, breachedTickets, p1Tickets, latestScan, invoices, notifications };
+}
+function assistantAnswerFor(question = "") {
+  const q = String(question || "").toLowerCase();
+  const ctx = clientContext();
+  const hs = healthSummary(ctx.records.scans);
+  const latestInvoice = ctx.invoices[0];
+  if (!q.trim()) return "Ask about site status, pending tickets, invoice, SLA credit, recurring issues, reports, or WhatsApp notifications.";
+  if (q.includes("invoice") || q.includes("billing") || q.includes("payable")) return latestInvoice ? invoiceSummaryText(latestInvoice) : "No invoice is available for the selected site yet.";
+  if (q.includes("whatsapp") || q.includes("notification")) return ctx.notifications.length ? `There are ${ctx.notifications.length} WhatsApp demo notification(s) ready. The latest is: ${ctx.notifications[0].type.replaceAll("_", " ")} for ticket #${ctx.notifications[0].ticketNo}.` : "No WhatsApp demo notifications are logged yet.";
+  if (q.includes("pending") || q.includes("open ticket") || q.includes("ticket")) return ctx.openTickets.length ? `${ctx.openTickets.length} ticket(s) are currently open. P1 open tickets: ${ctx.p1Tickets.length}. SLA breached tickets: ${ctx.breachedTickets.length}.` : "There are no open tickets for your assigned site(s).";
+  if (q.includes("sla") || q.includes("breach") || q.includes("fine") || q.includes("credit")) return `${ctx.breachedTickets.length} ticket(s) are currently counted as SLA breached. Current demo billing rule is ₹50 service credit per breached SLA item / plant.`;
+  if (q.includes("recurring")) return ctx.breachedTickets.length >= 3 ? `${ctx.breachedTickets.length} SLA-breached items are visible. Recurring issue review is recommended for the most affected zone(s).` : "No recurring issue pattern is strong enough yet in the available ticket data.";
+  if (q.includes("last") || q.includes("serviced") || q.includes("visited")) return ctx.latestScan ? `Latest service scan was recorded on ${fmtDate(ctx.latestScan.createdAt)}.` : "No scan timestamp is available yet.";
+  if (q.includes("report")) return `Current report data includes ${ctx.records.scans.length} scan(s), ${ctx.records.tickets.length} ticket(s), ${ctx.openTickets.length} open ticket(s), and ${ctx.breachedTickets.length} SLA breached item(s).`;
+  return `Current status: average health ${hs.avg || "—"}, ${hs.healthy} healthy, ${hs.monitor} monitor, ${hs.critical} critical, ${ctx.openTickets.length} open ticket(s), ${ctx.breachedTickets.length} SLA breached item(s).`;
+}
+function assistantView() {
+  const quick = ["Summarize my site status", "Show pending tickets", "Explain latest invoice", "Any recurring issues?", "When was the site last serviced?", "Show WhatsApp notifications"];
+  return `<section class="card"><div class="card-title"><div><h3>Ask GreenOps</h3><p class="subtitle">Client operations assistant. Answers only from your mapped site data.</p></div></div><form class="form" id="assistantForm"><div class="field"><label>Question</label><input class="input" name="question" value="${escapeHtml(state.assistantQuestion)}" placeholder="Ask about tickets, SLA, invoice, reports, or service status" /></div><button class="btn" type="submit">Ask</button></form><div class="btn-row" style="margin-top:12px">${quick.map(q => `<button class="mini-btn" data-action="assistant-quick" data-question="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join("")}</div>${state.assistantAnswer ? `<div class="card soft" style="margin-top:16px"><strong>Answer</strong><p>${escapeHtml(state.assistantAnswer)}</p></div>` : `<div class="empty" style="margin-top:16px">Ask a question or use a quick prompt.</div>`}</section>`;
+}
+function invoicesView() {
+  const db = getDb();
+  const invoices = buildInvoicesForSites(db, allowedSiteIds(db), currentMonthKey());
+  return `<section class="card"><div class="card-title"><div><h3>Invoices</h3><p class="subtitle">Fixed monthly AMC with ₹50 SLA service credit per breached SLA item / plant.</p></div></div><div class="table-wrap"><table><thead><tr><th>Month</th><th>Site</th><th>Base AMC</th><th>SLA Credit</th><th>Net Payable</th><th>Status</th><th>Action</th></tr></thead><tbody>${invoices.map(inv => `<tr><td>${escapeHtml(inv.billingLabel)}<br><span class="small muted">${escapeHtml(inv.invoiceNo)}</span></td><td>${escapeHtml(inv.siteName)}</td><td>${money(inv.baseMonthlyAmount)}</td><td>-${money(inv.slaCreditAmount)}<br><span class="small muted">${inv.breachedCount} × ${money(inv.creditPerBreach)}</span></td><td><strong>${money(inv.netPayable)}</strong></td><td><span class="pill good">${escapeHtml(inv.status)}</span></td><td><button class="mini-btn" data-action="download-invoice" data-site-id="${escapeHtml(inv.siteId)}">Download</button></td></tr>`).join("") || `<tr><td colspan="7">No invoices available.</td></tr>`}</tbody></table></div></section>`;
+}
+function whatsappNotificationCards() {
+  const ctx = clientContext();
+  if (!ctx.notifications.length) return `<div class="empty">No WhatsApp notifications logged yet.</div>`;
+  return `<div class="grid">${ctx.notifications.map(n => `<div class="ticket-card"><div class="ticket-head"><strong>${escapeHtml(n.type.replaceAll("_", " "))}</strong><span class="pill">#${escapeHtml(n.ticketNo || "—")}</span></div><p class="small muted">${escapeHtml(n.message)}</p><a class="mini-btn" href="${escapeHtml(n.waUrl)}" target="_blank" rel="noreferrer">Open WhatsApp</a></div>`).join("")}</div>`;
 }
 
 function reportsView(supervisor = true) {
@@ -448,8 +447,8 @@ function bindEvents() {
       if (action === "seed" && isOwner()) { seedDemoData(); toast("Demo data seeded."); render(); }
       if (action === "reset" && isOwner() && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = { siteId:"", zone:"", plantType:"", note:"" }; state.scanImage = ""; state.clientTicketImage = ""; state.batchImages = []; state.batchResults = []; toast("Local data reset."); render(); }
       if (action === "download-report") exportCsvReport(getDb(), roleFilter(getDb()));
-      if (action === "assistant-prompt") { state.assistantPrompt = e.target.closest("[data-prompt]")?.dataset.prompt || ""; state.assistantAnswer = assistantAnswerFor(state.assistantPrompt); render(); return; }
-      if (action === "download-invoice") { const siteId = e.target.closest("[data-site]")?.dataset.site; const inv = invoiceForSite(getDb(), siteId, currentBillingMonth()); downloadFile(`${inv.invoiceNo.replaceAll("/", "-")}.html`, invoiceHtml(inv), "text/html"); return; }
+      if (action === "download-invoice") { const siteId = e.target.closest("[data-site-id]")?.dataset.siteId; const inv = buildInvoice(getDb(), siteId, currentMonthKey()); downloadFile(`${inv.invoiceNo}.html`, invoiceHtml(inv), "text/html"); }
+      if (action === "assistant-quick") { const q = e.target.closest("[data-question]")?.dataset.question || ""; state.assistantQuestion = q; state.assistantAnswer = assistantAnswerFor(q); render(); }
       if (action === "clear-scan-image") { syncScanDraftFromDom(); state.scanImage = ""; const input = document.querySelector("[data-scan-image]"); if (input) input.value = ""; updateScanImageUi(); toast("Plant image removed."); }
       if (action === "clear-client-ticket-image") { state.clientTicketImage = ""; const input = document.querySelector("[data-client-evidence]"); if (input) input.value = ""; updateClientTicketImageUi(); toast("Issue photo removed."); }
       if (action === "apply-qr") { const input = document.querySelector("[data-qr-text]"); applyQr(input?.value || state.qrText); }
@@ -477,8 +476,8 @@ function bindEvents() {
     e.preventDefault();
     try {
       if (e.target.id === "loginForm") { const fd = new FormData(e.target); const user = authenticate(fd.get("role"), fd.get("identifier"), fd.get("secret")); if (!user) throw new Error("Login failed. Check registered credentials."); setLoggedIn(user); toast(`Welcome, ${user.name}.`); render(); return; }
-      if (e.target.id === "assistantForm") { const fd = new FormData(e.target); state.assistantPrompt = String(fd.get("prompt") || ""); state.assistantAnswer = assistantAnswerFor(state.assistantPrompt); render(); return; }
       if (e.target.id === "clientTicketForm") { const fd = new FormData(e.target); const siteId = fd.get("siteId"); if (!allowedSiteIds().includes(siteId)) throw new Error("This site is not assigned to your account."); createClientTicket({ siteId, issue: fd.get("issue"), description: fd.get("description"), clientEvidence: state.clientTicketImage }); state.clientTicketImage = ""; toast("Priority 1 ticket created. WhatsApp demo notification logged."); state.tab = "overview"; render(); }
+      if (e.target.id === "assistantForm") { const fd = new FormData(e.target); const q = fd.get("question") || ""; state.assistantQuestion = q; state.assistantAnswer = assistantAnswerFor(q); render(); }
     } catch (err) { toast(err.message || "Submit failed"); }
   });
 }
