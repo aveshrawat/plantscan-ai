@@ -31,7 +31,7 @@ export const toCsv = rows => {
   const clean = v => `"${String(v ?? "").replaceAll('"', '""')}"`;
   return [headers.join(","), ...rows.map(r => headers.map(h => clean(r[h])).join(","))].join("\n");
 };
-export async function imageToDataUrl(file, maxEdge = 1600, quality = 0.82) {
+export async function imageToDataUrl(file, maxEdge = 1200, quality = 0.72) {
   if (!file) return "";
   const raw = await new Promise((resolve, reject) => {
     const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file);
