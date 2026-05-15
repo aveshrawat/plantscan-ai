@@ -2,7 +2,7 @@ const heroBg = new URL('./assets/login-bg.jpeg', import.meta.url).href;
 const productIcon = new URL('./assets/Artboard-icon.png', import.meta.url).href;
 const logoWordmark = new URL('./assets/onescape-logo-cropped.png', import.meta.url).href;
 import { APP, ROLES, STATUS } from "./config.js";
-import { getDb, resetDb, seedDemoData } from "./store.js";
+import { getDb, resetDb, seedDemoData, setDb } from "./store.js";
 import { createScanRecord, createClientTicket, markInProgress, attachEvidence, closeTicket } from "./tickets.js";
 import { generateInvoiceData, downloadInvoiceHtml, invoiceSummaryText } from "./billing.js";
 import { visibleNotifications } from "./notifications.js";
@@ -30,7 +30,10 @@ const state = {
   filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" },
   efficiencyFilter: sessionStorage.getItem("greenops_efficiency_filter") || "action",
   clientAssuranceFilter: sessionStorage.getItem("greenops_client_assurance_filter") || "",
-  assistantQuestion: sessionStorage.getItem("greenops_assistant_question") || "site status",
+  assistantOpen: false,
+  assistantInput: "",
+  assistantLoading: false,
+  assistantMessages: [],
   diagnosisLang: "en"
 };
 
@@ -39,7 +42,7 @@ let activeCameraStream = null;
 const roleTabs = {
   [ROLES.MAINTENANCE]: ["dashboard", "scan", "my tickets", "history"],
   [ROLES.SUPERVISOR]: ["dashboard", "tickets", "sla breaches", "efficiency", "reports"],
-  [ROLES.CLIENT]: ["overview", "raise ticket", "reports", "evidence", "assistant", "invoices", "notifications"],
+  [ROLES.CLIENT]: ["overview", "raise ticket", "reports", "evidence", "invoices"],
   [ROLES.OWNER]: ["dashboard", "tickets", "sla breaches", "efficiency", "reports", "admin"]
 };
 
@@ -202,6 +205,7 @@ function layout(content) {
       </section>
       <div style="height:16px"></div>${content}
     </main>
+    ${clientAssistantWidget()}
   </div>`;
 }
 function ownerModeSwitch() {
@@ -388,10 +392,8 @@ function clientView() {
   if (state.tab === "raise ticket") return raiseTicketView();
   if (state.tab === "reports") return reportsView(false);
   if (state.tab === "evidence") return evidenceView(tickets);
-  if (state.tab === "assistant") return clientAssistantView();
   if (state.tab === "invoices") return invoiceView();
-  if (state.tab === "notifications") return notificationsView("client");
-  return `${executiveSnapshot(scans, tickets, "Client")}<section class="card command-card">${filterPanel({ client: false })}${metrics(scans, tickets)}${clientServiceAssurance(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><div><h3>Your open tickets</h3><p class="subtitle">Priority items, closure evidence, and current operational state.</p></div><div class="btn-row"><button class="btn secondary" data-tab="assistant">Ask GreenOps</button><button class="btn secondary" data-tab="invoices">Invoices</button></div></div><button class="btn client-raise-ticket-cta" data-tab="raise ticket">Raise Priority 1 Ticket</button><div style="height:14px"></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
+  return `${executiveSnapshot(scans, tickets, "Client")}<section class="card command-card">${filterPanel({ client: false })}${metrics(scans, tickets)}${clientServiceAssurance(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><div><h3>Your open tickets</h3><p class="subtitle">Priority items, closure evidence, and current operational state.</p></div><div class="btn-row"><button class="btn secondary" data-tab="invoices">Invoices</button></div></div><button class="btn client-raise-ticket-cta" data-tab="raise ticket">Raise Priority 1 Ticket</button><div style="height:14px"></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
 }
 function raiseTicketView() {
   const sites = allowedSites();
@@ -448,22 +450,142 @@ function assistantQuickPrompts() {
     "Explain latest invoice",
     "Any recurring issues?",
     "When was the site last serviced?",
-    "Give this month's report summary",
-    "Show WhatsApp notifications"
+    "Give this month's report summary"
   ];
-  return `<div class="btn-row" style="justify-content:flex-start">${prompts.map(p => `<button class="mini-btn" type="button" data-assistant-prompt="${escapeHtml(p)}">${escapeHtml(p)}</button>`).join("")}</div>`;
+  return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px">${prompts.map(p => `<button class="mini-btn" type="button" data-assistant-prompt="${escapeHtml(p)}" style="font-size:12px;padding:8px 10px">${escapeHtml(p)}</button>`).join("")}</div>`;
 }
-function clientAssistantView() {
-  const question = state.assistantQuestion || "site status";
-  return `<section class="card"><div class="card-title"><div><h3>Ask GreenOps</h3><p class="subtitle">Client operations assistant. Answers only from your assigned site records, tickets, invoices, SLA data, and notifications.</p></div></div>${filterPanel({ client: false })}<form id="assistantForm" class="form"><div class="field"><label>Ask a question</label><input class="input" name="question" value="${escapeHtml(question)}" placeholder="Summarize my site status" /></div><button class="btn" type="submit">Ask</button></form><div style="height:12px"></div>${assistantQuickPrompts()}<div style="height:16px"></div><div class="card soft"><span class="eyebrow dark">GreenOps answer</span><p>${escapeHtml(assistantAnswer(question))}</p></div></section>`;
+function assistantContextPayload(question = "") {
+  const { scans, tickets } = visibleRecords();
+  const hs = healthSummary(scans);
+  const open = tickets.filter(t => t.status !== STATUS.CLOSED);
+  const breached = open.filter(t => slaState(t).breached);
+  const p1 = open.filter(t => t.priority === "P1");
+  const invoice = currentInvoice();
+  return {
+    question,
+    role: effectiveRole(),
+    user: currentUser()?.name || "Client",
+    scope: filterSummaryLabel(),
+    summary: {
+      scans: scans.length,
+      averageHealth: hs.avg || null,
+      healthy: hs.healthy,
+      monitor: hs.monitor,
+      critical: hs.critical,
+      openTickets: open.length,
+      p1Tickets: p1.length,
+      slaRisk: breached.length,
+      latestService: latestServiceText(scans),
+      recurringIssues: recurringSummaryText()
+    },
+    openTickets: open.slice(0, 8).map(t => ({
+      ticketNo: ticketDisplayId(t),
+      issue: t.issue,
+      priority: t.priority,
+      status: t.status,
+      sla: slaState(t).label,
+      createdAt: t.createdAt
+    })),
+    invoice: {
+      invoiceNo: invoice.invoiceNo,
+      periodLabel: invoice.periodLabel,
+      creditRule: invoice.creditRule,
+      formula: invoice.formula,
+      totals: invoice.totals
+    }
+  };
+}
+async function askClientAssistant(question) {
+  const clean = String(question || "").trim();
+  if (!clean) return;
+  state.assistantOpen = true;
+  state.assistantLoading = true;
+  state.assistantInput = "";
+  state.assistantMessages = [...state.assistantMessages, { role: "user", text: clean }].slice(-8);
+  render();
+  let answer = "";
+  try {
+    const res = await fetch("/api/client-assistant", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(assistantContextPayload(clean))
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Assistant failed");
+    answer = data.answer || assistantAnswer(clean);
+  } catch {
+    answer = assistantAnswer(clean);
+  }
+  state.assistantMessages = [...state.assistantMessages, { role: "assistant", text: answer }].slice(-8);
+  state.assistantLoading = false;
+  render();
+}
+function clientAssistantWidget() {
+  if (effectiveRole() !== ROLES.CLIENT) return "";
+  const btnStyle = "position:fixed;right:22px;bottom:22px;z-index:9999;border:0;border-radius:999px;background:#0b3b2b;color:#fff;padding:14px 18px;font-weight:800;box-shadow:0 18px 45px rgba(0,0,0,.24);cursor:pointer";
+  if (!state.assistantOpen) return `<button type="button" data-action="assistant-open" style="${btnStyle}">Ask GreenOps</button>`;
+  const messages = state.assistantMessages.length ? state.assistantMessages : [{ role: "assistant", text: "Ask about site status, pending tickets, SLA breaches, invoices, reports, recurring issues, or last service." }];
+  return `<aside role="dialog" aria-label="Ask GreenOps assistant" style="position:fixed;right:22px;bottom:22px;width:min(420px,calc(100vw - 32px));max-height:min(680px,calc(100vh - 44px));z-index:9999;background:#fff;border:1px solid #dbe5df;border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.25);overflow:hidden;display:flex;flex-direction:column">
+    <div style="background:#062d20;color:#fff;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div><strong style="display:block;font-size:16px">Ask GreenOps</strong><span style="font-size:12px;opacity:.78">AI client operations assistant</span></div>
+      <button type="button" data-action="assistant-close" aria-label="Close assistant" style="border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;border-radius:999px;width:32px;height:32px;cursor:pointer">×</button>
+    </div>
+    <div style="padding:14px 16px;overflow:auto;display:grid;gap:10px;max-height:360px;background:#f8fbf9">
+      ${messages.map(m => `<div style="justify-self:${m.role === "user" ? "end" : "start"};max-width:92%;border-radius:16px;padding:10px 12px;background:${m.role === "user" ? "#0b3b2b" : "#fff"};color:${m.role === "user" ? "#fff" : "#10241d"};border:1px solid ${m.role === "user" ? "#0b3b2b" : "#dfe8e2"};font-size:14px;line-height:1.45">${escapeHtml(m.text)}</div>`).join("")}
+      ${state.assistantLoading ? `<div style="justify-self:start;border-radius:16px;padding:10px 12px;background:#fff;border:1px solid #dfe8e2;font-size:14px">Thinking…</div>` : ""}
+    </div>
+    <form id="floatingAssistantForm" style="padding:12px 14px 14px;background:#fff;border-top:1px solid #e4ebe7">
+      <input class="input" name="question" value="${escapeHtml(state.assistantInput)}" placeholder="Ask about tickets, invoice, SLA, report..." autocomplete="off" />
+      <button class="btn" type="submit" style="width:100%;margin-top:10px">Ask</button>
+      ${assistantQuickPrompts()}
+    </form>
+  </aside>`;
 }
 function invoiceView() {
   const invoice = currentInvoice();
   return `<section class="card"><div class="card-title"><div><h3>Invoices</h3><p class="subtitle">Fixed monthly AMC with SLA service credit. Current rule: ${escapeHtml(invoice.creditRule)}.</p></div><button class="btn" data-action="download-invoice">Download Invoice</button></div>${filterPanel({ client: false })}<div class="kpi-strip"><div class="metric"><span>Base AMC</span><strong>${moneyInline(invoice.totals.monthlyAmc)}</strong></div><div class="metric monitor"><span>SLA breaches</span><strong>${invoice.totals.breachedItems}</strong></div><div class="metric critical"><span>SLA credit</span><strong>${moneyInline(invoice.totals.slaCredit)}</strong></div><div class="metric good"><span>Net payable</span><strong>${moneyInline(invoice.totals.netPayable)}</strong></div></div><div class="table-wrap"><table><thead><tr><th>Site</th><th>City</th><th>Fixed AMC</th><th>SLA breach items</th><th>SLA credit</th><th>Net payable</th></tr></thead><tbody>${invoice.rows.map(row => `<tr><td>${escapeHtml(row.siteName)}</td><td>${escapeHtml(row.city)}</td><td>${moneyInline(row.monthlyAmc)}</td><td>${row.breachedItems}</td><td>${moneyInline(row.slaCredit)}</td><td>${moneyInline(row.netPayable)}</td></tr>`).join("") || `<tr><td colspan="6">No invoice rows available.</td></tr>`}</tbody></table></div><p class="footer-note">${escapeHtml(invoice.formula)}. Invoice is generated from platform SLA records.</p></section>`;
 }
-function notificationsView(audience = "client") {
-  const notes = visibleNotifications(getDb(), allowedSiteIds(), audience);
-  return `<section class="card"><div class="card-title"><div><h3>WhatsApp Notifications</h3><p class="subtitle">Demo mode: prefilled WhatsApp links are prepared, not automatically sent through WhatsApp Business API.</p></div><span class="pill">${notes.length} logs</span></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>Type</th><th>Message</th><th>Status</th><th>Action</th></tr></thead><tbody>${notes.map(n => `<tr><td>${fmtDate(n.createdAt)}</td><td>${escapeHtml(n.type)}</td><td><strong>${escapeHtml(n.title)}</strong><br><span class="small muted">${escapeHtml(n.message)}</span></td><td>${escapeHtml(n.providerStatus || "Prepared")}</td><td><a class="mini-btn" href="${escapeHtml(n.whatsappLink)}" target="_blank" rel="noreferrer">Open WhatsApp</a></td></tr>`).join("") || `<tr><td colspan="5">No WhatsApp notification logs yet.</td></tr>`}</tbody></table></div></section>`;
+function updateNotificationStatus(notificationId, patch = {}) {
+  const db = getDb();
+  const note = (db.notifications || []).find(n => n.id === notificationId);
+  if (!note) return;
+  Object.assign(note, patch);
+  setDb(db);
+}
+function recipientForNotification(note, ticket) {
+  const db = getDb();
+  const site = db.sites.find(s => s.id === (note.siteId || ticket?.siteId));
+  const clientUser = currentUser();
+  if (note.audience === "supervisor") {
+    const supervisor = db.users.find(u => u.role === ROLES.SUPERVISOR && (u.cityAccess || []).includes(site?.city));
+    return supervisor?.whatsappNumber || "+918799765307";
+  }
+  return clientUser?.whatsappNumber || "+918799765307";
+}
+async function dispatchWhatsAppNotifications(ticketId) {
+  const db = getDb();
+  const ticket = db.tickets.find(t => t.id === ticketId);
+  const notes = (db.notifications || []).filter(n => n.ticketId === ticketId && !n.providerAttemptedAt);
+  await Promise.all(notes.map(async note => {
+    const to = recipientForNotification(note, ticket);
+    updateNotificationStatus(note.id, { providerStatus: "Sending", providerAttemptedAt: new Date().toISOString(), sentTo: to });
+    try {
+      const res = await fetch(APP.whatsappEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to, message: note.message, type: note.type, ticketId })
+      });
+      const data = await res.json().catch(() => ({}));
+      updateNotificationStatus(note.id, {
+        providerStatus: data.delivered ? "Sent automatically" : (data.mode === "provider_not_configured" ? "Simulated - provider not configured" : "Dispatch attempted"),
+        providerResponse: data,
+        delivered: Boolean(data.delivered),
+        deliveredAt: data.delivered ? new Date().toISOString() : ""
+      });
+    } catch (error) {
+      updateNotificationStatus(note.id, { providerStatus: "Failed", providerError: error?.message || "WhatsApp dispatch failed" });
+    }
+  }));
 }
 
 function reportsView(supervisor = true) {
@@ -742,13 +864,15 @@ function bindEvents() {
     const tab = e.target.closest("[data-tab]")?.dataset.tab; if (tab) { state.tab = tab; sessionStorage.setItem(APP.sessionTabKey, tab); render(); return; }
     const efficiencyFilter = e.target.closest("[data-efficiency-filter]")?.dataset.efficiencyFilter; if (efficiencyFilter) { state.efficiencyFilter = efficiencyFilter; sessionStorage.setItem("greenops_efficiency_filter", efficiencyFilter); render(); return; }
     const clientAssuranceFilter = e.target.closest("[data-client-assurance-filter]")?.dataset.clientAssuranceFilter; if (clientAssuranceFilter) { state.clientAssuranceFilter = state.clientAssuranceFilter === clientAssuranceFilter ? "" : clientAssuranceFilter; sessionStorage.setItem("greenops_client_assurance_filter", state.clientAssuranceFilter); render(); return; }
-    const assistantPrompt = e.target.closest("[data-assistant-prompt]")?.dataset.assistantPrompt; if (assistantPrompt) { state.assistantQuestion = assistantPrompt; sessionStorage.setItem("greenops_assistant_question", assistantPrompt); render(); return; }
+    const assistantPrompt = e.target.closest("[data-assistant-prompt]")?.dataset.assistantPrompt; if (assistantPrompt) { await askClientAssistant(assistantPrompt); return; }
     const action = e.target.closest("[data-action]")?.dataset.action; const id = e.target.closest("[data-id]")?.dataset.id;
     try {
       if (action === "logout") { stopCameraCapture(); logout(); render(); return; }
       if (!state.user) return;
       if (action === "seed" && isOwner()) { seedDemoData(); toast("Demo data seeded."); render(); }
       if (action === "reset" && isOwner() && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = { siteId:"", zone:"", plantType:"", note:"" }; state.scanImage = ""; state.clientTicketImage = ""; state.batchImages = []; state.batchResults = []; toast("Local data reset."); render(); }
+      if (action === "assistant-open") { state.assistantOpen = true; render(); return; }
+      if (action === "assistant-close") { state.assistantOpen = false; render(); return; }
       if (action === "download-report") exportCsvReport(getDb(), roleFilter(getDb()));
       if (action === "download-invoice") downloadInvoiceHtml(currentInvoice());
       if (action === "print-report") { preparePrintReport(); setTimeout(() => window.print(), 30); }
@@ -764,8 +888,8 @@ function bindEvents() {
       if (action === "clear-batch") { state.batchImages = []; state.batchResults = []; render(); toast("Batch cleared."); }
       if (action === "remove-batch-image") { syncScanDraftFromDom(); const index = Number(e.target.closest("[data-index]")?.dataset.index); state.batchImages.splice(index, 1); render(); }
       if (action === "run-batch") { await runBatchDiagnosis(); }
-      if (action === "progress") { markInProgress(id); toast("Ticket moved to In Progress."); render(); }
-      if (action === "close") { const ticket = getDb().tickets.find(t => t.id === id); if (!ticket) throw new Error("Ticket not found."); if (!ticket.closureEvidence) throw new Error("Upload closure photo before closing this ticket."); if (!ticket.closureEvidenceVerified) throw new Error("Closure photo must be accepted before closing this ticket."); closeTicket(id, "Issue resolved and verified with closure photo."); toast("Ticket closed with verified evidence."); render(); }
+      if (action === "progress") { markInProgress(id); toast("Ticket moved to In Progress."); render(); dispatchWhatsAppNotifications(id); }
+      if (action === "close") { const ticket = getDb().tickets.find(t => t.id === id); if (!ticket) throw new Error("Ticket not found."); if (!ticket.closureEvidence) throw new Error("Upload closure photo before closing this ticket."); if (!ticket.closureEvidenceVerified) throw new Error("Closure photo must be accepted before closing this ticket."); closeTicket(id, "Issue resolved and verified with closure photo."); toast("Ticket closed with verified evidence."); render(); dispatchWhatsAppNotifications(id); }
     } catch (err) { toast(err.message || "Action failed"); }
   });
   document.addEventListener("change", async e => {
@@ -777,13 +901,13 @@ function bindEvents() {
     if (e.target.matches("[data-qr-image]")) { const file = e.target.files?.[0]; if (file) await decodeQrImage(file); }
     if (e.target.matches("[data-evidence]")) { const id = e.target.dataset.evidence; const file = e.target.files?.[0]; if (!file) return; const img = await imageToDataUrl(file, 900, .7); await verifyClosureEvidence(id, img); }
   });
-  document.addEventListener("input", e => { if (e.target.closest("#scanPanel") && e.target.dataset.scanField) state.scanDraft[e.target.dataset.scanField] = e.target.value; if (e.target.matches("[data-qr-text]")) state.qrText = e.target.value; });
+  document.addEventListener("input", e => { if (e.target.closest("#scanPanel") && e.target.dataset.scanField) state.scanDraft[e.target.dataset.scanField] = e.target.value; if (e.target.matches("[data-qr-text]")) state.qrText = e.target.value; if (e.target.closest("#floatingAssistantForm") && e.target.name === "question") state.assistantInput = e.target.value; });
   document.addEventListener("submit", async e => {
     e.preventDefault();
     try {
       if (e.target.id === "loginForm") { const fd = new FormData(e.target); const user = authenticate(fd.get("role"), fd.get("identifier"), fd.get("secret")); if (!user) throw new Error("Login failed. Check registered credentials."); setLoggedIn(user); toast(`Welcome, ${user.name}.`); render(); return; }
-      if (e.target.id === "assistantForm") { const fd = new FormData(e.target); state.assistantQuestion = String(fd.get("question") || "site status"); sessionStorage.setItem("greenops_assistant_question", state.assistantQuestion); render(); return; }
-      if (e.target.id === "clientTicketForm") { const fd = new FormData(e.target); const siteId = fd.get("siteId"); if (!allowedSiteIds().includes(siteId)) throw new Error("This site is not assigned to your account."); createClientTicket({ siteId, issue: fd.get("issue"), description: fd.get("description"), clientEvidence: state.clientTicketImage }); state.clientTicketImage = ""; toast("Priority 1 ticket created. WhatsApp demo notifications prepared."); state.tab = "notifications"; render(); }
+      if (e.target.id === "floatingAssistantForm") { const fd = new FormData(e.target); await askClientAssistant(fd.get("question")); return; }
+      if (e.target.id === "clientTicketForm") { const fd = new FormData(e.target); const siteId = fd.get("siteId"); if (!allowedSiteIds().includes(siteId)) throw new Error("This site is not assigned to your account."); const beforeIds = new Set(getDb().tickets.map(t => t.id)); createClientTicket({ siteId, issue: fd.get("issue"), description: fd.get("description"), clientEvidence: state.clientTicketImage }); const created = getDb().tickets.find(t => !beforeIds.has(t.id)); state.clientTicketImage = ""; toast("Priority 1 ticket created. Supervisor WhatsApp notification triggered."); render(); if (created?.id) dispatchWhatsAppNotifications(created.id); }
     } catch (err) { toast(err.message || "Submit failed"); }
   });
 }
