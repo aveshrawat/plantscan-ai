@@ -5,7 +5,8 @@ export const APP = {
   sessionRoleKey: "greenops_role_v1",
   sessionTabKey: "greenops_tab_v1",
   diagnosisEndpoint: "/api/diagnose",
-  verifyEvidenceEndpoint: "/api/verify-evidence"
+  verifyEvidenceEndpoint: "/api/verify-evidence",
+  whatsappNotifyEndpoint: "/api/notify-whatsapp"
 };
 
 export const ROLES = {
@@ -24,8 +25,7 @@ export const HEALTH = {
 export const STATUS = {
   OPEN: "Open",
   IN_PROGRESS: "In Progress",
-  CLOSED: "Closed",
-  PAUSED: "Paused"
+  CLOSED: "Closed"
 };
 
 export const PRIORITY = {
@@ -40,22 +40,27 @@ export const SLA_RULES = {
   P3: { responseHours: 72, closureHours: 120, label: "Monitor / planned" }
 };
 
+export const BILLING = {
+  defaultMonthlyAmc: 50000,
+  slaFinePerBreachedItem: 50,
+  invoicePrefix: "GO"
+};
+
+export const NOTIFICATIONS = {
+  demoWhatsAppNumber: "+918799765307",
+  mode: "demo_link"
+};
+
 export const INITIAL_DB = {
   users: [
     {
       id: "u-owner-1",
       name: "Avesh Rawat",
       role: ROLES.OWNER,
-      phone: "9000000000",
-      pin: "1234",
-      email: "owner@onescape.in",
+      phone: "9999999999",
+      pin: "0000",
+      email: "owner@greenops.demo",
       password: "owner123",
-      authAliases: [
-        { identifier: "9000000000", secret: "1234" },
-        { identifier: "owner@onescape.in", secret: "owner123" },
-        { identifier: "9999999999", secret: "0000" },
-        { identifier: "owner@greenops.demo", secret: "owner123" }
-      ],
       cityAccess: ["Bangalore", "Kolkata"],
       clientAccess: ["client-servicenow", "client-mckinsey", "client-marriott"],
       siteAccess: ["site-sn-blr", "site-mck-blr", "site-mar-blr", "site-sn-kol"]
@@ -86,7 +91,10 @@ export const INITIAL_DB = {
       pin: "4321",
       email: "blr.supervisor@greenops.demo",
       password: "super123",
-      cityAccess: ["Bangalore"]
+      cityAccess: ["Bangalore"],
+      notificationEmail: "blr.supervisor@greenops.demo",
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     },
     {
       id: "u-super-2",
@@ -96,7 +104,10 @@ export const INITIAL_DB = {
       pin: "4321",
       email: "kol.supervisor@greenops.demo",
       password: "super123",
-      cityAccess: ["Kolkata"]
+      cityAccess: ["Kolkata"],
+      notificationEmail: "kol.supervisor@greenops.demo",
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     },
     {
       id: "u-client-marriott",
@@ -105,7 +116,9 @@ export const INITIAL_DB = {
       email: "marriott@test.com",
       password: "demo123",
       clientAccess: ["client-marriott"],
-      siteAccess: ["site-mar-blr"]
+      siteAccess: ["site-mar-blr"],
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     },
     {
       id: "u-client-servicenow",
@@ -114,7 +127,9 @@ export const INITIAL_DB = {
       email: "servicenow@test.com",
       password: "demo123",
       clientAccess: ["client-servicenow"],
-      siteAccess: ["site-sn-blr", "site-sn-kol"]
+      siteAccess: ["site-sn-blr", "site-sn-kol"],
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     },
     {
       id: "u-client-mckinsey",
@@ -123,7 +138,9 @@ export const INITIAL_DB = {
       email: "mckinsey@test.com",
       password: "demo123",
       clientAccess: ["client-mckinsey"],
-      siteAccess: ["site-mck-blr"]
+      siteAccess: ["site-mck-blr"],
+      whatsappNumber: "+918799765307",
+      notifyOnWhatsApp: true
     }
   ],
   clients: [
@@ -137,5 +154,5 @@ export const INITIAL_DB = {
     { id: "site-mar-blr", clientId: "client-marriott", name: "Marriott Bellandur", city: "Bangalore", zones: ["Entrance", "Drop-off", "Lobby", "Service Apartment"] },
     { id: "site-sn-kol", clientId: "client-servicenow", name: "ServiceNow Kolkata Office", city: "Kolkata", zones: ["Reception", "Atrium", "Cafe", "Workbay B"] }
   ],
-  plants: [], scans: [], tickets: [], evidence: [], activityLog: [], meta: { seeded: false, version: 3 }
+  plants: [], scans: [], tickets: [], evidence: [], notifications: [], invoices: [], meta: { seeded: false, version: 2 }
 };
