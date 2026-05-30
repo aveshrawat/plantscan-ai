@@ -4671,3 +4671,379 @@ button.report-download-btn {
     flex:1 1 auto;
   }
 }
+
+.sustainability-dashboard{
+  width:min(1440px,100%);
+  margin:0 auto;
+  padding:0 4px 28px;
+  display:grid;
+  gap:18px;
+}
+.sustainability-hero{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(280px,420px);
+  gap:20px;
+  align-items:stretch;
+  padding:24px;
+  border:1px solid #d7e6dd;
+  border-radius:8px;
+  background:linear-gradient(135deg,#ffffff 0%,#f6faf7 58%,#edf7f1 100%);
+  box-shadow:0 18px 45px rgba(7,61,43,.08);
+}
+.sustainability-hero h2{
+  margin:6px 0 8px;
+  color:#073d2b;
+  font-size:clamp(28px,3vw,42px);
+  line-height:1.04;
+  letter-spacing:0;
+}
+.sustainability-hero p{
+  max-width:880px;
+  margin:0;
+  color:#52635b;
+  font-size:15px;
+  line-height:1.55;
+}
+.access-status-card{
+  display:grid;
+  gap:10px;
+  align-content:center;
+  padding:18px;
+  border:1px solid #cadfd2;
+  border-radius:8px;
+  background:#073d2b;
+  color:#fff;
+}
+.access-status-card span{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 0;
+  border-bottom:1px solid rgba(255,255,255,.16);
+  font-size:13px;
+  font-weight:800;
+}
+.access-status-card span:last-child{
+  border-bottom:0;
+}
+.sustainability-toolbar{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:14px;
+  align-items:end;
+  padding:14px;
+  border:1px solid #dce9e1;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:0 10px 28px rgba(7,61,43,.05);
+}
+.sustainability-toolbar-fields{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(150px,1fr));
+  gap:10px;
+}
+.sustainability-toolbar label{
+  display:grid;
+  gap:6px;
+  color:#52635b;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.sustainability-toolbar .select,
+.sustainability-toolbar .input{
+  min-height:38px;
+  border-radius:8px;
+}
+.sustainability-toolbar-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:8px;
+}
+.sustainability-summary-grid{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:12px;
+}
+.sustainability-summary-card{
+  min-width:0;
+  padding:16px;
+  border:1px solid #dbe9e0;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:0 12px 30px rgba(7,61,43,.06);
+}
+.sustainability-summary-card span{
+  display:block;
+  min-height:32px;
+  color:#52635b;
+  font-size:11px;
+  font-weight:900;
+  line-height:1.25;
+  text-transform:uppercase;
+}
+.sustainability-summary-card strong{
+  display:block;
+  margin:8px 0 4px;
+  color:#073d2b;
+  font-size:26px;
+  line-height:1;
+  letter-spacing:0;
+}
+.sustainability-summary-card small{
+  display:block;
+  min-height:34px;
+  color:#6b7b72;
+  font-size:12px;
+  line-height:1.35;
+}
+.sustainability-summary-card.locked{
+  background:#fbfcfb;
+}
+.sustainability-section{
+  display:grid;
+  gap:12px;
+}
+.sustainability-section-header{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-end;
+}
+.sustainability-section-header h3{
+  margin:0;
+  color:#073d2b;
+  font-size:20px;
+  letter-spacing:0;
+}
+.sustainability-section-header p{
+  margin:4px 0 0;
+  color:#6b7b72;
+  font-size:13px;
+  line-height:1.35;
+}
+.sustainability-section-header>span{
+  white-space:nowrap;
+  color:#6b7b72;
+  font-size:12px;
+  font-weight:900;
+}
+.sustainability-kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+}
+.sustainability-kpi-card{
+  min-width:0;
+  display:grid;
+  gap:12px;
+  padding:18px;
+  border:1px solid #dbe9e0;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:0 14px 34px rgba(7,61,43,.06);
+}
+.sustainability-kpi-card.locked{
+  background:linear-gradient(180deg,#fff,#f8faf8);
+  border-style:dashed;
+}
+.sustainability-kpi-top{
+  display:grid;
+  grid-template-columns:38px minmax(0,1fr) auto;
+  gap:10px;
+  align-items:start;
+}
+.sustainability-kpi-icon{
+  display:grid;
+  place-items:center;
+  width:36px;
+  height:36px;
+  border-radius:8px;
+  background:#eef7f1;
+  color:#073d2b;
+  font-size:11px;
+  font-weight:900;
+}
+.sustainability-kpi-card h4{
+  margin:2px 0 0;
+  color:#14251d;
+  font-size:15px;
+  line-height:1.25;
+  letter-spacing:0;
+}
+.metric-value{
+  display:flex;
+  align-items:flex-end;
+  gap:8px;
+  min-height:42px;
+}
+.metric-value strong{
+  color:#073d2b;
+  font-size:34px;
+  line-height:1;
+  letter-spacing:0;
+}
+.metric-unit{
+  color:#6b7b72;
+  font-size:13px;
+  font-weight:900;
+  padding-bottom:4px;
+}
+.metric-subtitle{
+  margin:0;
+  color:#6b7b72;
+  font-size:13px;
+  line-height:1.4;
+}
+.progress-bar{
+  height:8px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#e8f0eb;
+}
+.progress-fill{
+  display:block;
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(90deg,#0f6a4c,#6aa37d);
+}
+.progress-bar.muted .progress-fill{
+  background:#cad8cf;
+}
+.sustainability-mini-bars{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:5px;
+  align-items:end;
+  height:34px;
+}
+.sustainability-mini-bars i{
+  display:block;
+  border-radius:6px 6px 0 0;
+  background:#d8e8de;
+}
+.sustainability-mini-bars i:nth-child(1){height:34%}
+.sustainability-mini-bars i:nth-child(2){height:52%}
+.sustainability-mini-bars i:nth-child(3){height:42%}
+.sustainability-mini-bars i:nth-child(4){height:68%}
+.sustainability-mini-bars i:nth-child(5){height:58%}
+.locked-value-panel{
+  display:grid;
+  gap:5px;
+  min-height:72px;
+  padding:14px;
+  border:1px solid #d8dfda;
+  border-radius:8px;
+  background:repeating-linear-gradient(135deg,#f5f7f5 0,#f5f7f5 8px,#eef3ef 8px,#eef3ef 16px);
+}
+.locked-value-panel strong{
+  color:#34443c;
+  font-size:18px;
+}
+.locked-value-panel span{
+  color:#6b7b72;
+  font-size:12px;
+  font-weight:800;
+}
+.sustainability-chip-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.data-quality-chip.muted{
+  background:#f6faf7;
+  border-color:#d9e7df;
+  color:#52635b;
+}
+.framework-switcher{
+  padding:3px;
+  gap:0;
+  border:1px solid #cfddd5;
+  border-radius:8px;
+  background:#f7faf7;
+}
+.framework-switcher .framework-pill,
+.framework-pill{
+  min-height:32px;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:#42584d;
+  padding:7px 10px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.framework-switcher .framework-pill.active,
+.framework-pill.active{
+  background:#073d2b;
+  color:#fff;
+  box-shadow:0 8px 18px rgba(7,61,43,.18);
+}
+.framework-modal{
+  position:fixed;
+  inset:0;
+  z-index:9998;
+  display:flex;
+  justify-content:flex-end;
+  background:rgba(8,24,18,.38);
+  backdrop-filter:blur(2px);
+}
+.framework-drawer{
+  width:min(560px,calc(100vw - 28px));
+  height:100%;
+  overflow:auto;
+  padding:22px;
+  border-left:1px solid #cddfd4;
+  background:#fff;
+  box-shadow:-24px 0 60px rgba(7,61,43,.18);
+}
+.framework-drawer dl{
+  display:grid;
+  gap:12px;
+  margin:18px 0;
+}
+.framework-drawer dl div{
+  padding:12px;
+  border:1px solid #dbe9e0;
+  border-radius:8px;
+  background:#f8fbf9;
+}
+.framework-drawer dt{
+  color:#52635b;
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.framework-drawer dd{
+  margin:6px 0 0;
+  color:#1d3027;
+  font-size:14px;
+  line-height:1.45;
+}
+.sustainability-insight-panel{
+  border:1px solid #dbe9e0;
+  border-radius:8px;
+  background:#fff;
+}
+@media(max-width:1240px){
+  .sustainability-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sustainability-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sustainability-toolbar{grid-template-columns:1fr}
+  .sustainability-toolbar-actions{justify-content:flex-start}
+}
+@media(max-width:900px){
+  .sustainability-hero{grid-template-columns:1fr}
+  .sustainability-toolbar-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sustainability-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+  .sustainability-dashboard{padding:0 0 20px}
+  .sustainability-hero,.sustainability-toolbar,.sustainability-kpi-card,.sustainability-summary-card{padding:14px}
+  .sustainability-toolbar-fields,.sustainability-summary-grid,.sustainability-kpi-grid{grid-template-columns:1fr}
+  .sustainability-section-header{display:grid}
+  .sustainability-kpi-top{grid-template-columns:34px minmax(0,1fr)}
+  .sustainability-kpi-top .coverage-chip{grid-column:1 / -1;justify-self:start}
+  .metric-value strong{font-size:28px}
+}

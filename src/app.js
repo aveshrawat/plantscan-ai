@@ -62,6 +62,7 @@ const state = {
   lastDiagnosis: null,
   boqDraft: { siteId: "", csv: "", fileName: "", rows: [], rejectedRows: [], acceptedRows: [], lastUploadId: "" },
   sustainabilityFramework: sessionStorage.getItem("greenops_sustainability_framework") || "brsr",
+  frameworkModalMetricId: "",
   entitlementClientId: "",
   entitlementSiteId: "",
   filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" },
@@ -677,16 +678,47 @@ function accessStateCards(entitlement) {
   const trialText = isTrialActive(entitlement) ? `Active until ${formatDateInput(entitlement.trialEndDate)}` : "Not active";
   return `<div class="kpi-strip"><div class="metric"><span>Current Status</span><strong>${escapeHtml(accessStatusLabel(entitlement))}</strong></div><div class="metric ${canViewMetricValues(entitlement) ? "good" : "monitor"}"><span>Metric Values</span><strong>${canViewMetricValues(entitlement) ? "Visible" : "Locked"}</strong></div><div class="metric ${canUseFrameworkSwitcher(entitlement) ? "good" : "monitor"}"><span>Framework Switcher</span><strong>${canUseFrameworkSwitcher(entitlement) ? "Enabled" : "Locked"}</strong></div><div class="metric"><span>Trial</span><strong>${escapeHtml(trialText)}</strong></div></div>`;
 }
+const SUSTAINABILITY_SECTIONS = [
+  { title: "Resource Use", subtitle: "Water estimates and routine watering discipline.", metricIds: ["estimated_water_use", "watering_compliance"] },
+  { title: "Green Asset Performance", subtitle: "Maintained asset health, survival, and replacement pressure.", metricIds: ["green_asset_health_score", "plant_survival_rate", "replacement_rate"] },
+  { title: "Waste and Circularity", subtitle: "Green waste estimates and routed disposal evidence.", metricIds: ["estimated_green_waste", "waste_disposal_route"] },
+  { title: "Safer Operations", subtitle: "Chemical-light maintenance and safety-relevant field observations.", metricIds: ["chemical_free_maintenance_pct", "safety_issues"] },
+  { title: "Service Governance", subtitle: "Closure discipline, repeat issues, and vendor service activity.", metricIds: ["issue_closure_rate", "repeat_issue_rate", "vendor_visit_count", "vendor_travel_estimate"] }
+];
+const SUMMARY_METRIC_IDS = ["green_asset_health_score", "estimated_water_use", "plant_survival_rate", "waste_disposal_route", "chemical_free_maintenance_pct", "issue_closure_rate"];
+const METRIC_ICONS = {
+  estimated_water_use: "H2O",
+  watering_compliance: "%",
+  plant_survival_rate: "PS",
+  replacement_rate: "RR",
+  estimated_green_waste: "GW",
+  waste_disposal_route: "WR",
+  chemical_free_maintenance_pct: "CF",
+  vendor_visit_count: "VV",
+  vendor_travel_estimate: "KM",
+  green_asset_health_score: "HS",
+  issue_closure_rate: "IC",
+  repeat_issue_rate: "RI",
+  safety_issues: "SI"
+};
+function selectedFrameworkLabel(framework = state.sustainabilityFramework) {
+  return FRAMEWORKS.find(item => item.id === framework)?.label || "BRSR";
+}
 function frameworkSwitcher(entitlement) {
   if (!canUseFrameworkSwitcher(entitlement)) return `<span class="metric-value-locked">Framework switcher locked</span>`;
-  return `<div class="framework-switcher">${FRAMEWORKS.map(fw => `<button class="${state.sustainabilityFramework === fw.id ? "active" : ""}" data-framework="${fw.id}">${escapeHtml(fw.label)}</button>`).join("")}</div>`;
+  return `<div class="framework-switcher" aria-label="Framework switcher">${FRAMEWORKS.map(fw => `<button class="framework-pill ${state.sustainabilityFramework === fw.id ? "active" : ""}" data-framework="${fw.id}">${escapeHtml(fw.label)}</button>`).join("")}</div>`;
 }
 function sustainabilityValue(metric, showValues) {
   return showValues ? `<strong>${escapeHtml(metric.formattedValue)}</strong>` : `<strong class="metric-value-locked">Locked</strong>`;
 }
-function frameworkPopup(metric, framework) {
-  const popup = frameworkPopupForMetric(metric, framework);
-  return `<details class="framework-popup"><summary>i Framework relevance</summary><div><p><strong>Metric:</strong> ${escapeHtml(popup.metric)}</p><p><strong>Selected framework:</strong> ${escapeHtml(popup.selectedFramework)}</p><p><strong>Supports:</strong> ${escapeHtml(popup.supports)}</p><p><strong>Contribution type:</strong> ${escapeHtml(popup.contributionType)}</p><p><strong>Data quality:</strong> ${escapeHtml(popup.dataQuality)}</p><p><strong>Formula:</strong> ${escapeHtml(popup.formula)}</p><p><strong>Boundary:</strong> ${escapeHtml(popup.boundary)}</p><p><strong>Limitation:</strong> ${escapeHtml(popup.limitation)}</p><p><strong>Coverage status:</strong> ${escapeHtml(popup.coverageStatus)}</p></div></details>`;
+function metricNumericValue(metric) {
+  const n = Number(metric?.value || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+function progressPct(metric) {
+  if (metric?.unit === "%") return Math.max(0, Math.min(100, metricNumericValue(metric)));
+  if (metric?.unit === "/100") return Math.max(0, Math.min(100, metricNumericValue(metric)));
+  return 0;
 }
 function sustainabilityAccessNotice(entitlement) {
   const status = accessStatusLabel(entitlement);
@@ -695,23 +727,57 @@ function sustainabilityAccessNotice(entitlement) {
     : "";
   return `<div class="btn-row" style="justify-content:flex-start;margin:8px 0 14px"><span class="offline-badge">Access: ${escapeHtml(status)}</span><span class="offline-badge">Metric values: ${canViewMetricValues(entitlement) ? "Visible" : "Locked"}</span><span class="offline-badge">Frameworks: ${canUseFrameworkSwitcher(entitlement) ? "Enabled" : "Locked"}</span>${trial}</div>`;
 }
-function sustainabilityCards(grouped, showValues, showNames, framework) {
-  return grouped.map(group => `<section><h3>${escapeHtml(group.section)}</h3><div class="sustainability-grid">${group.items.map(metric => {
-    const label = showNames ? (metric.frameworkLabel || metric.name) : "Metric name locked";
-    const explanation = showNames ? `${metric.explanation}${metric.frameworkPopup?.supports ? ` This framework-aligned view supports ${metric.frameworkPopup.supports}.` : ""}` : "Metric explanation is hidden by the current access settings.";
-    return `<article class="sustainability-card ${showValues ? "" : "locked"}"><div class="card-title"><div><h3>${escapeHtml(label)}</h3><p class="subtitle">${escapeHtml(explanation)}</p></div><span class="coverage-chip">${escapeHtml(metric.coverageStatus)}</span></div><div class="metric">${sustainabilityValue(metric, showValues)}<span>Value</span></div><div class="btn-row" style="justify-content:flex-start"><span class="data-quality-chip">${escapeHtml(metric.dataQuality)}</span><span class="offline-badge">Data basis: ${escapeHtml(metric.dataBasis)}</span></div><p class="small muted">Boundary: ${escapeHtml(metric.boundary)}</p>${frameworkPopup(metric, framework)}</article>`;
-  }).join("")}</div></section>`).join("");
+function sustainabilityToolbar(entitlement) {
+  const { db } = dbx();
+  const sitesAllowed = allowedSites(db);
+  const cities = [...new Set(sitesAllowed.map(site => site.city))].sort();
+  const sites = sitesAllowed.filter(site => (state.filters.city === "all" || site.city === state.filters.city));
+  return `<div class="sustainability-toolbar"><div class="sustainability-toolbar-fields"><label>City<select class="select" data-filter="city">${option("all", "All cities", state.filters.city === "all")}${cities.map(city => option(city, city, state.filters.city === city)).join("")}</select></label><label>Site<select class="select" data-filter="siteId">${option("all", "All assigned sites", state.filters.siteId === "all")}${sites.map(site => option(site.id, site.name, state.filters.siteId === site.id)).join("")}</select></label><label>From<input class="input" type="date" data-filter="from" value="${escapeHtml(state.filters.from)}" /></label><label>To<input class="input" type="date" data-filter="to" value="${escapeHtml(state.filters.to)}" /></label></div><div class="sustainability-toolbar-actions">${frameworkSwitcher(entitlement)}${canExportSustainabilityReport(entitlement) ? `<button class="mini-btn" data-action="download-sustainability">Export CSV</button><button class="mini-btn" data-action="download-sustainability">Export Report</button>` : `<span class="metric-value-locked">Exports locked</span>`}</div></div>`;
+}
+function metricCaption(metric) {
+  const text = String(metric?.explanation || "");
+  if (text.length <= 118) return text;
+  return `${text.slice(0, 115).trim()}...`;
+}
+function summaryCard(metric, showValues) {
+  if (!metric) return "";
+  const pct = progressPct(metric);
+  return `<article class="sustainability-summary-card ${showValues ? "" : "locked"}"><span>${escapeHtml(metric.name)}</span>${showValues ? `<strong>${escapeHtml(metric.formattedValue)}</strong>` : `<strong>Locked</strong>`}<small>${showValues ? `${escapeHtml(metric.dataQuality)} · Horticulture only` : "Unlock Sustainability Insights to view values"}</small>${pct ? `<div class="progress-bar"><i class="progress-fill" style="width:${pct}%"></i></div>` : `<div class="progress-bar muted"><i class="progress-fill" style="width:42%"></i></div>`}</article>`;
+}
+function sustainabilitySummary(metrics, showValues) {
+  const byId = Object.fromEntries(metrics.map(metric => [metric.id, metric]));
+  return `<div class="sustainability-summary-grid">${SUMMARY_METRIC_IDS.map(id => summaryCard(byId[id], showValues)).join("")}</div>`;
+}
+function metricCard(metric, showValues, showNames) {
+  const label = showNames ? (metric.frameworkLabel || metric.name) : "Metric name locked";
+  const pct = progressPct(metric);
+  const icon = METRIC_ICONS[metric.id] || "ESG";
+  return `<article class="sustainability-kpi-card ${showValues ? "" : "locked"}"><div class="sustainability-kpi-top"><span class="sustainability-kpi-icon">${escapeHtml(icon)}</span><h4>${escapeHtml(label)}</h4><span class="coverage-chip">${escapeHtml(metric.coverageStatus)}</span></div>${showValues ? `<div class="metric-value"><strong>${escapeHtml(metric.formattedValue)}</strong>${metric.unit && metric.unit !== "/100" && !String(metric.formattedValue).includes(metric.unit) ? `<span class="metric-unit">${escapeHtml(metric.unit)}</span>` : ""}</div><p class="metric-subtitle">${escapeHtml(metric.unit === "%" || metric.unit === "/100" ? "Current selected period" : "This selected reporting period")}</p>${pct ? `<div class="progress-bar"><i class="progress-fill" style="width:${pct}%"></i></div>` : `<div class="sustainability-mini-bars"><i></i><i></i><i></i><i></i><i></i></div>`}` : `<div class="locked-value-panel"><strong>Value Locked</strong><span>Unlock Sustainability Insights to view values</span></div>`}<p class="metric-subtitle">${escapeHtml(showNames ? metricCaption(metric) : "Metric explanation is hidden by the current access settings.")}</p><div class="sustainability-chip-row"><span class="data-quality-chip">${escapeHtml(metric.dataQuality)}</span><span class="data-quality-chip muted">Horticulture contribution only</span></div><footer><button class="mini-btn" type="button" data-framework-metric="${escapeHtml(metric.id)}">Framework relevance</button><button class="mini-btn" type="button" data-framework-metric="${escapeHtml(metric.id)}">View method</button></footer></article>`;
+}
+function sustainabilitySections(metrics, showValues, showNames) {
+  const byId = Object.fromEntries(metrics.map(metric => [metric.id, metric]));
+  return SUSTAINABILITY_SECTIONS.map(section => {
+    const cards = section.metricIds.map(id => byId[id]).filter(Boolean).map(metric => metricCard(metric, showValues, showNames)).join("");
+    return `<section class="sustainability-section"><div class="sustainability-section-header"><div><h3>${escapeHtml(section.title)}</h3><p>${escapeHtml(section.subtitle)}</p></div><span>${section.metricIds.filter(id => byId[id]).length} metrics</span></div><div class="sustainability-kpi-grid">${cards}</div></section>`;
+  }).join("");
+}
+function sustainabilityFrameworkModal(metrics, framework) {
+  if (!state.frameworkModalMetricId) return "";
+  const metric = metrics.find(item => item.id === state.frameworkModalMetricId);
+  if (!metric) return "";
+  const popup = frameworkPopupForMetric(metric, framework);
+  return `<div class="framework-modal" data-framework-backdrop><aside class="framework-drawer" role="dialog" aria-label="Framework relevance"><div class="sustainability-section-header"><div><h3>${escapeHtml(popup.metric)}</h3><p>${escapeHtml(popup.selectedFramework)} framework-aligned view</p></div><button class="mini-btn" type="button" data-framework-close>Close</button></div><dl><div><dt>Supports / contributes to</dt><dd>${escapeHtml(popup.supports)}</dd></div><div><dt>Contribution type</dt><dd>${escapeHtml(popup.contributionType || "Horticulture operations only")}</dd></div><div><dt>Coverage status</dt><dd>${escapeHtml(popup.coverageStatus)}</dd></div><div><dt>Data quality</dt><dd>${escapeHtml(popup.dataQuality)}</dd></div><div><dt>Formula used</dt><dd>${escapeHtml(popup.formula)}</dd></div><div><dt>Boundary</dt><dd>${escapeHtml(popup.boundary)}</dd></div><div><dt>Limitation</dt><dd>${escapeHtml(popup.limitation)}</dd></div></dl><p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p></aside></div>`;
 }
 function sustainabilityView() {
   const db = getDb();
   const entitlement = sustainabilityEntitlement();
-  if (entitlement.sustainabilityTabVisible === false) return `<section class="card"><h3>Sustainability / ESG Insights</h3><div class="empty">This module is not visible for the selected client/site.</div></section>`;
+  if (entitlement.sustainabilityTabVisible === false) return `<section class="sustainability-dashboard"><h3>Sustainability / ESG Insights</h3><div class="empty">This module is not visible for the selected client/site.</div></section>`;
   const showValues = canViewMetricValues(entitlement);
   const showNames = entitlement.metricNamesVisible !== false;
   const framework = canUseFrameworkSwitcher(entitlement) ? state.sustainabilityFramework : "brsr";
   const metricsList = buildSustainabilityMetrics({ db, filters: roleFilter(db), period: { from: state.filters.from, to: state.filters.to } });
-  const grouped = buildFrameworkView(metricsList, framework);
-  return `<section class="card"><div class="card-title"><div><h3>Sustainability / ESG Insights</h3><p class="subtitle">Metric names, explanations, data basis, and boundaries are visible by entitlement. Values unlock with trial or paid access.</p></div><div class="btn-row">${frameworkSwitcher(entitlement)}${canExportSustainabilityReport(entitlement) ? `<button class="btn secondary" data-action="download-sustainability">Download CSV</button>` : `<span class="metric-value-locked">Exports locked</span>`}</div></div>${filterPanel({ client: false })}${sustainabilityAccessNotice(entitlement)}<p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p>${sustainabilityCards(grouped, showValues, showNames, framework)}</section>`;
+  const frameworkMetrics = buildFrameworkView(metricsList, framework).flatMap(group => group.items);
+  return `<section class="sustainability-dashboard"><div class="sustainability-hero"><div><span class="eyebrow dark">Enterprise sustainability cockpit</span><h2>Sustainability / ESG Insights</h2><p>Horticulture contribution view across water, waste, plant health, service governance, vendor activity, and maintained green assets.</p></div><div class="access-status-card"><span>Access: ${escapeHtml(accessStatusLabel(entitlement))}</span><span>Framework: ${escapeHtml(selectedFrameworkLabel(framework))}</span><span>Boundary: Horticulture only</span>${entitlement.subscriptionStatus === "trial" ? `<span>Trial: ${isTrialActive(entitlement) ? `Ends ${formatDateInput(entitlement.trialEndDate)}` : "Expired"}</span>` : ""}</div></div>${sustainabilityToolbar(entitlement)}${sustainabilityAccessNotice(entitlement)}${sustainabilitySummary(frameworkMetrics, showValues)}<p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p>${sustainabilitySections(frameworkMetrics, showValues, showNames)}${sustainabilityFrameworkModal(frameworkMetrics, framework)}</section>`;
 }
 function checked(value) {
   return value ? "checked" : "";
@@ -1662,6 +1728,8 @@ function bindEvents() {
     const efficiencyFilter = e.target.closest("[data-efficiency-filter]")?.dataset.efficiencyFilter; if (efficiencyFilter) { state.efficiencyFilter = efficiencyFilter; sessionStorage.setItem("greenops_efficiency_filter", efficiencyFilter); render(); return; }
     const clientAssuranceFilter = e.target.closest("[data-client-assurance-filter]")?.dataset.clientAssuranceFilter; if (clientAssuranceFilter) { state.clientAssuranceFilter = state.clientAssuranceFilter === clientAssuranceFilter ? "" : clientAssuranceFilter; sessionStorage.setItem("greenops_client_assurance_filter", state.clientAssuranceFilter); render(); return; }
     const framework = e.target.closest("[data-framework]")?.dataset.framework; if (framework) { state.sustainabilityFramework = framework; sessionStorage.setItem("greenops_sustainability_framework", framework); render(); return; }
+    const frameworkMetric = e.target.closest("[data-framework-metric]")?.dataset.frameworkMetric; if (frameworkMetric) { state.frameworkModalMetricId = frameworkMetric; render(); return; }
+    if (e.target.closest("[data-framework-close]") || e.target.matches("[data-framework-backdrop]")) { state.frameworkModalMetricId = ""; render(); return; }
     const assistantPrompt = e.target.closest("[data-assistant-prompt]")?.dataset.assistantPrompt; if (assistantPrompt) { await askClientAssistant(assistantPrompt); return; }
     const action = e.target.closest("[data-action]")?.dataset.action; const id = e.target.closest("[data-id]")?.dataset.id;
     try {
