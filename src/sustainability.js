@@ -258,7 +258,8 @@ export function buildSustainabilityMetrics({ db, filters = {}, period = {} }) {
       id: "green_asset_health_score",
       name: "Green Asset Health Score",
       explanation: "Averages AI or manually captured plant health scores for maintained green assets.",
-      value: health.score,
+      value: health.score <= 10 ? health.score * 10 : health.score,
+      unit: "/100",
       dataQuality: "Calculated",
       formula: "Average of AI scan and service log health scores"
     }),

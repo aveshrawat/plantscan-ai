@@ -13,7 +13,7 @@ import { buildEfficiencyModel, normalizeIssueType, ticketNo as efficiencyTicketN
 import { applyBoqRowsToDb, baselineForSite, expectedServiceEventsForBaseline, expectedWaterForBaseline, parseBoqCsvOrSheet, validateBoqRows } from "./boq.js";
 import { buildSustainabilityMetrics } from "./sustainability.js";
 import { FRAMEWORKS, buildFrameworkView, frameworkPopupForMetric } from "./frameworks.js";
-import { canExportSustainabilityReport, canUseFrameworkSwitcher, canViewMetricValues, getClientEntitlement } from "./entitlements.js";
+import { canExportSustainabilityReport, canUseFrameworkSwitcher, canViewMetricValues, defaultCoreEntitlement, getClientEntitlement, isTrialActive } from "./entitlements.js";
 import { getPendingOfflineRecords, queueOfflineRecord, syncPendingRecords } from "./offlineSync.js";
 import { getCurrentGps } from "./cameraProof.js";
 import { $, $$, dataUrlToBase64, downloadFile, escapeHtml, fmtDate, imageToDataUrl, nowIso, option, toast, uid } from "./utils.js";
@@ -62,6 +62,7 @@ const state = {
   lastDiagnosis: null,
   boqDraft: { siteId: "", csv: "", fileName: "", rows: [], rejectedRows: [], acceptedRows: [], lastUploadId: "" },
   sustainabilityFramework: sessionStorage.getItem("greenops_sustainability_framework") || "brsr",
+  entitlementClientId: "",
   entitlementSiteId: "",
   filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" },
   efficiencyFilter: sessionStorage.getItem("greenops_efficiency_filter") || "action",
@@ -253,7 +254,8 @@ function firstTabFor(role) { return (roleTabs[role] || roleTabs[ROLES.MAINTENANC
 
 function layout(content) {
   const role = effectiveRole();
-  const tabs = isOwner() && state.ownerViewRole === ROLES.MAINTENANCE ? roleTabs[ROLES.MAINTENANCE] : isOwner() && state.ownerViewRole === ROLES.CLIENT ? roleTabs[ROLES.CLIENT] : isOwner() ? roleTabs[ROLES.OWNER] : roleTabs[role];
+  let tabs = isOwner() && state.ownerViewRole === ROLES.MAINTENANCE ? roleTabs[ROLES.MAINTENANCE] : isOwner() && state.ownerViewRole === ROLES.CLIENT ? roleTabs[ROLES.CLIENT] : isOwner() ? roleTabs[ROLES.OWNER] : roleTabs[role];
+  if (role === ROLES.CLIENT && !clientSustainabilityTabVisible()) tabs = tabs.filter(t => t !== "sustainability");
   if (!tabs.includes(state.tab)) state.tab = tabs[0];
   const user = currentUser();
   return `<div class="app-shell">
@@ -309,6 +311,10 @@ function heroSubtitle() {
 function render() {
   if (!state.user) { $("#app").innerHTML = loginScreen(); return; }
   const role = effectiveRole();
+  if (role === ROLES.CLIENT && state.tab === "sustainability" && !clientSustainabilityTabVisible()) {
+    state.tab = firstTabFor(role);
+    sessionStorage.setItem(APP.sessionTabKey, state.tab);
+  }
   const body = role === ROLES.MAINTENANCE ? maintenanceView() : role === ROLES.CLIENT ? clientView() : supervisorView();
   $("#app").innerHTML = layout(body);
   drawCharts();
@@ -620,6 +626,12 @@ function syncMonitorView() {
   const rows = syncMonitorRows();
   return `<section class="card sync-status-card"><div class="card-title"><div><h3>Sync Monitor</h3><p class="subtitle">${isOwner() ? "All-site offline queue visibility." : "Assigned-site visibility for field team service logs."}</p></div><div class="btn-row"><span class="offline-badge">${navigator.onLine === false ? "Offline" : "Online"}</span><button class="btn secondary" data-action="sync-now">Sync Now</button></div></div><div class="kpi-strip"><div class="metric"><span>Pending queue</span><strong>${pending.length}</strong></div><div class="metric critical"><span>Failed logs</span><strong>${rows.reduce((sum, row) => sum + row.failed, 0)}</strong></div><div class="metric good"><span>GPS captured</span><strong>${rows.reduce((sum, row) => sum + row.gps, 0)}</strong></div><div class="metric monitor"><span>AI passed</span><strong>${rows.reduce((sum, row) => sum + row.aiPassed, 0)}</strong></div></div><div class="table-wrap"><table class="baseline-table"><thead><tr><th>Staff name</th><th>Site</th><th>Last sync time</th><th>Pending logs</th><th>Failed sync</th><th>GPS captured</th><th>AI validated</th></tr></thead><tbody>${rows.map(row => `<tr><td>${escapeHtml(row.user?.name || row.logs[0]?.createdBy || "Unknown")}</td><td>${escapeHtml(row.site?.name || "Unknown site")}</td><td>${fmtDate(row.lastSync)}</td><td><span class="pill ${row.pending ? "monitor" : "good"}">${row.pending}</span></td><td><span class="pill ${row.failed ? "critical" : "good"}">${row.failed}</span></td><td>${row.gps ? "Yes" : "No"}</td><td>${row.aiFailed ? "Failed" : row.aiPassed ? "Passed" : "Pending"}</td></tr>`).join("") || `<tr><td colspan="7"><div class="empty">No service logs yet.</div></td></tr>`}</tbody></table></div></section>`;
 }
+function clientSustainabilityTabVisible() {
+  const db = getDb();
+  const site = sustainabilityScopeSite();
+  const clientId = site?.clientId || allowedClients(db)[0]?.id || "";
+  return getClientEntitlement(db, clientId, site?.id || "").sustainabilityTabVisible !== false;
+}
 function sustainabilityScopeSite() {
   const sites = allowedSites();
   if (state.filters.siteId && state.filters.siteId !== "all") return sites.find(site => site.id === state.filters.siteId) || sites[0];
@@ -628,6 +640,42 @@ function sustainabilityScopeSite() {
 function sustainabilityEntitlement() {
   const site = sustainabilityScopeSite();
   return getClientEntitlement(getDb(), site?.clientId || allowedClients()[0]?.id || "", site?.id || "");
+}
+function formatDateInput(iso = "") {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return String(iso).slice(0, 10);
+  return date.toISOString().slice(0, 10);
+}
+function dateIsoFromInput(value = "", endOfDay = false) {
+  if (!value) return "";
+  const suffix = endOfDay ? "T23:59:59" : "T00:00:00";
+  const date = new Date(`${value}${suffix}`);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+function entitlementContext() {
+  const db = getDb();
+  const clients = allowedClients(db);
+  const clientId = state.entitlementClientId || clients[0]?.id || "";
+  if (!state.entitlementClientId && clientId) state.entitlementClientId = clientId;
+  const sites = allowedSites(db).filter(site => site.clientId === clientId);
+  const siteId = sites.some(site => site.id === state.entitlementSiteId) ? state.entitlementSiteId : sites[0]?.id || "";
+  if (state.entitlementSiteId !== siteId) state.entitlementSiteId = siteId;
+  const site = sites.find(item => item.id === siteId) || null;
+  const client = clients.find(item => item.id === clientId) || null;
+  const entitlement = getClientEntitlement(db, clientId, siteId);
+  return { db, clients, clientId, sites, siteId, site, client, entitlement };
+}
+function accessStatusLabel(entitlement) {
+  if (entitlement.subscriptionStatus === "expired" || entitlement.trialExpired) return "EXPIRED";
+  if (entitlement.subscriptionStatus === "active") return "PAID ACTIVE";
+  if (entitlement.subscriptionStatus === "trial" && isTrialActive(entitlement)) return "TRIAL ACTIVE";
+  if (entitlement.subscriptionStatus === "trial") return "TRIAL INACTIVE";
+  return "CORE";
+}
+function accessStateCards(entitlement) {
+  const trialText = isTrialActive(entitlement) ? `Active until ${formatDateInput(entitlement.trialEndDate)}` : "Not active";
+  return `<div class="kpi-strip"><div class="metric"><span>Current Status</span><strong>${escapeHtml(accessStatusLabel(entitlement))}</strong></div><div class="metric ${canViewMetricValues(entitlement) ? "good" : "monitor"}"><span>Metric Values</span><strong>${canViewMetricValues(entitlement) ? "Visible" : "Locked"}</strong></div><div class="metric ${canUseFrameworkSwitcher(entitlement) ? "good" : "monitor"}"><span>Framework Switcher</span><strong>${canUseFrameworkSwitcher(entitlement) ? "Enabled" : "Locked"}</strong></div><div class="metric"><span>Trial</span><strong>${escapeHtml(trialText)}</strong></div></div>`;
 }
 function frameworkSwitcher(entitlement) {
   if (!canUseFrameworkSwitcher(entitlement)) return `<span class="metric-value-locked">Framework switcher locked</span>`;
@@ -640,34 +688,61 @@ function frameworkPopup(metric, framework) {
   const popup = frameworkPopupForMetric(metric, framework);
   return `<details class="framework-popup"><summary>i Framework relevance</summary><div><p><strong>Metric:</strong> ${escapeHtml(popup.metric)}</p><p><strong>Selected framework:</strong> ${escapeHtml(popup.selectedFramework)}</p><p><strong>Supports:</strong> ${escapeHtml(popup.supports)}</p><p><strong>Contribution type:</strong> ${escapeHtml(popup.contributionType)}</p><p><strong>Data quality:</strong> ${escapeHtml(popup.dataQuality)}</p><p><strong>Formula:</strong> ${escapeHtml(popup.formula)}</p><p><strong>Boundary:</strong> ${escapeHtml(popup.boundary)}</p><p><strong>Limitation:</strong> ${escapeHtml(popup.limitation)}</p><p><strong>Coverage status:</strong> ${escapeHtml(popup.coverageStatus)}</p></div></details>`;
 }
-function sustainabilityCards(grouped, showValues, framework) {
-  return grouped.map(group => `<section><h3>${escapeHtml(group.section)}</h3><div class="sustainability-grid">${group.items.map(metric => `<article class="sustainability-card ${showValues ? "" : "locked"}"><div class="card-title"><div><h3>${escapeHtml(metric.frameworkLabel || metric.name)}</h3><p class="subtitle">${escapeHtml(metric.explanation)}</p></div><span class="coverage-chip">${escapeHtml(metric.coverageStatus)}</span></div><div class="metric">${sustainabilityValue(metric, showValues)}<span>Value</span></div><div class="btn-row" style="justify-content:flex-start"><span class="data-quality-chip">${escapeHtml(metric.dataQuality)}</span><span class="offline-badge">Data basis: ${escapeHtml(metric.dataBasis)}</span></div><p class="small muted">Boundary: ${escapeHtml(metric.boundary)}</p>${frameworkPopup(metric, framework)}</article>`).join("")}</div></section>`).join("");
+function sustainabilityAccessNotice(entitlement) {
+  const status = accessStatusLabel(entitlement);
+  const trial = entitlement.subscriptionStatus === "trial"
+    ? `<span class="offline-badge">Trial: ${isTrialActive(entitlement) ? `Active until ${formatDateInput(entitlement.trialEndDate)}` : "Expired or inactive"}</span>`
+    : "";
+  return `<div class="btn-row" style="justify-content:flex-start;margin:8px 0 14px"><span class="offline-badge">Access: ${escapeHtml(status)}</span><span class="offline-badge">Metric values: ${canViewMetricValues(entitlement) ? "Visible" : "Locked"}</span><span class="offline-badge">Frameworks: ${canUseFrameworkSwitcher(entitlement) ? "Enabled" : "Locked"}</span>${trial}</div>`;
+}
+function sustainabilityCards(grouped, showValues, showNames, framework) {
+  return grouped.map(group => `<section><h3>${escapeHtml(group.section)}</h3><div class="sustainability-grid">${group.items.map(metric => {
+    const label = showNames ? (metric.frameworkLabel || metric.name) : "Metric name locked";
+    const explanation = showNames ? `${metric.explanation}${metric.frameworkPopup?.supports ? ` This framework-aligned view supports ${metric.frameworkPopup.supports}.` : ""}` : "Metric explanation is hidden by the current access settings.";
+    return `<article class="sustainability-card ${showValues ? "" : "locked"}"><div class="card-title"><div><h3>${escapeHtml(label)}</h3><p class="subtitle">${escapeHtml(explanation)}</p></div><span class="coverage-chip">${escapeHtml(metric.coverageStatus)}</span></div><div class="metric">${sustainabilityValue(metric, showValues)}<span>Value</span></div><div class="btn-row" style="justify-content:flex-start"><span class="data-quality-chip">${escapeHtml(metric.dataQuality)}</span><span class="offline-badge">Data basis: ${escapeHtml(metric.dataBasis)}</span></div><p class="small muted">Boundary: ${escapeHtml(metric.boundary)}</p>${frameworkPopup(metric, framework)}</article>`;
+  }).join("")}</div></section>`).join("");
 }
 function sustainabilityView() {
   const db = getDb();
   const entitlement = sustainabilityEntitlement();
+  if (entitlement.sustainabilityTabVisible === false) return `<section class="card"><h3>Sustainability / ESG Insights</h3><div class="empty">This module is not visible for the selected client/site.</div></section>`;
   const showValues = canViewMetricValues(entitlement);
+  const showNames = entitlement.metricNamesVisible !== false;
   const framework = canUseFrameworkSwitcher(entitlement) ? state.sustainabilityFramework : "brsr";
   const metricsList = buildSustainabilityMetrics({ db, filters: roleFilter(db), period: { from: state.filters.from, to: state.filters.to } });
   const grouped = buildFrameworkView(metricsList, framework);
-  return `<section class="card"><div class="card-title"><div><h3>Sustainability / ESG Insights</h3><p class="subtitle">Metric names, explanations, data basis, and boundaries are visible to all clients. Values unlock with trial or paid access.</p></div><div class="btn-row">${frameworkSwitcher(entitlement)}${canExportSustainabilityReport(entitlement) ? `<button class="btn secondary" data-action="download-sustainability">Download CSV</button>` : `<span class="metric-value-locked">Exports locked</span>`}</div></div>${filterPanel({ client: false })}<p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p>${sustainabilityCards(grouped, showValues, framework)}</section>`;
-}
-function entitlementTargetSite() {
-  const sites = allowedSites();
-  const selected = state.entitlementSiteId || sites[0]?.id || "";
-  if (!state.entitlementSiteId && selected) state.entitlementSiteId = selected;
-  return getDb().sites.find(site => site.id === selected) || sites[0];
+  return `<section class="card"><div class="card-title"><div><h3>Sustainability / ESG Insights</h3><p class="subtitle">Metric names, explanations, data basis, and boundaries are visible by entitlement. Values unlock with trial or paid access.</p></div><div class="btn-row">${frameworkSwitcher(entitlement)}${canExportSustainabilityReport(entitlement) ? `<button class="btn secondary" data-action="download-sustainability">Download CSV</button>` : `<span class="metric-value-locked">Exports locked</span>`}</div></div>${filterPanel({ client: false })}${sustainabilityAccessNotice(entitlement)}<p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p>${sustainabilityCards(grouped, showValues, showNames, framework)}</section>`;
 }
 function checked(value) {
   return value ? "checked" : "";
 }
+function checkboxTile(name, label, value) {
+  return `<label class="ticket-card"><input type="checkbox" name="${name}" ${checked(value)} /> ${escapeHtml(label)}</label>`;
+}
 function sustainabilityAccessView() {
-  const sites = allowedSites();
-  const site = entitlementTargetSite();
-  const client = getDb().clients.find(c => c.id === site?.clientId);
-  const entitlement = getClientEntitlement(getDb(), site?.clientId, site?.id);
-  const assumptions = Object.assign({ defaultRoundTripKm: 30, vehicleKmFactor: 1 }, ...(getDb().formulaAssumptions || []));
-  return `<section class="card"><div class="card-title"><div><h3>Sustainability Access</h3><p class="subtitle">Admin control for trials, paid access, metric values, framework switcher, exports, trends, and global formula assumptions.</p></div><span class="pill ${canViewMetricValues(entitlement) ? "good" : "monitor"}">${escapeHtml(entitlement.subscriptionStatus || "core")}</span></div><form class="form" id="sustainabilityAccessForm"><div class="grid grid-2"><div class="field"><label>Client / Site</label><select class="select" data-entitlement-site name="siteId">${sites.map(s => { const c = getDb().clients.find(item => item.id === s.clientId); return option(s.id, `${c?.name || "Client"} · ${s.city} · ${s.name}`, site?.id === s.id); }).join("")}</select></div><div class="field"><label>Plan</label><select class="select" name="subscriptionStatus">${["core", "trial", "active", "expired"].map(status => option(status, title(status), (entitlement.subscriptionStatus || "core") === status)).join("")}</select></div></div><div class="grid grid-3"><label class="ticket-card"><input type="checkbox" name="trialEnabled" ${checked(entitlement.trialEnabled)} /> Enable trial</label><label class="ticket-card"><input type="checkbox" name="metricValuesVisible" ${checked(entitlement.metricValuesVisible)} /> Metric values</label><label class="ticket-card"><input type="checkbox" name="frameworkSwitcherEnabled" ${checked(entitlement.frameworkSwitcherEnabled)} /> Framework switcher</label><label class="ticket-card"><input type="checkbox" name="pdfExportEnabled" ${checked(entitlement.pdfExportEnabled)} /> PDF export</label><label class="ticket-card"><input type="checkbox" name="excelExportEnabled" ${checked(entitlement.excelExportEnabled)} /> Excel export</label><label class="ticket-card"><input type="checkbox" name="historicalTrendsEnabled" ${checked(entitlement.historicalTrendsEnabled)} /> Historical trends</label></div><div class="grid grid-2"><div class="field"><label>Trial days</label><select class="select" name="trialDays">${[30, 60].map(days => option(days, `${days} days`, Number(entitlement.trialDays || 30) === days)).join("")}</select></div><div class="field"><label>Current target</label><input class="input" value="${escapeHtml(client?.name || "")} · ${escapeHtml(site?.name || "")}" disabled /></div></div><div class="grid grid-2"><div class="field"><label>Default vendor round trip km</label><input class="input" type="number" min="0" step="1" name="defaultRoundTripKm" value="${escapeHtml(assumptions.defaultRoundTripKm)}" /></div><div class="field"><label>Vehicle distance factor</label><input class="input" type="number" min="0" step="0.1" name="vehicleKmFactor" value="${escapeHtml(assumptions.vehicleKmFactor)}" /></div></div><button class="btn" type="submit">Save Access</button></form><p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p></section>`;
+  const { db, clients, clientId, sites, siteId, site, client, entitlement } = entitlementContext();
+  const assumptions = Object.assign({ defaultRoundTripKm: 30, vehicleKmFactor: 1 }, ...(db.formulaAssumptions || []));
+  return `<section class="card"><div class="card-title"><div><h3>Sustainability Access</h3><p class="subtitle">Admin control for trials, paid access, metric values, framework switcher, exports, trends, and demo data.</p></div><span class="pill ${canViewMetricValues(entitlement) ? "good" : "monitor"}">${escapeHtml(accessStatusLabel(entitlement))}</span></div>${accessStateCards(entitlement)}<form class="form" id="sustainabilityAccessForm"><div class="grid grid-2"><div class="field"><label>Client</label><select class="select" data-entitlement-client name="clientId">${clients.map(c => option(c.id, c.name, clientId === c.id)).join("")}</select></div><div class="field"><label>Site</label><select class="select" data-entitlement-site name="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, siteId === s.id)).join("")}</select></div></div><div class="grid grid-2"><div class="field"><label>Subscription status</label><select class="select" name="subscriptionStatus">${["core", "trial", "active", "expired"].map(status => option(status, title(status), (entitlement.subscriptionStatus || "core") === status)).join("")}</select></div><div class="field"><label>Plan name</label><select class="select" name="planName">${["core", "trial", "sustainability", "sustainability_pro"].map(plan => option(plan, title(plan.replaceAll("_", " ")), (entitlement.planName || "core") === plan)).join("")}</select></div></div><div class="grid grid-3">${checkboxTile("sustainabilityTabVisible", "Sustainability tab visible", entitlement.sustainabilityTabVisible !== false)}${checkboxTile("metricNamesVisible", "Metric names visible", entitlement.metricNamesVisible !== false)}${checkboxTile("metricValuesVisible", "Metric values visible", entitlement.metricValuesVisible)}${checkboxTile("trialEnabled", "Trial enabled", entitlement.trialEnabled)}${checkboxTile("frameworkSwitcherEnabled", "Framework switcher enabled", entitlement.frameworkSwitcherEnabled)}${checkboxTile("pdfExportEnabled", "PDF export enabled", entitlement.pdfExportEnabled)}${checkboxTile("excelExportEnabled", "Excel export enabled", entitlement.excelExportEnabled)}${checkboxTile("historicalTrendsEnabled", "Historical trends enabled", entitlement.historicalTrendsEnabled)}</div><div class="grid grid-3"><div class="field"><label>Trial days</label><select class="select" name="trialDays">${[30, 60].map(days => option(days, `${days} days`, Number(entitlement.trialDays || 30) === days)).join("")}</select></div><div class="field"><label>Trial start date</label><input class="input" type="date" name="trialStartDate" value="${escapeHtml(formatDateInput(entitlement.trialStartDate))}" /></div><div class="field"><label>Trial end date</label><input class="input" type="date" name="trialEndDate" value="${escapeHtml(formatDateInput(entitlement.trialEndDate))}" /></div></div><div class="grid grid-2"><div class="field"><label>Default vendor round trip km</label><input class="input" type="number" min="0" step="1" name="defaultRoundTripKm" value="${escapeHtml(assumptions.defaultRoundTripKm)}" /></div><div class="field"><label>Vehicle distance factor</label><input class="input" type="number" min="0" step="0.1" name="vehicleKmFactor" value="${escapeHtml(assumptions.vehicleKmFactor)}" /></div></div><div class="btn-row" style="justify-content:flex-start"><button class="btn" type="submit">Save Access Settings</button><button class="mini-btn" type="button" data-action="enable-trial-30">Enable 30-Day Trial</button><button class="mini-btn" type="button" data-action="enable-trial-60">Enable 60-Day Trial</button><button class="mini-btn" type="button" data-action="activate-paid-access">Activate Paid Access</button><button class="mini-btn danger" type="button" data-action="expire-sustainability-access">Expire Access</button><button class="mini-btn" type="button" data-action="reset-sustainability-core">Reset to Core</button><button class="mini-btn primary-capture" type="button" data-action="seed-sustainability-demo">Seed Demo Sustainability Data</button><button class="mini-btn" type="button" data-action="open-client-demo-view">Open Client Demo View</button></div></form><p class="footer-note">Target: ${escapeHtml(client?.name || "Client")} · ${escapeHtml(site?.name || "Site")}. This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p></section>`;
+}
+function upsertSustainabilityEntitlement(siteId, patch = {}) {
+  const db = getDb();
+  const site = db.sites.find(s => s.id === siteId);
+  if (!site || !isOwner()) throw new Error("Only admin can update sustainability access.");
+  tx(d => {
+    d.sustainabilityEntitlements ||= [];
+    let entitlement = d.sustainabilityEntitlements.find(item => item.clientId === site.clientId && item.siteId === site.id);
+    if (!entitlement) {
+      entitlement = { ...defaultCoreEntitlement(site.clientId, site.id), id: uid("ent") };
+      d.sustainabilityEntitlements.push(entitlement);
+    }
+    Object.assign(entitlement, patch, {
+      clientId: site.clientId,
+      siteId: site.id,
+      updatedBy: currentUser()?.id || "owner",
+      updatedAt: nowIso()
+    });
+    return d;
+  });
 }
 function saveSustainabilityAccess(form) {
   const fd = new FormData(form);
@@ -678,29 +753,30 @@ function saveSustainabilityAccess(form) {
   const subscriptionStatus = String(fd.get("subscriptionStatus") || "core");
   const trialEnabled = fd.has("trialEnabled") || subscriptionStatus === "trial";
   const trialDays = Number(fd.get("trialDays") || 30);
-  const start = trialEnabled ? nowIso() : "";
-  const endDate = trialEnabled ? new Date(Date.now() + trialDays * 86400000).toISOString() : "";
+  const start = trialEnabled ? (dateIsoFromInput(fd.get("trialStartDate")) || nowIso()) : "";
+  const endDate = trialEnabled ? (dateIsoFromInput(fd.get("trialEndDate"), true) || new Date(Date.now() + trialDays * 86400000).toISOString()) : "";
+  const trialExpired = subscriptionStatus === "expired" || (trialEnabled && endDate && new Date(endDate) < new Date());
   tx(d => {
     d.sustainabilityEntitlements ||= [];
     let entitlement = d.sustainabilityEntitlements.find(item => item.clientId === site.clientId && item.siteId === site.id);
     if (!entitlement) {
-      entitlement = { id: uid("ent"), clientId: site.clientId, siteId: site.id };
+      entitlement = { ...defaultCoreEntitlement(site.clientId, site.id), id: uid("ent") };
       d.sustainabilityEntitlements.push(entitlement);
     }
     Object.assign(entitlement, {
-      sustainabilityTabVisible: true,
-      metricNamesVisible: true,
-      metricValuesVisible: fd.has("metricValuesVisible") || ["trial", "active"].includes(subscriptionStatus),
+      sustainabilityTabVisible: fd.has("sustainabilityTabVisible"),
+      metricNamesVisible: fd.has("metricNamesVisible"),
+      metricValuesVisible: fd.has("metricValuesVisible"),
       trialEnabled,
       trialDays,
       trialStartDate: start,
       trialEndDate: endDate,
-      trialExpired: subscriptionStatus === "expired",
+      trialExpired,
       frameworkSwitcherEnabled: fd.has("frameworkSwitcherEnabled"),
       pdfExportEnabled: fd.has("pdfExportEnabled"),
       excelExportEnabled: fd.has("excelExportEnabled"),
       historicalTrendsEnabled: fd.has("historicalTrendsEnabled"),
-      planName: subscriptionStatus === "active" ? "sustainability" : subscriptionStatus,
+      planName: String(fd.get("planName") || "core"),
       subscriptionStatus,
       updatedBy: currentUser()?.id || "owner",
       updatedAt: nowIso()
@@ -713,6 +789,240 @@ function saveSustainabilityAccess(form) {
       wasteBoundary: "Maintained horticulture assets only",
       updatedAt: nowIso()
     });
+    if (!d.formulaAssumptions.length) d.formulaAssumptions.push(assumptions);
+    return d;
+  });
+}
+function trialPatch(days) {
+  return {
+    sustainabilityTabVisible: true,
+    metricNamesVisible: true,
+    metricValuesVisible: true,
+    trialEnabled: true,
+    trialDays: days,
+    trialStartDate: nowIso(),
+    trialEndDate: new Date(Date.now() + days * 86400000).toISOString(),
+    trialExpired: false,
+    frameworkSwitcherEnabled: true,
+    pdfExportEnabled: false,
+    excelExportEnabled: false,
+    historicalTrendsEnabled: true,
+    planName: "trial",
+    subscriptionStatus: "trial"
+  };
+}
+function applySustainabilityPreset(kind) {
+  const { siteId } = entitlementContext();
+  if (!siteId) throw new Error("Select a site first.");
+  if (kind === "trial30") upsertSustainabilityEntitlement(siteId, trialPatch(30));
+  if (kind === "trial60") upsertSustainabilityEntitlement(siteId, trialPatch(60));
+  if (kind === "active") upsertSustainabilityEntitlement(siteId, {
+    sustainabilityTabVisible: true,
+    metricNamesVisible: true,
+    metricValuesVisible: true,
+    trialEnabled: false,
+    trialDays: 0,
+    trialStartDate: "",
+    trialEndDate: "",
+    trialExpired: false,
+    frameworkSwitcherEnabled: true,
+    pdfExportEnabled: true,
+    excelExportEnabled: true,
+    historicalTrendsEnabled: true,
+    planName: "sustainability",
+    subscriptionStatus: "active"
+  });
+  if (kind === "expired") upsertSustainabilityEntitlement(siteId, {
+    sustainabilityTabVisible: true,
+    metricNamesVisible: true,
+    metricValuesVisible: false,
+    trialEnabled: false,
+    trialExpired: true,
+    frameworkSwitcherEnabled: false,
+    pdfExportEnabled: false,
+    excelExportEnabled: false,
+    historicalTrendsEnabled: false,
+    subscriptionStatus: "expired"
+  });
+  if (kind === "core") {
+    const core = defaultCoreEntitlement(entitlementContext().clientId, siteId);
+    delete core.id;
+    delete core.clientId;
+    delete core.siteId;
+    upsertSustainabilityEntitlement(siteId, core);
+  }
+}
+function demoIso(daysAgo = 0) {
+  return new Date(Date.now() - daysAgo * 86400000).toISOString();
+}
+function seedDemoSustainabilityData() {
+  const { siteId } = entitlementContext();
+  if (!siteId || !isOwner()) throw new Error("Only admin can seed sustainability demo data.");
+  tx(d => {
+    d.boqLines ||= [];
+    d.boqUploads ||= [];
+    d.serviceLogs ||= [];
+    d.scans ||= [];
+    d.tickets ||= [];
+    d.plants ||= [];
+    d.vendorSiteProfiles ||= [];
+    d.formulaAssumptions ||= [];
+    const site = d.sites.find(s => s.id === siteId);
+    if (!site) return d;
+    const uploadId = `demo-sus-upload-${siteId}`;
+    if (!d.boqUploads.some(upload => upload.id === uploadId)) {
+      d.boqUploads.push({
+        id: uploadId,
+        siteId,
+        fileName: "Demo Sustainability Baseline",
+        uploadedBy: currentUser()?.id || "owner",
+        uploadedAt: nowIso(),
+        version: 1,
+        rowCount: 1,
+        acceptedRows: 1,
+        rejectedRows: 0,
+        status: "active",
+        notes: "Demo baseline for Sustainability / ESG Insights."
+      });
+    }
+    let line = (d.boqLines || []).find(item => item.id === `demo-sus-boq-${siteId}`) ||
+      (d.boqLines || []).find(item => item.siteId === siteId && item.active);
+    if (!line) {
+      line = {
+        id: `demo-sus-boq-${siteId}`,
+        clientId: site.clientId,
+        siteId,
+        floor: "Ground Floor",
+        placementBucket: "Reception / Lobby",
+        plantCategory: "large",
+        plantSpecies: "Mixed Indoor Green Assets",
+        quantity: 50,
+        waterPerServiceMl: 700,
+        wateringFrequencyPerWeek: 3,
+        maintenanceFrequencyPerMonth: 13,
+        planterType: "Mixed planters",
+        ownershipType: "Client-owned",
+        installDate: demoIso(120).slice(0, 10),
+        notes: "Demo baseline seeded for ESG showcase.",
+        sourceUploadId: uploadId,
+        active: true,
+        version: 1,
+        createdBy: currentUser()?.id || "owner",
+        createdAt: nowIso(),
+        updatedAt: nowIso()
+      };
+      d.boqLines.push(line);
+    } else {
+      Object.assign(line, { active: true, sourceUploadId: line.sourceUploadId || uploadId, updatedAt: nowIso() });
+    }
+    const plantId = `demo-sus-plant-${siteId}`;
+    if (!d.plants.some(plant => plant.id === plantId)) {
+      d.plants.push({
+        id: plantId,
+        siteId,
+        type: line.plantSpecies || "Mixed Indoor Green Assets",
+        zone: line.placementBucket,
+        latestScore: 8.6,
+        latestCategory: "Healthy",
+        createdAt: nowIso()
+      });
+    }
+    const materialPattern = ["organic", "organic", "organic", "chemical", "organic", "organic", "mixed", "organic", "chemical", "organic", "organic", "chemical"];
+    const issuePattern = ["other", "other", "water_leakage", "other", "other", "other", "ac_draft", "other", "other", "other", "other", "other"];
+    Array.from({ length: 12 }).forEach((_, index) => {
+      const id = `demo-sus-svc-${siteId}-${index + 1}`;
+      if (d.serviceLogs.some(log => log.id === id)) return;
+      const createdAt = demoIso(22 - index * 2);
+      d.serviceLogs.push({
+        id,
+        tempId: `demo-sus-temp-${siteId}-${index + 1}`,
+        clientId: site.clientId,
+        siteId,
+        floor: line.floor,
+        placementBucket: line.placementBucket,
+        boqLineId: line.id,
+        plantCategory: line.plantCategory,
+        actionType: index === 4 || index === 9 ? "replacement" : issuePattern[index] !== "other" ? "issue" : "routine_service",
+        plantsServicedCount: 50,
+        wateringDone: true,
+        wateredPlantCount: 50,
+        replacementsCount: index === 4 || index === 9 ? 1 : 0,
+        deadPlantCount: index === 3 || index === 8 ? 1 : 0,
+        materialUsed: materialPattern[index],
+        materialName: materialPattern[index] === "organic" ? "Neem oil / compost" : materialPattern[index] === "chemical" ? "Pest control spot treatment" : "Mixed inputs",
+        issueFound: issuePattern[index] !== "other",
+        issueCategory: issuePattern[index],
+        disposalRoute: index === 4 || index === 9 ? "composted" : index === 3 || index === 8 ? "reused" : "not_applicable",
+        notes: "Demo sustainability service log.",
+        voiceNoteText: "",
+        photoDataUrl: "",
+        aiPlantDetected: true,
+        aiHealthScore: [8.8, 8.5, 8.7, 8.2, 8.6, 8.9, 8.4, 8.7, 8.3, 8.6, 8.8, 8.5][index],
+        aiIssueFlags: issuePattern[index] !== "other" ? [issuePattern[index]] : [],
+        gpsLat: "12.9716",
+        gpsLng: "77.5946",
+        gpsAccuracy: 28,
+        gpsCapturedAt: createdAt,
+        captureSource: "phone_camera",
+        offlineCreated: false,
+        localCreatedAt: createdAt,
+        serverCreatedAt: createdAt,
+        syncStatus: "synced",
+        syncAttempts: 1,
+        createdBy: "u-maint-1"
+      });
+    });
+    [8.6, 8.8, 8.4, 8.7].forEach((score, index) => {
+      const id = `demo-sus-scan-${siteId}-${index + 1}`;
+      if (!d.scans.some(scan => scan.id === id)) {
+        d.scans.push({
+          id,
+          plantId,
+          siteId,
+          score,
+          category: "Healthy",
+          diagnosis: "Demo healthy green asset condition.",
+          rootCause: "Routine maintenance records indicate stable condition.",
+          instructions: ["Continue scheduled maintenance"],
+          image: "",
+          createdAt: demoIso(28 - index * 7),
+          createdBy: "u-maint-1",
+          note: "Demo sustainability health score."
+        });
+      }
+    });
+    Array.from({ length: 16 }).forEach((_, index) => {
+      const id = `demo-sus-ticket-${siteId}-${index + 1}`;
+      if (d.tickets.some(ticket => ticket.id === id)) return;
+      d.tickets.push({
+        id,
+        ticketNo: String(780000 + index),
+        plantId,
+        siteId,
+        priority: index < 2 ? "P2" : "P3",
+        status: index === 15 ? STATUS.OPEN : STATUS.CLOSED,
+        source: "Demo Sustainability Seed",
+        issueType: index < 2 ? "Recurring low light" : "Routine horticulture issue",
+        issue: index < 2 ? "Repeat low light observation" : "Routine green asset service issue",
+        description: "Demo ticket for sustainability issue metrics.",
+        assignedTo: "Maintenance Staff",
+        createdAt: demoIso(40 - index),
+        startedAt: demoIso(39 - index),
+        closedAt: index === 15 ? null : demoIso(38 - index),
+        closureEvidence: "",
+        closureRemark: index === 15 ? "" : "Closed through routine service.",
+        closureEvidenceVerified: index !== 15,
+        closureVerification: null,
+        clientEvidence: "",
+        reopenCount: index === 1 ? 1 : 0,
+        createdBy: "demo"
+      });
+    });
+    const vendorProfile = d.vendorSiteProfiles.find(profile => profile.siteId === siteId);
+    if (vendorProfile) Object.assign(vendorProfile, { roundTripKm: 24, vehicleType: "two_wheeler", updatedAt: nowIso() });
+    else d.vendorSiteProfiles.push({ id: `demo-vendor-${siteId}`, siteId, vendorName: "OneScape Demo Crew", roundTripKm: 24, vehicleType: "two_wheeler", updatedAt: nowIso() });
+    const assumptions = d.formulaAssumptions[0] || { id: "assumption-defaults" };
+    Object.assign(assumptions, { defaultRoundTripKm: 24, vehicleKmFactor: 1, wasteBoundary: "Maintained horticulture assets only", updatedAt: nowIso() });
     if (!d.formulaAssumptions.length) d.formulaAssumptions.push(assumptions);
     return d;
   });
@@ -1372,6 +1682,13 @@ function bindEvents() {
       if (action === "activate-boq") { activateBoqUpload(id); toast("BOQ baseline activated."); render(); }
       if (action === "archive-boq") { archiveBoqUpload(id); toast("BOQ version archived."); render(); }
       if (action === "sync-now") { const result = await syncPendingRecords(); toast(result.offline ? "Still offline. Pending records remain local." : `${result.synced} record(s) synced.`); render(); }
+      if (action === "enable-trial-30") { applySustainabilityPreset("trial30"); toast("30-day trial enabled."); render(); }
+      if (action === "enable-trial-60") { applySustainabilityPreset("trial60"); toast("60-day trial enabled."); render(); }
+      if (action === "activate-paid-access") { applySustainabilityPreset("active"); toast("Paid sustainability access activated."); render(); }
+      if (action === "expire-sustainability-access") { applySustainabilityPreset("expired"); toast("Sustainability access expired."); render(); }
+      if (action === "reset-sustainability-core") { applySustainabilityPreset("core"); toast("Sustainability access reset to Core."); render(); }
+      if (action === "seed-sustainability-demo") { seedDemoSustainabilityData(); toast("Demo sustainability data seeded."); render(); }
+      if (action === "open-client-demo-view") { const { site, clientId } = entitlementContext(); if (!site) throw new Error("Select a site first."); state.ownerViewRole = ROLES.CLIENT; sessionStorage.setItem("greenops_owner_view", ROLES.CLIENT); state.filters = { ...state.filters, clientId, siteId: site.id, city: site.city || "all" }; state.tab = "sustainability"; sessionStorage.setItem(APP.sessionTabKey, state.tab); render(); }
       if (action === "toggle-diagnosis-lang") { const lang = e.target.closest("[data-lang]")?.dataset.lang || "en"; document.querySelectorAll("[data-lang-section]").forEach(el => { el.style.display = el.dataset.langSection === lang ? "" : "none"; }); state.diagnosisLang = lang; }
       if (action === "speak-diagnosis") { const btn = e.target.closest("[data-speak-en]"); const text = state.diagnosisLang === "hi" ? (btn?.dataset.speakHi || btn?.dataset.speakEn || "") : (btn?.dataset.speakEn || ""); if (!window.speechSynthesis) throw new Error("Read-aloud is not supported in this browser."); window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = state.diagnosisLang === "hi" ? "hi-IN" : "en-IN"; window.speechSynthesis.speak(utterance); }
       if (action === "clear-scan-image") { syncScanDraftFromDom(); state.scanImage = ""; state.scanCaptureSource = ""; state.lastDiagnosis = null; document.querySelectorAll("[data-scan-camera]").forEach(input => { input.value = ""; }); updateScanImageUi(); toast("Plant image removed."); }
@@ -1394,6 +1711,7 @@ function bindEvents() {
     if (e.target.matches("[data-filter]")) { state.filters[e.target.dataset.filter] = e.target.value; if (["clientId","city"].includes(e.target.dataset.filter)) state.filters.siteId = "all"; render(); }
     if (e.target.matches("[data-boq-site]")) { state.boqDraft.siteId = e.target.value; state.boqDraft.rows = []; state.boqDraft.acceptedRows = []; state.boqDraft.rejectedRows = []; render(); }
     if (e.target.matches("[data-boq-file]")) { const file = e.target.files?.[0]; if (!file) return; state.boqDraft.fileName = file.name; state.boqDraft.csv = await file.text(); previewBoqDraft(); toast("BOQ CSV loaded."); render(); }
+    if (e.target.matches("[data-entitlement-client]")) { state.entitlementClientId = e.target.value; state.entitlementSiteId = allowedSites().find(site => site.clientId === state.entitlementClientId)?.id || ""; render(); }
     if (e.target.matches("[data-entitlement-site]")) { state.entitlementSiteId = e.target.value; render(); }
     if (e.target.closest("#scanPanel") && e.target.dataset.scanField) {
       state.scanDraft[e.target.dataset.scanField] = e.target.value;
