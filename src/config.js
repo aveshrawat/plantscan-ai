@@ -41,6 +41,23 @@ export const SLA_RULES = {
   P3: { responseHours: 72, closureHours: 120, label: "Monitor / planned" }
 };
 
+export const PLACEMENT_BUCKETS = [
+  "Reception / Lobby",
+  "Workstations / Open Office",
+  "Meeting Rooms / Cabins",
+  "Cafeteria / Breakout",
+  "Corridors / Common Areas",
+  "Feature Zone"
+];
+
+export const PLANT_CATEGORIES = [
+  { id: "small", label: "Small Tabletop", defaultWaterMl: 150, defaultWeightKg: 0.8 },
+  { id: "medium", label: "Medium Indoor", defaultWaterMl: 300, defaultWeightKg: 3 },
+  { id: "large", label: "Large Floor Plant", defaultWaterMl: 700, defaultWeightKg: 7 },
+  { id: "vertical_garden", label: "Vertical Garden", defaultWaterMl: 250, defaultWeightKg: 2, unit: "sqft_or_panel" },
+  { id: "planter_bed", label: "Planter Bed", defaultWaterMl: 400, defaultWeightKg: 4, unit: "sqft_or_bed" }
+];
+
 export const INITIAL_DB = {
   users: [
     {
@@ -154,5 +171,17 @@ export const INITIAL_DB = {
     { id: "site-mar-blr", clientId: "client-marriott", name: "Marriott Bellandur", city: "Bangalore", zones: ["Entrance", "Drop-off", "Lobby", "Service Apartment"], billing: { monthlyAmc: 50000 }, expected_visits_per_month: 4 },
     { id: "site-sn-kol", clientId: "client-servicenow", name: "ServiceNow Kolkata Office", city: "Kolkata", zones: ["Reception", "Atrium", "Cafe", "Workbay B"], billing: { monthlyAmc: 50000 }, expected_visits_per_month: 4 }
   ],
-  plants: [], scans: [], tickets: [], evidence: [], activityLog: [], notifications: [], invoices: [], billingDefaults: { fixedMonthlyAmc: 50000, slaCreditPerBreach: 50 }, meta: { seeded: false, version: 4 }
+  plants: [], scans: [], tickets: [], evidence: [], activityLog: [], notifications: [], invoices: [],
+  boqLines: [],
+  boqUploads: [],
+  serviceLogs: [],
+  sustainabilityEntitlements: [],
+  formulaAssumptions: [
+    { id: "assumption-defaults", defaultRoundTripKm: 30, vehicleKmFactor: 1, wasteBoundary: "Maintained horticulture assets only", updatedAt: "" }
+  ],
+  frameworkMetricMappings: [],
+  vendorSiteProfiles: [],
+  offlineQueue: [],
+  billingDefaults: { fixedMonthlyAmc: 50000, slaCreditPerBreach: 50 },
+  meta: { seeded: false, version: 5 }
 };

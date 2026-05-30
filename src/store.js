@@ -53,6 +53,25 @@ function hydrateStoredDb(parsed) {
   const base = clone(INITIAL_DB);
   if (!parsed) return base;
   const merged = { ...base, ...parsed, activityLog: parsed.activityLog || [] };
+  [
+    "plants",
+    "scans",
+    "tickets",
+    "evidence",
+    "activityLog",
+    "notifications",
+    "invoices",
+    "boqLines",
+    "boqUploads",
+    "serviceLogs",
+    "sustainabilityEntitlements",
+    "formulaAssumptions",
+    "frameworkMetricMappings",
+    "vendorSiteProfiles",
+    "offlineQueue"
+  ].forEach(key => { merged[key] ||= []; });
+  merged.billingDefaults ||= clone(base.billingDefaults);
+  merged.meta ||= clone(base.meta);
 
   // Preserve user-created demo data, but never allow stale browser storage
   // to remove or corrupt the master owner login.

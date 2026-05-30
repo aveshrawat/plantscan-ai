@@ -1,8 +1,8 @@
 const heroBg = new URL('./assets/login-bg.jpeg', import.meta.url).href;
 const productIcon = new URL('./assets/Artboard-icon.png', import.meta.url).href;
 const logoWordmark = new URL('./assets/onescape-logo-cropped.png', import.meta.url).href;
-import { APP, ROLES, STATUS } from "./config.js";
-import { getDb, resetDb, seedDemoData, setDb } from "./store.js";
+import { APP, PLACEMENT_BUCKETS, PLANT_CATEGORIES, ROLES, STATUS } from "./config.js";
+import { getDb, resetDb, seedDemoData, setDb, tx } from "./store.js";
 import { createScanRecord, createClientTicket, markInProgress, attachEvidence, closeTicket } from "./tickets.js";
 import { generateInvoiceData, downloadInvoiceHtml, invoiceSummaryText } from "./billing.js";
 import { visibleNotifications } from "./notifications.js";
@@ -10,7 +10,13 @@ import { healthClass, healthSummary, trendByDay } from "./health.js";
 import { exportCsvReport, joinRecords } from "./reports.js";
 import { slaState, resolutionTime } from "./sla.js";
 import { buildEfficiencyModel, normalizeIssueType, ticketNo as efficiencyTicketNo, zoneOf } from "./efficiency.js";
-import { $, $$, dataUrlToBase64, escapeHtml, fmtDate, imageToDataUrl, option, toast } from "./utils.js";
+import { applyBoqRowsToDb, baselineForSite, expectedServiceEventsForBaseline, expectedWaterForBaseline, parseBoqCsvOrSheet, validateBoqRows } from "./boq.js";
+import { buildSustainabilityMetrics } from "./sustainability.js";
+import { FRAMEWORKS, buildFrameworkView, frameworkPopupForMetric } from "./frameworks.js";
+import { canExportSustainabilityReport, canUseFrameworkSwitcher, canViewMetricValues, getClientEntitlement } from "./entitlements.js";
+import { getPendingOfflineRecords, queueOfflineRecord, syncPendingRecords } from "./offlineSync.js";
+import { getCurrentGps } from "./cameraProof.js";
+import { $, $$, dataUrlToBase64, downloadFile, escapeHtml, fmtDate, imageToDataUrl, nowIso, option, toast, uid } from "./utils.js";
 
 const savedUser = (() => { try { return JSON.parse(sessionStorage.getItem(APP.sessionUserKey) || "null"); } catch { return null; } })();
 
@@ -26,7 +32,37 @@ const state = {
   batchImages: [],
   batchResults: [],
   batchRunning: false,
-  scanDraft: { siteId: "", zone: "", plantType: "", note: "" },
+  scanDraft: {
+    siteId: "",
+    floor: "",
+    placementBucket: "",
+    boqLineId: "",
+    plantCategory: "",
+    zone: "",
+    plantType: "",
+    plantsServicedCount: 1,
+    wateringDone: "true",
+    wateredPlantCount: 1,
+    replacementsCount: 0,
+    deadPlantCount: 0,
+    materialUsed: "organic",
+    materialName: "",
+    issueFound: "false",
+    issueCategory: "other",
+    disposalRoute: "not_applicable",
+    note: "",
+    voiceNoteText: "",
+    gpsLat: "",
+    gpsLng: "",
+    gpsAccuracy: "",
+    gpsCapturedAt: "",
+    syncStatus: ""
+  },
+  scanCaptureSource: "",
+  lastDiagnosis: null,
+  boqDraft: { siteId: "", csv: "", fileName: "", rows: [], rejectedRows: [], acceptedRows: [], lastUploadId: "" },
+  sustainabilityFramework: sessionStorage.getItem("greenops_sustainability_framework") || "brsr",
+  entitlementSiteId: "",
   filters: { clientId: "all", siteId: "all", city: "all", from: "", to: "" },
   efficiencyFilter: sessionStorage.getItem("greenops_efficiency_filter") || "action",
   clientAssuranceFilter: sessionStorage.getItem("greenops_client_assurance_filter") || "",
@@ -39,11 +75,40 @@ const state = {
 
 let activeCameraStream = null;
 
+function defaultScanDraft() {
+  return {
+    siteId: "",
+    floor: "",
+    placementBucket: "",
+    boqLineId: "",
+    plantCategory: "",
+    zone: "",
+    plantType: "",
+    plantsServicedCount: 1,
+    wateringDone: "true",
+    wateredPlantCount: 1,
+    replacementsCount: 0,
+    deadPlantCount: 0,
+    materialUsed: "organic",
+    materialName: "",
+    issueFound: "false",
+    issueCategory: "other",
+    disposalRoute: "not_applicable",
+    note: "",
+    voiceNoteText: "",
+    gpsLat: "",
+    gpsLng: "",
+    gpsAccuracy: "",
+    gpsCapturedAt: "",
+    syncStatus: ""
+  };
+}
+
 const roleTabs = {
   [ROLES.MAINTENANCE]: ["dashboard", "scan", "my tickets", "history"],
-  [ROLES.SUPERVISOR]: ["dashboard", "tickets", "sla breaches", "efficiency", "reports"],
-  [ROLES.CLIENT]: ["overview", "raise ticket", "reports", "evidence", "invoices"],
-  [ROLES.OWNER]: ["dashboard", "tickets", "sla breaches", "efficiency", "reports", "admin"]
+  [ROLES.SUPERVISOR]: ["dashboard", "tickets", "sla breaches", "efficiency", "boq setup", "baseline", "sync monitor", "reports"],
+  [ROLES.CLIENT]: ["overview", "raise ticket", "reports", "evidence", "invoices", "sustainability"],
+  [ROLES.OWNER]: ["dashboard", "tickets", "sla breaches", "efficiency", "boq setup", "sustainability access", "sync monitor", "reports", "admin"]
 };
 
 function dbx() {
@@ -165,9 +230,12 @@ function setLoggedIn(user) {
   state.tab = firstTabFor(effectiveRole());
   sessionStorage.setItem(APP.sessionTabKey, state.tab);
   state.filters = { clientId: "all", siteId: "all", city: "all", from: "", to: "" };
-  state.scanDraft = { siteId: "", zone: "", plantType: "", note: "" };
+  state.scanDraft = defaultScanDraft();
   state.scanImage = "";
   state.cameraOpen = false;
+  state.scanCaptureSource = "";
+  state.lastDiagnosis = null;
+  state.boqDraft = { siteId: "", csv: "", fileName: "", rows: [], rejectedRows: [], acceptedRows: [], lastUploadId: "" };
   state.clientTicketImage = "";
   state.qrText = "";
   state.batchImages = [];
@@ -220,7 +288,7 @@ function adminQuickActions() {
 }
 function title(s = "") {
   if (s === ROLES.OWNER) return "Admin";
-  return String(s).split(" ").map(w => w.toLowerCase() === "sla" ? "SLA" : (w[0]?.toUpperCase() + w.slice(1))).join(" ");
+  return String(s).split(" ").map(w => ["sla", "boq", "esg"].includes(w.toLowerCase()) ? w.toUpperCase() : (w[0]?.toUpperCase() + w.slice(1))).join(" ");
 }
 function roleLabel() { const r = effectiveRole(); return r === ROLES.MAINTENANCE ? "Field execution" : r === ROLES.SUPERVISOR ? "Operations command center" : r === ROLES.CLIENT ? "Client visibility" : "Owner access"; }
 function heroTitle() {
@@ -275,16 +343,23 @@ function maintenanceView() {
   if (state.tab === "scan") return scanView();
   if (state.tab === "my tickets") return ticketBoard(tickets.filter(t => t.status !== STATUS.CLOSED), { scope: "maintenance" });
   if (state.tab === "history") return historyView(scans, tickets);
-  return `<div class="grid grid-2"><section class="card">${metrics(scans, tickets)}<div class="grid grid-2"><button class="btn" data-tab="scan">Scan Plant</button><button class="btn secondary" data-tab="my tickets">My Open Tasks</button></div><p class="footer-note">This view is restricted to assigned sites only.</p></section><section class="card"><div class="card-title"><h3>Critical assigned queue</h3><span class="pill critical">Action required</span></div>${ticketCards(tickets.filter(t => t.status !== STATUS.CLOSED).slice(0, 5))}</section></div>`;
+  return `<div class="grid grid-2"><section class="card">${metrics(scans, tickets)}<div class="grid grid-2"><button class="btn" data-tab="scan">Maintenance Window</button><button class="btn secondary" data-tab="my tickets">My Open Tasks</button></div><p class="footer-note">This view is restricted to assigned sites only.</p></section><section class="card"><div class="card-title"><h3>Critical assigned queue</h3><span class="pill critical">Action required</span></div>${ticketCards(tickets.filter(t => t.status !== STATUS.CLOSED).slice(0, 5))}</section></div>`;
 }
 
 function scanView() {
   const sites = allowedSites();
   const draft = state.scanDraft;
   const selectedSite = draft.siteId || sites[0]?.id || "";
-  return `<div class="split scan-workbench"><section class="card scan-card"><div class="card-title"><div><h3>AI Plant Health Scan</h3><p class="subtitle">Capture a live field photo, verify the plant variety, generate a health score, and auto-log critical issues.</p></div><span class="pill good">Field Capture</span></div><div class="form" id="scanPanel"><div class="grid grid-2"><div class="field"><label>Assigned site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Zone / Location</label><input class="input" data-scan-field="zone" value="${escapeHtml(draft.zone)}" placeholder="Reception / Drop-off / Lobby" /></div></div><div class="field"><label>Expected plant variety, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType)}" placeholder="Areca Palm / ZZ / Peace Lily / Dracaena" /></div><div class="field"><label>Technician note</label><textarea class="textarea" data-scan-field="note" placeholder="Add visible symptoms, watering condition, light exposure, or pest signs.">${escapeHtml(draft.note)}</textarea><div class="btn-row" style="justify-content:flex-start;margin-top:10px"><button class="mini-btn" type="button" data-action="voice-note">Add voice note</button><span class="small muted">Hindi / English voice input where supported by browser.</span></div></div><div class="filebox capture-box"><strong>Capture plant image</strong><br><span class="small muted">Best result: one clear photo of the full plant plus visible leaves. Avoid blurry, dark, or backlit photos.</span><div class="btn-row capture-actions" style="justify-content:center;margin-top:12px"><button class="mini-btn primary-capture" type="button" data-action="open-camera">Open live camera</button><label class="mini-btn">Quick phone camera<input class="hidden" type="file" accept="image/*" capture="environment" data-scan-camera /></label><label class="mini-btn">Upload from gallery<input class="hidden" type="file" accept="image/*" data-scan-image /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div></div><button class="btn ${state.scanImage ? "" : "secondary"}" id="runDiagnosisBtn" type="button" data-action="run-diagnosis" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button></div><div id="scanOutput"></div></section><section class="card soft scan-guidance"><h3>Field scan checklist</h3><p class="subtitle">Use this only as the maintenance working flow. Leadership proof is generated later from the records created here.</p><div class="proof-stack"><div class="ticket-card"><div class="ticket-head"><strong>1. Clear photo</strong><span class="pill good">Required</span></div><p class="small muted">Capture one sharp photo with full plant shape and visible leaves. Avoid dark, blurry, or backlit photos.</p></div><div class="ticket-card"><div class="ticket-head"><strong>2. Confirm variety</strong><span class="pill monitor">When known</span></div><p class="small muted">Enter the expected plant name if the site label or supervisor instruction is available. This reduces wrong variety calls.</p></div><div class="ticket-card"><div class="ticket-head"><strong>3. Act and close</strong><span class="pill critical">Evidence</span></div><p class="small muted">If a ticket is created, complete the corrective action and upload a closure photo before closing the task.</p></div></div></section></div>`;
+  const { db } = dbx();
+  const baseline = baselineForSite(db, selectedSite);
+  const selectedLine = baseline.find(line => line.id === draft.boqLineId);
+  const floors = [...new Set([...baseline.map(line => line.floor), ...(db.sites.find(s => s.id === selectedSite)?.zones || [])].filter(Boolean))];
+  const buckets = [...new Set([...baseline.filter(line => !draft.floor || line.floor === draft.floor).map(line => line.placementBucket), ...PLACEMENT_BUCKETS])];
+  const gpsReady = draft.gpsLat && draft.gpsLng;
+  const onlineLabel = navigator.onLine === false ? "Offline" : "Online";
+  return `<div class="split scan-workbench"><section class="card scan-card"><div class="card-title"><div><h3>Maintenance Window / Field Service Capture</h3><p class="subtitle">Camera-first service proof, BOQ bucket mapping, GPS metadata, and offline-ready service logs.</p></div><span class="pill good">Field Capture</span></div><div class="form" id="scanPanel"><div class="grid grid-2"><div class="field"><label>Site</label><select class="select" data-scan-field="siteId">${sites.map(s => option(s.id, `${s.city} · ${s.name}`, selectedSite === s.id)).join("")}</select></div><div class="field"><label>Floor / Area</label><select class="select" data-scan-field="floor">${option("", "Select floor / area", !draft.floor)}${floors.map(f => option(f, f, draft.floor === f)).join("")}</select></div></div><div class="grid grid-2"><div class="field"><label>Placement Bucket</label><select class="select" data-scan-field="placementBucket">${option("", "Select placement bucket", !draft.placementBucket)}${buckets.map(bucketName => option(bucketName, bucketName, draft.placementBucket === bucketName)).join("")}</select></div><div class="field"><label>BOQ Baseline Line</label><select class="select" data-scan-field="boqLineId">${option("", baseline.length ? "Match by bucket" : "No active baseline yet", !draft.boqLineId)}${baseline.map(line => option(line.id, `${line.floor} · ${line.placementBucket} · ${line.quantity} plants`, draft.boqLineId === line.id)).join("")}</select></div></div><div class="grid grid-2"><div class="field"><label>Plant Category</label><select class="select" data-scan-field="plantCategory">${option("", "Select category", !draft.plantCategory && !selectedLine)}${PLANT_CATEGORIES.map(category => option(category.id, category.label, (draft.plantCategory || selectedLine?.plantCategory) === category.id)).join("")}</select></div><div class="field"><label>Expected plant variety, if known</label><input class="input" data-scan-field="plantType" value="${escapeHtml(draft.plantType || selectedLine?.plantSpecies || "")}" placeholder="Areca Palm / ZZ / Peace Lily" /></div></div><div class="grid grid-3"><div class="field"><label>Plants serviced count</label><input class="input" type="number" min="0" data-scan-field="plantsServicedCount" value="${escapeHtml(draft.plantsServicedCount)}" /></div><div class="field"><label>Watering done</label><select class="select" data-scan-field="wateringDone">${option("true", "Yes", String(draft.wateringDone) === "true")}${option("false", "No", String(draft.wateringDone) === "false")}</select></div><div class="field"><label>Watered plant count</label><input class="input" type="number" min="0" data-scan-field="wateredPlantCount" value="${escapeHtml(draft.wateredPlantCount)}" /></div></div><div class="grid grid-3"><div class="field"><label>Replacements count</label><input class="input" type="number" min="0" data-scan-field="replacementsCount" value="${escapeHtml(draft.replacementsCount)}" /></div><div class="field"><label>Dead plant count</label><input class="input" type="number" min="0" data-scan-field="deadPlantCount" value="${escapeHtml(draft.deadPlantCount)}" /></div><div class="field"><label>Disposal route</label><select class="select" data-scan-field="disposalRoute">${["composted", "reused", "discarded", "not_applicable"].map(value => option(value, title(value.replaceAll("_", " ")), draft.disposalRoute === value)).join("")}</select></div></div><div class="grid grid-2"><div class="field"><label>Material used</label><select class="select" data-scan-field="materialUsed">${["organic", "chemical", "none", "mixed"].map(value => option(value, title(value), draft.materialUsed === value)).join("")}</select></div><div class="field"><label>Material name</label><input class="input" data-scan-field="materialName" value="${escapeHtml(draft.materialName)}" placeholder="Neem oil / compost / none" /></div></div><div class="grid grid-2"><div class="field"><label>Issue found</label><select class="select" data-scan-field="issueFound">${option("true", "Yes", String(draft.issueFound) === "true")}${option("false", "No", String(draft.issueFound) === "false")}</select></div><div class="field"><label>Issue category</label><select class="select" data-scan-field="issueCategory">${["pest", "damage", "low_light", "water_leakage", "ac_draft", "other"].map(value => option(value, title(value.replaceAll("_", " ")), draft.issueCategory === value)).join("")}</select></div></div><div class="field"><label>Notes / voice text</label><textarea class="textarea" data-scan-field="note" placeholder="Add visible symptoms, work completed, client observation, or follow-up needed.">${escapeHtml(draft.note)}</textarea><div class="btn-row" style="justify-content:flex-start;margin-top:10px"><button class="mini-btn" type="button" data-action="voice-note">Add voice note</button><button class="mini-btn" type="button" data-action="capture-gps">Capture GPS</button><span class="offline-badge">${escapeHtml(onlineLabel)}</span><span class="offline-badge">${gpsReady ? `GPS ${Number(draft.gpsAccuracy || 0).toFixed(0)}m` : "GPS not captured"}</span></div></div><div class="filebox capture-box"><strong>Camera proof required</strong><br><span class="small muted">Use live camera or phone camera only. Gallery upload is disabled for maintenance proof.</span><div class="btn-row capture-actions" style="justify-content:center;margin-top:12px"><button class="mini-btn primary-capture" type="button" data-action="open-camera">Open live camera</button><label class="mini-btn">Phone camera<input class="hidden" type="file" accept="image/*" capture="environment" data-scan-camera /></label><button class="mini-btn danger ${state.scanImage ? "" : "hidden"}" type="button" data-action="clear-scan-image">Remove image</button></div><div id="scanImageState">${scanImageMarkup()}</div></div><div class="btn-row" style="justify-content:flex-start"><button class="btn ${state.scanImage ? "" : "secondary"}" id="runDiagnosisBtn" type="button" data-action="run-diagnosis" ${state.scanImage ? "" : "disabled"}>Run AI Diagnosis</button><button class="btn" type="button" data-action="submit-service-log">Submit Service Log</button></div></div><div id="scanOutput"></div></section><section class="card soft scan-guidance"><h3>Field capture rules</h3><p class="subtitle">Maintenance users can only service assigned sites. BOQ upload and baseline editing stay with supervisors and admins.</p><div class="proof-stack"><div class="ticket-card"><div class="ticket-head"><strong>1. BOQ bucket</strong><span class="pill good">Required</span></div><p class="small muted">Map work to a floor and placement bucket. Active BOQ lines prefill category and expected counts where available.</p></div><div class="ticket-card"><div class="ticket-head"><strong>2. Camera proof</strong><span class="pill critical">Required</span></div><p class="small muted">Capture a live or phone-camera plant photo. AI rejection of non-plant images blocks online submission.</p></div><div class="ticket-card"><div class="ticket-head"><strong>3. Offline sync</strong><span class="pill monitor">${escapeHtml(onlineLabel)}</span></div><p class="small muted">Offline submissions are stored locally for 24-48 hours and appear in supervisor sync monitor until synced.</p></div></div></section></div>`;
 }
-function scanImageMarkup() { return state.scanImage ? `<div class="image-ready" style="margin-top:12px"><span class="pill good">Plant image ready</span></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted" style="margin-top:12px">No image selected yet.</div>`; }
+function scanImageMarkup() { return state.scanImage ? `<div class="image-ready" style="margin-top:12px"><span class="pill good">Plant image ready</span><span class="pill">${escapeHtml(state.scanCaptureSource || "phone_camera")}</span></div><img src="${state.scanImage}" class="preview" alt="Plant preview" />` : `<div class="small muted" style="margin-top:12px">No camera proof captured yet.</div>`; }
 function syncScanDraftFromDom() { const panel = document.querySelector("#scanPanel"); if (!panel) return; const next = { ...state.scanDraft }; panel.querySelectorAll("[data-scan-field]").forEach(el => { next[el.dataset.scanField] = el.value || ""; }); state.scanDraft = next; }
 function updateScanImageUi() { const box = document.querySelector("#scanImageState"); if (box) box.innerHTML = scanImageMarkup(); const btn = document.querySelector("#runDiagnosisBtn"); if (btn) { btn.disabled = !state.scanImage; btn.classList.toggle("secondary", !state.scanImage); } const removeBtn = document.querySelector('[data-action="clear-scan-image"]'); if (removeBtn) removeBtn.classList.toggle("hidden", !state.scanImage); }
 function normalizeHealthScore(value, fallback = 5) {
@@ -376,11 +451,293 @@ function proofOutcomeGrid(scans, tickets) {
   const closed = tickets.filter(t => t.status === STATUS.CLOSED).length;
   return `<div class="proof-outcomes"><div><span>Baseline created</span><strong>${hs.total ? "Yes" : "Pending"}</strong><small>${hs.total} plant / zone records</small></div><div><span>Issue visibility</span><strong>${open}</strong><small>Open accountable work items</small></div><div><span>Evidence trail</span><strong>${closed}</strong><small>Closed items retained for reporting</small></div></div>`;
 }
+
+function canManageSite(siteId) {
+  return isOwner() || allowedSiteIds().includes(siteId);
+}
+function selectedBoqSite() {
+  const sites = allowedSites();
+  const selected = state.boqDraft.siteId || sites[0]?.id || "";
+  if (!state.boqDraft.siteId && selected) state.boqDraft.siteId = selected;
+  return selected;
+}
+function boqTemplateCsv(site) {
+  const client = getDb().clients.find(c => c.id === site?.clientId);
+  return [
+    "Client Name,Site Name,Floor / Area,Placement Bucket,Plant Category,Quantity,Water per Service,Watering Frequency,Maintenance Frequency,Plant Species,Planter Type,Ownership Type,Install Date,Notes",
+    `${client?.name || "Client"},${site?.name || "Site"},Ground Floor,Reception / Lobby,Medium Indoor,12,300,3,4,Areca Palm,Ceramic,Client-owned,2026-05-01,Main lobby baseline`
+  ].join("\n");
+}
+function previewBoqDraft() {
+  const rows = parseBoqCsvOrSheet(state.boqDraft.csv);
+  const validation = validateBoqRows(rows);
+  state.boqDraft.rows = rows;
+  state.boqDraft.acceptedRows = validation.acceptedRows;
+  state.boqDraft.rejectedRows = validation.rejectedRows;
+  return validation;
+}
+function saveBoqDraft({ activate = false } = {}) {
+  const siteId = selectedBoqSite();
+  if (!siteId || !canManageSite(siteId)) throw new Error("Select an assigned site for BOQ upload.");
+  const validation = previewBoqDraft();
+  if (!validation.acceptedRows.length) throw new Error("No accepted BOQ rows to save.");
+  if (activate && validation.rejectedRows.length) throw new Error("Resolve rejected BOQ rows before activating the baseline.");
+  const db = getDb();
+  const result = applyBoqRowsToDb(db, state.boqDraft.rows, currentUser()?.id || "system", siteId);
+  result.upload.fileName = state.boqDraft.fileName || "Pasted CSV";
+  setDb(result.db);
+  if (activate) activateBoqUpload(result.upload.id);
+  state.boqDraft.lastUploadId = result.upload.id;
+  return result;
+}
+function activateBoqUpload(uploadId) {
+  const upload = getDb().boqUploads.find(item => item.id === uploadId);
+  if (!upload || !canManageSite(upload.siteId)) throw new Error("BOQ upload is not available for your assigned sites.");
+  tx(d => {
+    (d.boqUploads || []).forEach(item => {
+      if (item.siteId === upload.siteId && item.status === "active") item.status = "archived";
+      if (item.id === uploadId) item.status = "active";
+    });
+    (d.boqLines || []).forEach(line => {
+      if (line.siteId === upload.siteId) {
+        line.active = line.sourceUploadId === uploadId;
+        line.updatedAt = nowIso();
+      }
+    });
+    return d;
+  });
+}
+function archiveBoqUpload(uploadId) {
+  const upload = getDb().boqUploads.find(item => item.id === uploadId);
+  if (!upload || !isOwner()) throw new Error("Only admin can archive BOQ versions.");
+  tx(d => {
+    const item = (d.boqUploads || []).find(row => row.id === uploadId);
+    if (item) item.status = "archived";
+    (d.boqLines || []).filter(line => line.sourceUploadId === uploadId).forEach(line => { line.active = false; line.updatedAt = nowIso(); });
+    return d;
+  });
+}
+function boqPreviewTable() {
+  const accepted = state.boqDraft.acceptedRows || [];
+  const rejected = state.boqDraft.rejectedRows || [];
+  if (!accepted.length && !rejected.length) return `<div class="empty">Paste or upload CSV, then preview rows.</div>`;
+  const rows = [...accepted.map(row => ({ ...row, status: "Accepted" })), ...rejected.map(row => ({ ...row, status: "Rejected" }))];
+  return `<div class="table-wrap"><table class="baseline-table"><thead><tr><th>Status</th><th>Floor</th><th>Bucket</th><th>Category</th><th>Qty</th><th>Water</th><th>Maintenance</th><th>Errors</th></tr></thead><tbody>${rows.slice(0, 30).map(row => `<tr><td><span class="pill ${row.status === "Accepted" ? "good" : "critical"}">${row.status}</span></td><td>${escapeHtml(row.floor)}</td><td>${escapeHtml(row.placementBucket)}</td><td>${escapeHtml(PLANT_CATEGORIES.find(c => c.id === row.plantCategory)?.label || row.plantCategory)}</td><td>${row.quantity}</td><td>${row.waterPerServiceMl} ml</td><td>${row.maintenanceFrequencyPerMonth}/mo</td><td>${escapeHtml((row.errors || []).join("; "))}</td></tr>`).join("")}</tbody></table></div><p class="footer-note">${accepted.length} accepted row(s), ${rejected.length} rejected row(s). Correct rejected rows before activation.</p>`;
+}
+function boqUploadHistory(siteId) {
+  const { db, siteMap } = dbx();
+  const uploads = (db.boqUploads || []).filter(upload => upload.siteId === siteId || (isOwner() && !siteId)).sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+  return `<div class="table-wrap"><table class="baseline-table"><thead><tr><th>Site</th><th>Version</th><th>Status</th><th>Rows</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${uploads.map(upload => `<tr><td>${escapeHtml(siteMap[upload.siteId]?.name || upload.siteId)}</td><td>v${upload.version}</td><td><span class="pill ${upload.status === "active" ? "good" : upload.status === "archived" ? "closed" : "monitor"}">${escapeHtml(upload.status)}</span></td><td>${upload.acceptedRows}/${upload.rowCount}</td><td>${fmtDate(upload.uploadedAt)}</td><td><div class="actions">${upload.status !== "active" ? `<button class="mini-btn" data-action="activate-boq" data-id="${upload.id}">Activate</button>` : ""}${isOwner() && upload.status !== "archived" ? `<button class="mini-btn danger" data-action="archive-boq" data-id="${upload.id}">Archive</button>` : ""}</div></td></tr>`).join("") || `<tr><td colspan="6"><div class="empty">No BOQ uploads yet.</div></td></tr>`}</tbody></table></div>`;
+}
+function activeBaselineTable(siteId) {
+  const lines = baselineForSite(getDb(), siteId);
+  return `<div class="table-wrap"><table class="baseline-table"><thead><tr><th>Floor</th><th>Bucket</th><th>Category</th><th>Species</th><th>Qty</th><th>Water/Service</th><th>Service Freq</th></tr></thead><tbody>${lines.map(line => `<tr><td>${escapeHtml(line.floor)}</td><td>${escapeHtml(line.placementBucket)}</td><td>${escapeHtml(PLANT_CATEGORIES.find(c => c.id === line.plantCategory)?.label || line.plantCategory)}</td><td>${escapeHtml(line.plantSpecies || "Mapped category")}</td><td>${line.quantity}</td><td>${line.waterPerServiceMl} ml</td><td>${line.maintenanceFrequencyPerMonth}/mo</td></tr>`).join("") || `<tr><td colspan="7"><div class="empty">No active baseline for this site.</div></td></tr>`}</tbody></table></div>`;
+}
+function boqSetupView() {
+  const sites = allowedSites();
+  const siteId = selectedBoqSite();
+  const site = getDb().sites.find(s => s.id === siteId);
+  const template = boqTemplateCsv(site);
+  return `<section class="card boq-upload-panel"><div class="card-title"><div><h3>BOQ Setup</h3><p class="subtitle">${isOwner() ? "Admin global baseline control across all sites." : "Supervisor BOQ upload and baseline activation for assigned sites only."}</p></div><span class="pill monitor">Draft -> Active -> Archived</span></div><div class="grid grid-2"><div class="field"><label>Site</label><select class="select" data-boq-site>${sites.map(s => option(s.id, `${s.city} · ${s.name}`, siteId === s.id)).join("")}</select></div><div class="field"><label>CSV upload</label><label class="mini-btn">Upload CSV<input class="hidden" type="file" accept=".csv,text/csv" data-boq-file /></label></div></div><div class="field"><label>Paste BOQ CSV</label><textarea class="textarea" data-boq-csv placeholder="${escapeHtml(template)}">${escapeHtml(state.boqDraft.csv)}</textarea></div><div class="btn-row" style="justify-content:flex-start"><button class="btn secondary" data-action="preview-boq">Preview Rows</button><button class="btn secondary" data-action="save-boq-draft">Save Draft</button><button class="btn" data-action="save-activate-boq">Save and Activate Baseline</button><button class="mini-btn" data-action="insert-boq-template">Insert Template</button></div><div style="height:16px"></div>${boqPreviewTable()}<div style="height:16px"></div><div class="grid grid-2"><section class="card soft"><h3>Active Baseline</h3>${activeBaselineTable(siteId)}</section><section class="card soft"><h3>Upload History</h3>${boqUploadHistory(siteId)}</section></div><p class="footer-note">Accepted buckets: ${PLACEMENT_BUCKETS.join(", ")}. Accepted categories: ${PLANT_CATEGORIES.map(c => c.label).join(", ")}.</p></section>`;
+}
+function baselineActualRows() {
+  const db = getDb();
+  const allowed = new Set(allowedSiteIds(db));
+  const matchSite = site => allowed.has(site.id) &&
+    (state.filters.siteId === "all" || site.id === state.filters.siteId) &&
+    (state.filters.city === "all" || site.city === state.filters.city) &&
+    (state.filters.clientId === "all" || site.clientId === state.filters.clientId);
+  return db.sites.filter(matchSite).flatMap(site => {
+    const lines = baselineForSite(db, site.id);
+    const grouped = {};
+    lines.forEach(line => {
+      const key = `${line.floor}::${line.placementBucket}`;
+      const row = grouped[key] ||= { site, floor: line.floor, placementBucket: line.placementBucket, lines: [], expectedPlants: 0, expectedWaterMl: 0, expectedServiceEvents: 0 };
+      row.lines.push(line);
+      row.expectedPlants += Number(line.quantity || 0);
+      row.expectedWaterMl += expectedWaterForBaseline([line]) * 4.345;
+      row.expectedServiceEvents += expectedServiceEventsForBaseline([line], "month");
+    });
+    const logs = (db.serviceLogs || []).filter(log => {
+      const date = String(log.serverCreatedAt || log.localCreatedAt || "").slice(0, 10);
+      return log.siteId === site.id && (!state.filters.from || date >= state.filters.from) && (!state.filters.to || date <= state.filters.to);
+    });
+    return Object.values(grouped).map(row => {
+      const matchingLogs = logs.filter(log => log.floor === row.floor && log.placementBucket === row.placementBucket);
+      const actualPlants = matchingLogs.reduce((sum, log) => sum + Number(log.plantsServicedCount || 0), 0);
+      const actualWaterMl = matchingLogs.reduce((sum, log) => {
+        if (!log.wateringDone) return sum;
+        const line = row.lines.find(item => item.id === log.boqLineId) || row.lines[0];
+        return sum + Number(log.wateredPlantCount || log.plantsServicedCount || 0) * Number(line?.waterPerServiceMl || 0);
+      }, 0);
+      const replacements = matchingLogs.reduce((sum, log) => sum + Number(log.replacementsCount || 0), 0);
+      const coverage = Math.min(100, Math.round((actualPlants / Math.max(1, row.expectedPlants)) * 100));
+      const waterVariance = row.expectedWaterMl ? Math.round(((actualWaterMl - row.expectedWaterMl) / row.expectedWaterMl) * 100) : 0;
+      return {
+        ...row,
+        actualPlants,
+        actualWaterMl,
+        replacements,
+        replacementRate: Math.round((replacements / Math.max(1, row.expectedPlants)) * 100),
+        coverage,
+        waterVariance,
+        risk: !matchingLogs.length ? "Missed bucket" : coverage < 60 ? "Low coverage" : waterVariance > 30 ? "Water variance" : "On track"
+      };
+    });
+  });
+}
+function baselineView() {
+  const rows = baselineActualRows();
+  const expectedPlants = rows.reduce((sum, row) => sum + row.expectedPlants, 0);
+  const actualPlants = rows.reduce((sum, row) => sum + row.actualPlants, 0);
+  const expectedWater = rows.reduce((sum, row) => sum + row.expectedWaterMl, 0) / 1000;
+  const actualWater = rows.reduce((sum, row) => sum + row.actualWaterMl, 0) / 1000;
+  const missed = rows.filter(row => row.risk === "Missed bucket").length;
+  return `<section class="card"><div class="card-title"><div><h3>Baseline vs Actual</h3><p class="subtitle">Compares active BOQ baseline against structured service logs from the maintenance window.</p></div><span class="pill ${missed ? "critical" : "good"}">${missed} missed bucket(s)</span></div>${filterPanel()}<div class="kpi-strip"><div class="metric"><span>Expected Plants</span><strong>${expectedPlants}</strong></div><div class="metric good"><span>Actual Serviced</span><strong>${actualPlants}</strong></div><div class="metric monitor"><span>Expected Water</span><strong>${expectedWater.toFixed(1)} L</strong></div><div class="metric critical"><span>Actual Water</span><strong>${actualWater.toFixed(1)} L</strong></div></div><div class="table-wrap"><table class="baseline-table"><thead><tr><th>Site / Bucket</th><th>Expected Plants</th><th>Actual Serviced</th><th>Coverage</th><th>Expected Water</th><th>Actual Water</th><th>Replacements</th><th>Risk</th></tr></thead><tbody>${rows.map(row => `<tr><td><strong>${escapeHtml(row.site.name)}</strong><br><span class="small muted">${escapeHtml(row.floor)} · ${escapeHtml(row.placementBucket)}</span></td><td>${row.expectedPlants}</td><td>${row.actualPlants}</td><td><span class="pill ${row.coverage >= 80 ? "good" : row.coverage >= 50 ? "monitor" : "critical"}">${row.coverage}%</span></td><td>${(row.expectedWaterMl / 1000).toFixed(1)} L</td><td>${(row.actualWaterMl / 1000).toFixed(1)} L<br><span class="small muted">${row.waterVariance}% variance</span></td><td>${row.replacements}<br><span class="small muted">${row.replacementRate}% rate</span></td><td><span class="pill ${row.risk === "On track" ? "good" : row.risk === "Missed bucket" ? "critical" : "monitor"}">${escapeHtml(row.risk)}</span></td></tr>`).join("") || `<tr><td colspan="8"><div class="empty">No active BOQ baseline for the selected scope.</div></td></tr>`}</tbody></table></div></section>`;
+}
+function syncMonitorRows() {
+  const db = getDb();
+  const userMap = Object.fromEntries((db.users || []).map(user => [user.id, user]));
+  const siteMap = Object.fromEntries((db.sites || []).map(site => [site.id, site]));
+  const allowed = new Set(allowedSiteIds(db));
+  const grouped = {};
+  (db.serviceLogs || []).filter(log => allowed.has(log.siteId)).forEach(log => {
+    const key = `${log.createdBy || "unknown"}::${log.siteId}`;
+    const row = grouped[key] ||= { user: userMap[log.createdBy], site: siteMap[log.siteId], logs: [], pending: 0, failed: 0, gps: 0, aiPassed: 0, aiFailed: 0, lastSync: "" };
+    row.logs.push(log);
+    if (log.syncStatus === "pending") row.pending += 1;
+    if (log.syncStatus === "failed") row.failed += 1;
+    if (log.gpsLat && log.gpsLng) row.gps += 1;
+    if (log.aiPlantDetected === true) row.aiPassed += 1;
+    if (log.aiPlantDetected === false) row.aiFailed += 1;
+    const syncTime = log.serverCreatedAt || log.localCreatedAt;
+    if (!row.lastSync || new Date(syncTime) > new Date(row.lastSync)) row.lastSync = syncTime;
+  });
+  return Object.values(grouped);
+}
+function syncMonitorView() {
+  const pending = getPendingOfflineRecords().filter(record => allowedSiteIds().includes(record.payload?.siteId));
+  const rows = syncMonitorRows();
+  return `<section class="card sync-status-card"><div class="card-title"><div><h3>Sync Monitor</h3><p class="subtitle">${isOwner() ? "All-site offline queue visibility." : "Assigned-site visibility for field team service logs."}</p></div><div class="btn-row"><span class="offline-badge">${navigator.onLine === false ? "Offline" : "Online"}</span><button class="btn secondary" data-action="sync-now">Sync Now</button></div></div><div class="kpi-strip"><div class="metric"><span>Pending queue</span><strong>${pending.length}</strong></div><div class="metric critical"><span>Failed logs</span><strong>${rows.reduce((sum, row) => sum + row.failed, 0)}</strong></div><div class="metric good"><span>GPS captured</span><strong>${rows.reduce((sum, row) => sum + row.gps, 0)}</strong></div><div class="metric monitor"><span>AI passed</span><strong>${rows.reduce((sum, row) => sum + row.aiPassed, 0)}</strong></div></div><div class="table-wrap"><table class="baseline-table"><thead><tr><th>Staff name</th><th>Site</th><th>Last sync time</th><th>Pending logs</th><th>Failed sync</th><th>GPS captured</th><th>AI validated</th></tr></thead><tbody>${rows.map(row => `<tr><td>${escapeHtml(row.user?.name || row.logs[0]?.createdBy || "Unknown")}</td><td>${escapeHtml(row.site?.name || "Unknown site")}</td><td>${fmtDate(row.lastSync)}</td><td><span class="pill ${row.pending ? "monitor" : "good"}">${row.pending}</span></td><td><span class="pill ${row.failed ? "critical" : "good"}">${row.failed}</span></td><td>${row.gps ? "Yes" : "No"}</td><td>${row.aiFailed ? "Failed" : row.aiPassed ? "Passed" : "Pending"}</td></tr>`).join("") || `<tr><td colspan="7"><div class="empty">No service logs yet.</div></td></tr>`}</tbody></table></div></section>`;
+}
+function sustainabilityScopeSite() {
+  const sites = allowedSites();
+  if (state.filters.siteId && state.filters.siteId !== "all") return sites.find(site => site.id === state.filters.siteId) || sites[0];
+  return sites[0];
+}
+function sustainabilityEntitlement() {
+  const site = sustainabilityScopeSite();
+  return getClientEntitlement(getDb(), site?.clientId || allowedClients()[0]?.id || "", site?.id || "");
+}
+function frameworkSwitcher(entitlement) {
+  if (!canUseFrameworkSwitcher(entitlement)) return `<span class="metric-value-locked">Framework switcher locked</span>`;
+  return `<div class="framework-switcher">${FRAMEWORKS.map(fw => `<button class="${state.sustainabilityFramework === fw.id ? "active" : ""}" data-framework="${fw.id}">${escapeHtml(fw.label)}</button>`).join("")}</div>`;
+}
+function sustainabilityValue(metric, showValues) {
+  return showValues ? `<strong>${escapeHtml(metric.formattedValue)}</strong>` : `<strong class="metric-value-locked">Locked</strong>`;
+}
+function frameworkPopup(metric, framework) {
+  const popup = frameworkPopupForMetric(metric, framework);
+  return `<details class="framework-popup"><summary>i Framework relevance</summary><div><p><strong>Metric:</strong> ${escapeHtml(popup.metric)}</p><p><strong>Selected framework:</strong> ${escapeHtml(popup.selectedFramework)}</p><p><strong>Supports:</strong> ${escapeHtml(popup.supports)}</p><p><strong>Contribution type:</strong> ${escapeHtml(popup.contributionType)}</p><p><strong>Data quality:</strong> ${escapeHtml(popup.dataQuality)}</p><p><strong>Formula:</strong> ${escapeHtml(popup.formula)}</p><p><strong>Boundary:</strong> ${escapeHtml(popup.boundary)}</p><p><strong>Limitation:</strong> ${escapeHtml(popup.limitation)}</p><p><strong>Coverage status:</strong> ${escapeHtml(popup.coverageStatus)}</p></div></details>`;
+}
+function sustainabilityCards(grouped, showValues, framework) {
+  return grouped.map(group => `<section><h3>${escapeHtml(group.section)}</h3><div class="sustainability-grid">${group.items.map(metric => `<article class="sustainability-card ${showValues ? "" : "locked"}"><div class="card-title"><div><h3>${escapeHtml(metric.frameworkLabel || metric.name)}</h3><p class="subtitle">${escapeHtml(metric.explanation)}</p></div><span class="coverage-chip">${escapeHtml(metric.coverageStatus)}</span></div><div class="metric">${sustainabilityValue(metric, showValues)}<span>Value</span></div><div class="btn-row" style="justify-content:flex-start"><span class="data-quality-chip">${escapeHtml(metric.dataQuality)}</span><span class="offline-badge">Data basis: ${escapeHtml(metric.dataBasis)}</span></div><p class="small muted">Boundary: ${escapeHtml(metric.boundary)}</p>${frameworkPopup(metric, framework)}</article>`).join("")}</div></section>`).join("");
+}
+function sustainabilityView() {
+  const db = getDb();
+  const entitlement = sustainabilityEntitlement();
+  const showValues = canViewMetricValues(entitlement);
+  const framework = canUseFrameworkSwitcher(entitlement) ? state.sustainabilityFramework : "brsr";
+  const metricsList = buildSustainabilityMetrics({ db, filters: roleFilter(db), period: { from: state.filters.from, to: state.filters.to } });
+  const grouped = buildFrameworkView(metricsList, framework);
+  return `<section class="card"><div class="card-title"><div><h3>Sustainability / ESG Insights</h3><p class="subtitle">Metric names, explanations, data basis, and boundaries are visible to all clients. Values unlock with trial or paid access.</p></div><div class="btn-row">${frameworkSwitcher(entitlement)}${canExportSustainabilityReport(entitlement) ? `<button class="btn secondary" data-action="download-sustainability">Download CSV</button>` : `<span class="metric-value-locked">Exports locked</span>`}</div></div>${filterPanel({ client: false })}<p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p>${sustainabilityCards(grouped, showValues, framework)}</section>`;
+}
+function entitlementTargetSite() {
+  const sites = allowedSites();
+  const selected = state.entitlementSiteId || sites[0]?.id || "";
+  if (!state.entitlementSiteId && selected) state.entitlementSiteId = selected;
+  return getDb().sites.find(site => site.id === selected) || sites[0];
+}
+function checked(value) {
+  return value ? "checked" : "";
+}
+function sustainabilityAccessView() {
+  const sites = allowedSites();
+  const site = entitlementTargetSite();
+  const client = getDb().clients.find(c => c.id === site?.clientId);
+  const entitlement = getClientEntitlement(getDb(), site?.clientId, site?.id);
+  const assumptions = Object.assign({ defaultRoundTripKm: 30, vehicleKmFactor: 1 }, ...(getDb().formulaAssumptions || []));
+  return `<section class="card"><div class="card-title"><div><h3>Sustainability Access</h3><p class="subtitle">Admin control for trials, paid access, metric values, framework switcher, exports, trends, and global formula assumptions.</p></div><span class="pill ${canViewMetricValues(entitlement) ? "good" : "monitor"}">${escapeHtml(entitlement.subscriptionStatus || "core")}</span></div><form class="form" id="sustainabilityAccessForm"><div class="grid grid-2"><div class="field"><label>Client / Site</label><select class="select" data-entitlement-site name="siteId">${sites.map(s => { const c = getDb().clients.find(item => item.id === s.clientId); return option(s.id, `${c?.name || "Client"} · ${s.city} · ${s.name}`, site?.id === s.id); }).join("")}</select></div><div class="field"><label>Plan</label><select class="select" name="subscriptionStatus">${["core", "trial", "active", "expired"].map(status => option(status, title(status), (entitlement.subscriptionStatus || "core") === status)).join("")}</select></div></div><div class="grid grid-3"><label class="ticket-card"><input type="checkbox" name="trialEnabled" ${checked(entitlement.trialEnabled)} /> Enable trial</label><label class="ticket-card"><input type="checkbox" name="metricValuesVisible" ${checked(entitlement.metricValuesVisible)} /> Metric values</label><label class="ticket-card"><input type="checkbox" name="frameworkSwitcherEnabled" ${checked(entitlement.frameworkSwitcherEnabled)} /> Framework switcher</label><label class="ticket-card"><input type="checkbox" name="pdfExportEnabled" ${checked(entitlement.pdfExportEnabled)} /> PDF export</label><label class="ticket-card"><input type="checkbox" name="excelExportEnabled" ${checked(entitlement.excelExportEnabled)} /> Excel export</label><label class="ticket-card"><input type="checkbox" name="historicalTrendsEnabled" ${checked(entitlement.historicalTrendsEnabled)} /> Historical trends</label></div><div class="grid grid-2"><div class="field"><label>Trial days</label><select class="select" name="trialDays">${[30, 60].map(days => option(days, `${days} days`, Number(entitlement.trialDays || 30) === days)).join("")}</select></div><div class="field"><label>Current target</label><input class="input" value="${escapeHtml(client?.name || "")} · ${escapeHtml(site?.name || "")}" disabled /></div></div><div class="grid grid-2"><div class="field"><label>Default vendor round trip km</label><input class="input" type="number" min="0" step="1" name="defaultRoundTripKm" value="${escapeHtml(assumptions.defaultRoundTripKm)}" /></div><div class="field"><label>Vehicle distance factor</label><input class="input" type="number" min="0" step="0.1" name="vehicleKmFactor" value="${escapeHtml(assumptions.vehicleKmFactor)}" /></div></div><button class="btn" type="submit">Save Access</button></form><p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p></section>`;
+}
+function saveSustainabilityAccess(form) {
+  const fd = new FormData(form);
+  const siteId = fd.get("siteId");
+  const db = getDb();
+  const site = db.sites.find(s => s.id === siteId);
+  if (!site || !isOwner()) throw new Error("Only admin can update sustainability access.");
+  const subscriptionStatus = String(fd.get("subscriptionStatus") || "core");
+  const trialEnabled = fd.has("trialEnabled") || subscriptionStatus === "trial";
+  const trialDays = Number(fd.get("trialDays") || 30);
+  const start = trialEnabled ? nowIso() : "";
+  const endDate = trialEnabled ? new Date(Date.now() + trialDays * 86400000).toISOString() : "";
+  tx(d => {
+    d.sustainabilityEntitlements ||= [];
+    let entitlement = d.sustainabilityEntitlements.find(item => item.clientId === site.clientId && item.siteId === site.id);
+    if (!entitlement) {
+      entitlement = { id: uid("ent"), clientId: site.clientId, siteId: site.id };
+      d.sustainabilityEntitlements.push(entitlement);
+    }
+    Object.assign(entitlement, {
+      sustainabilityTabVisible: true,
+      metricNamesVisible: true,
+      metricValuesVisible: fd.has("metricValuesVisible") || ["trial", "active"].includes(subscriptionStatus),
+      trialEnabled,
+      trialDays,
+      trialStartDate: start,
+      trialEndDate: endDate,
+      trialExpired: subscriptionStatus === "expired",
+      frameworkSwitcherEnabled: fd.has("frameworkSwitcherEnabled"),
+      pdfExportEnabled: fd.has("pdfExportEnabled"),
+      excelExportEnabled: fd.has("excelExportEnabled"),
+      historicalTrendsEnabled: fd.has("historicalTrendsEnabled"),
+      planName: subscriptionStatus === "active" ? "sustainability" : subscriptionStatus,
+      subscriptionStatus,
+      updatedBy: currentUser()?.id || "owner",
+      updatedAt: nowIso()
+    });
+    d.formulaAssumptions ||= [];
+    const assumptions = d.formulaAssumptions[0] || { id: "assumption-defaults" };
+    Object.assign(assumptions, {
+      defaultRoundTripKm: Number(fd.get("defaultRoundTripKm") || 30),
+      vehicleKmFactor: Number(fd.get("vehicleKmFactor") || 1),
+      wasteBoundary: "Maintained horticulture assets only",
+      updatedAt: nowIso()
+    });
+    if (!d.formulaAssumptions.length) d.formulaAssumptions.push(assumptions);
+    return d;
+  });
+}
+function downloadSustainabilityCsv() {
+  const metricsList = buildSustainabilityMetrics({ db: getDb(), filters: roleFilter(getDb()), period: { from: state.filters.from, to: state.filters.to } });
+  const rows = metricsList.map(metric => ({
+    Metric: metric.name,
+    Value: metric.formattedValue,
+    "Data Quality": metric.dataQuality,
+    Boundary: metric.boundary,
+    Formula: metric.formula
+  }));
+  const csv = "\uFEFF" + ["Metric,Value,Data Quality,Boundary,Formula", ...rows.map(row => Object.values(row).map(value => `"${String(value).replaceAll('"', '""')}"`).join(","))].join("\n");
+  downloadFile(`GreenOps-Sustainability-${new Date().toISOString().slice(0, 10)}.csv`, csv, "text/csv;charset=utf-8");
+}
 function supervisorView() {
   const { scans, tickets } = visibleRecords();
   if (state.tab === "tickets") return `<section class="card">${filterPanel()}${ticketBoard(tickets, { scope: "supervisor" })}</section>`;
   if (state.tab === "sla breaches") return `<section class="card">${filterPanel()}${ticketBoard(tickets.filter(t => t.status !== STATUS.CLOSED && slaState(t).breached), { scope: "supervisor" })}</section>`;
   if (state.tab === "efficiency") return efficiencyView();
+  if (state.tab === "boq setup") return boqSetupView();
+  if (state.tab === "baseline") return baselineView();
+  if (state.tab === "sync monitor") return syncMonitorView();
+  if (state.tab === "sustainability access" && isOwner()) return sustainabilityAccessView();
   if (state.tab === "reports") return reportsView(true);
   if (state.tab === "admin" && isOwner()) return adminView();
   return `${executiveSnapshot(scans, tickets, isOwner() ? "Owner" : "Operations")}<section class="card command-card">${filterPanel()}${metrics(scans, tickets)}${proofOutcomeGrid(scans, tickets)}<div class="grid grid-2"><div>${healthBuckets(scans)}</div><div><h3>Health trend</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><div><h3>Live ticket queue</h3><p class="subtitle">The items below are the operational proof trail behind the dashboard.</p></div><button class="btn secondary" data-tab="tickets">Open full board</button></div>${ticketBoard(tickets.slice(0, 8), { scope: "supervisor", compact: true })}</section>`;
@@ -393,6 +750,7 @@ function clientView() {
   if (state.tab === "reports") return reportsView(false);
   if (state.tab === "evidence") return evidenceView(tickets);
   if (state.tab === "invoices") return invoiceView();
+  if (state.tab === "sustainability") return sustainabilityView();
   return `${executiveSnapshot(scans, tickets, "Client")}<section class="card command-card">${filterPanel({ client: false })}${metrics(scans, tickets)}${clientServiceAssurance(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><div><h3>Your open tickets</h3><p class="subtitle">Priority items, closure evidence, and current operational state.</p></div><div class="btn-row"><button class="btn secondary" data-tab="invoices">Invoices</button></div></div><button class="btn client-raise-ticket-cta" data-tab="raise ticket">Raise Priority 1 Ticket</button><div style="height:14px"></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
 }
 function raiseTicketView() {
@@ -736,7 +1094,7 @@ async function openCameraCapture() {
     await video.play();
   } catch (error) {
     stopCameraCapture();
-    throw new Error("Camera permission failed. Use Quick phone camera or upload from gallery.");
+    throw new Error("Camera permission failed. Use Phone camera instead.");
   }
   modal.querySelector("[data-camera-close]").addEventListener("click", stopCameraCapture);
   modal.addEventListener("click", e => { if (e.target === modal) stopCameraCapture(); });
@@ -750,6 +1108,8 @@ async function openCameraCapture() {
     canvas.height = Math.round(sourceH * scale);
     canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
     state.scanImage = canvas.toDataURL("image/jpeg", 0.84);
+    state.scanCaptureSource = "live_camera";
+    state.lastDiagnosis = null;
     updateScanImageUi();
     stopCameraCapture();
     toast("Live camera photo captured.");
@@ -759,11 +1119,17 @@ async function openCameraCapture() {
 async function diagnoseFromState() {
   syncScanDraftFromDom();
   const draft = { ...state.scanDraft };
-  if (!state.scanImage) throw new Error("Upload a plant image before diagnosis.");
+  if (!state.scanImage) throw new Error("Capture a plant image before diagnosis.");
   const out = $("#scanOutput");
   out.innerHTML = `<div class="card soft"><strong>Checking plant health...</strong><p class="subtitle">Please wait. The scan result will appear here.</p></div>`;
   const result = await diagnoseImage({ image: state.scanImage, draft });
   const data = result.data;
+  state.lastDiagnosis = { image: state.scanImage, data, result };
+  if (data.service_log_suggestion) {
+    state.scanDraft.wateringDone = String(Boolean(data.service_log_suggestion.wateringDone));
+    state.scanDraft.issueFound = String(Boolean(data.service_log_suggestion.issueFound));
+    state.scanDraft.issueCategory = data.service_log_suggestion.issueCategory || state.scanDraft.issueCategory;
+  }
   const enText = [data.issue_detected, data.root_cause, data.immediate_action, ...(data.treatment_plan || [])].filter(Boolean).join(". ");
   const hiText = [data.issue_detected_hi, data.root_cause_hi, data.immediate_action_hi, ...(data.treatment_plan_hi || [])].filter(Boolean).join(". ");
   out.innerHTML = `<div class="card scan-result"><div class="scan-result-hero"><div><span class="eyebrow dark">AI diagnosis result</span><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><div class="mobile-health-inline ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div><p class="subtitle">Variety match confidence, not health score: <span class="pill ${confidenceClass(data)}">${confidenceLabel(data)}</span></p></div><div class="health-score-card ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div></div>${possibleMatchesMarkup(data)}<div class="btn-row" style="justify-content:flex-start;margin:10px 0"><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="en">English</button><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="hi">Hindi</button><button class="mini-btn" type="button" data-action="speak-diagnosis" data-speak-en="${escapeHtml(enText)}" data-speak-hi="${escapeHtml(hiText || enText)}">Recite result</button></div><div data-lang-section="en"><div class="diagnosis-grid"><div><span class="small muted">Main issue</span><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">Likely root cause</span><p>${escapeHtml(data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">Next steps</span><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div><div data-lang-section="hi" style="display:none"><div class="diagnosis-grid"><div><span class="small muted">मुख्य समस्या</span><p><strong>${escapeHtml(data.issue_detected_hi || data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">मुख्य कारण</span><p>${escapeHtml(data.root_cause_hi || data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">अगले कदम</span><ol class="instruction-list">${(data.treatment_plan_hi || data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action_hi || data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div>${data.photo_quality ? `<p class="small muted">Photo quality: ${escapeHtml(data.photo_quality)}</p>` : ""}${result.ticketCreated ? `<p class="danger-text">SLA-bound ticket created for health score ${healthScoreLabel(result.score)}.</p>` : ""}</div>`;
@@ -774,16 +1140,19 @@ async function diagnoseImage({ image, draft, batchId = "" }) {
   const { db } = dbx();
   const siteId = draft.siteId || allowedSites(db)[0]?.id || "";
   const site = db.sites.find(s => s.id === siteId);
+  const location = draft.placementBucket || draft.zone || draft.floor;
+  const expectedPlantType = draft.plantType || db.boqLines?.find(line => line.id === draft.boqLineId)?.plantSpecies || "";
   if (!siteId) throw new Error("No assigned site available.");
   if (!allowedSiteIds(db).includes(siteId)) throw new Error("This site is not assigned to your account.");
-  if (!draft.zone?.trim()) throw new Error("Scan the zone QR or enter a zone.");
-  const payload = { imageBase64: dataUrlToBase64(image), note: draft.note, site: site?.name, location: draft.zone, plantType: draft.plantType, expectedPlantType: draft.plantType };
+  if (!String(location || "").trim()) throw new Error("Select a floor or placement bucket before diagnosis.");
+  const payload = { imageBase64: dataUrlToBase64(image), note: draft.note, site: site?.name, location, plantType: expectedPlantType, expectedPlantType };
   const res = await fetch(APP.diagnosisEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Diagnosis failed");
+  if (data.is_plant_image === false) throw new Error(data.reject_reason || "AI rejected this proof because it does not appear to contain a maintained plant.");
   const score = normalizeHealthScore(data.condition_score ?? data.score ?? 5);
   data.condition_score = score;
-  createScanRecord({ siteId, zone: draft.zone, plantType: draft.plantType, note: draft.note, batchId, createdBy: currentUser()?.id || "field-user" }, data, image);
+  createScanRecord({ siteId, zone: location, plantType: expectedPlantType, note: draft.note, batchId, createdBy: currentUser()?.id || "field-user" }, data, image);
   const category = score >= 7 ? "Healthy" : score > 6 ? "Monitor" : "Critical";
   const ticketCreated = score <= 6;
   return { data, score, category, ticketCreated, label: data.plant_identified || data.issue_detected || "Diagnosis saved" };
@@ -793,7 +1162,7 @@ async function runBatchDiagnosis() {
   syncScanDraftFromDom();
   const draft = { ...state.scanDraft };
   if (!state.batchImages.length) throw new Error("Add batch photos first.");
-  if (!draft.zone?.trim()) throw new Error("Scan zone QR or enter the zone before batch scan.");
+  if (!(draft.placementBucket || draft.zone || draft.floor)?.trim()) throw new Error("Select the floor or placement bucket before batch scan.");
   state.batchRunning = true;
   state.batchResults = [];
   const out = document.querySelector("#batchOutput");
@@ -827,6 +1196,123 @@ async function verifyClosureEvidence(id, img) {
   render();
 }
 
+function draftNumber(key, fallback = 0) {
+  const value = Number(state.scanDraft[key]);
+  return Number.isFinite(value) ? value : fallback;
+}
+function draftBool(key) {
+  return state.scanDraft[key] === true || String(state.scanDraft[key]) === "true";
+}
+function selectedBoqLineForDraft(db = getDb()) {
+  const draft = state.scanDraft;
+  return (db.boqLines || []).find(line => line.id === draft.boqLineId) ||
+    baselineForSite(db, draft.siteId).find(line => line.floor === draft.floor && line.placementBucket === draft.placementBucket);
+}
+async function captureGpsForDraft() {
+  const gps = await getCurrentGps();
+  if (!gps) {
+    state.scanDraft.gpsLat = "";
+    state.scanDraft.gpsLng = "";
+    state.scanDraft.gpsAccuracy = "";
+    state.scanDraft.gpsCapturedAt = "";
+    toast("GPS unavailable or permission denied.");
+    render();
+    return null;
+  }
+  Object.assign(state.scanDraft, gps);
+  toast("GPS captured.");
+  render();
+  return gps;
+}
+function serviceLogPayload({ aiData = null, aiValidationPending = false, syncStatus = "synced" } = {}) {
+  const db = getDb();
+  const siteId = state.scanDraft.siteId || allowedSites(db)[0]?.id || "";
+  const site = db.sites.find(s => s.id === siteId);
+  const line = selectedBoqLineForDraft(db);
+  const tempId = uid("svc-tmp");
+  const createdAt = nowIso();
+  return {
+    id: uid("svc"),
+    tempId,
+    clientId: site?.clientId || "",
+    siteId,
+    floor: state.scanDraft.floor || line?.floor || "",
+    placementBucket: state.scanDraft.placementBucket || line?.placementBucket || "",
+    boqLineId: line?.id || state.scanDraft.boqLineId || "",
+    plantCategory: state.scanDraft.plantCategory || line?.plantCategory || "",
+    actionType: state.scanDraft.replacementsCount > 0 ? "replacement" : draftBool("issueFound") ? "issue" : "routine_service",
+    plantsServicedCount: draftNumber("plantsServicedCount", 0),
+    wateringDone: draftBool("wateringDone"),
+    wateredPlantCount: draftNumber("wateredPlantCount", 0),
+    replacementsCount: draftNumber("replacementsCount", 0),
+    deadPlantCount: draftNumber("deadPlantCount", 0),
+    materialUsed: state.scanDraft.materialUsed || "none",
+    materialName: state.scanDraft.materialName || "",
+    issueFound: draftBool("issueFound"),
+    issueCategory: state.scanDraft.issueCategory || "other",
+    disposalRoute: state.scanDraft.disposalRoute || "not_applicable",
+    notes: state.scanDraft.note || "",
+    voiceNoteText: state.scanDraft.voiceNoteText || "",
+    photoDataUrl: state.scanImage,
+    aiPlantDetected: aiData ? aiData.is_plant_image !== false : null,
+    aiHealthScore: aiData ? normalizeHealthScore(aiData.condition_score ?? aiData.score ?? 0, 0) : null,
+    aiIssueFlags: aiData ? [aiData.auto_ticket_category, aiData.work_action_required].filter(Boolean) : (aiValidationPending ? ["ai_validation_pending"] : []),
+    gpsLat: state.scanDraft.gpsLat || "",
+    gpsLng: state.scanDraft.gpsLng || "",
+    gpsAccuracy: state.scanDraft.gpsAccuracy || "",
+    gpsCapturedAt: state.scanDraft.gpsCapturedAt || "",
+    captureSource: state.scanCaptureSource || "phone_camera",
+    offlineCreated: syncStatus !== "synced",
+    localCreatedAt: createdAt,
+    serverCreatedAt: syncStatus === "synced" ? createdAt : "",
+    syncStatus,
+    syncAttempts: syncStatus === "synced" ? 1 : 0,
+    createdBy: currentUser()?.id || "field-user"
+  };
+}
+async function submitServiceLog() {
+  syncScanDraftFromDom();
+  const db = getDb();
+  const siteId = state.scanDraft.siteId || allowedSites(db)[0]?.id || "";
+  if (!siteId) throw new Error("Select an assigned site.");
+  if (!allowedSiteIds(db).includes(siteId)) throw new Error("This site is not assigned to your account.");
+  if (!state.scanDraft.placementBucket) throw new Error("Select a placement bucket.");
+  if (!state.scanImage) throw new Error("Camera proof is required before submitting a service log.");
+  if (!state.scanDraft.gpsLat && navigator.onLine !== false) await captureGpsForDraft();
+
+  let aiData = state.lastDiagnosis?.image === state.scanImage ? state.lastDiagnosis.data : null;
+  let aiValidationPending = false;
+  if (!aiData && navigator.onLine !== false) {
+    try {
+      const result = await diagnoseImage({ image: state.scanImage, draft: { ...state.scanDraft } });
+      aiData = result.data;
+      state.lastDiagnosis = { image: state.scanImage, data: aiData, result };
+    } catch (error) {
+      if (String(error?.message || "").includes("AI rejected")) throw error;
+      aiValidationPending = true;
+    }
+  } else if (navigator.onLine === false) {
+    aiValidationPending = true;
+  }
+  if (aiData?.is_plant_image === false) throw new Error(aiData.reject_reason || "AI rejected this proof because it does not appear to contain a plant.");
+
+  const syncStatus = navigator.onLine === false || aiValidationPending ? "pending" : "synced";
+  const log = serviceLogPayload({ aiData, aiValidationPending, syncStatus });
+  tx(d => {
+    d.serviceLogs ||= [];
+    d.serviceLogs.push(log);
+    return d;
+  });
+  if (syncStatus !== "synced") queueOfflineRecord("serviceLog", log);
+  const retainedSite = log.siteId;
+  state.scanDraft = { ...defaultScanDraft(), siteId: retainedSite };
+  state.scanImage = "";
+  state.scanCaptureSource = "";
+  state.lastDiagnosis = null;
+  toast(syncStatus === "synced" ? "Service log synced." : "Service log saved offline and queued for sync.");
+  render();
+}
+
 function startVoiceNote() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) throw new Error("Voice note is not supported in this browser. Use Chrome on Android/Desktop.");
@@ -839,6 +1325,7 @@ function startVoiceNote() {
   rec.onresult = event => {
     const transcript = event.results?.[0]?.[0]?.transcript || "";
     state.scanDraft.note = [state.scanDraft.note, transcript].filter(Boolean).join(" ").trim();
+    state.scanDraft.voiceNoteText = [state.scanDraft.voiceNoteText, transcript].filter(Boolean).join(" ").trim();
     const note = document.querySelector('[data-scan-field="note"]');
     if (note) note.value = state.scanDraft.note;
     toast("Voice note captured.");
@@ -864,27 +1351,38 @@ function bindEvents() {
     const tab = e.target.closest("[data-tab]")?.dataset.tab; if (tab) { state.tab = tab; sessionStorage.setItem(APP.sessionTabKey, tab); render(); return; }
     const efficiencyFilter = e.target.closest("[data-efficiency-filter]")?.dataset.efficiencyFilter; if (efficiencyFilter) { state.efficiencyFilter = efficiencyFilter; sessionStorage.setItem("greenops_efficiency_filter", efficiencyFilter); render(); return; }
     const clientAssuranceFilter = e.target.closest("[data-client-assurance-filter]")?.dataset.clientAssuranceFilter; if (clientAssuranceFilter) { state.clientAssuranceFilter = state.clientAssuranceFilter === clientAssuranceFilter ? "" : clientAssuranceFilter; sessionStorage.setItem("greenops_client_assurance_filter", state.clientAssuranceFilter); render(); return; }
+    const framework = e.target.closest("[data-framework]")?.dataset.framework; if (framework) { state.sustainabilityFramework = framework; sessionStorage.setItem("greenops_sustainability_framework", framework); render(); return; }
     const assistantPrompt = e.target.closest("[data-assistant-prompt]")?.dataset.assistantPrompt; if (assistantPrompt) { await askClientAssistant(assistantPrompt); return; }
     const action = e.target.closest("[data-action]")?.dataset.action; const id = e.target.closest("[data-id]")?.dataset.id;
     try {
       if (action === "logout") { stopCameraCapture(); logout(); render(); return; }
       if (!state.user) return;
       if (action === "seed" && isOwner()) { seedDemoData(); toast("Demo data seeded."); render(); }
-      if (action === "reset" && isOwner() && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = { siteId:"", zone:"", plantType:"", note:"" }; state.scanImage = ""; state.clientTicketImage = ""; state.batchImages = []; state.batchResults = []; toast("Local data reset."); render(); }
+      if (action === "reset" && isOwner() && confirm("Reset all local app data?")) { resetDb(); state.filters = { clientId:"all",siteId:"all",city:"all",from:"",to:"" }; state.scanDraft = defaultScanDraft(); state.scanImage = ""; state.scanCaptureSource = ""; state.lastDiagnosis = null; state.clientTicketImage = ""; state.batchImages = []; state.batchResults = []; toast("Local data reset."); render(); }
       if (action === "assistant-open") { state.assistantOpen = true; render(); return; }
       if (action === "assistant-close") { state.assistantOpen = false; render(); return; }
       if (action === "download-report") exportCsvReport(getDb(), roleFilter(getDb()));
       if (action === "download-invoice") downloadInvoiceHtml(currentInvoice());
+      if (action === "download-sustainability") downloadSustainabilityCsv();
       if (action === "print-report") { preparePrintReport(); setTimeout(() => window.print(), 30); }
+      if (action === "insert-boq-template") { const site = getDb().sites.find(s => s.id === selectedBoqSite()); state.boqDraft.csv = boqTemplateCsv(site); previewBoqDraft(); render(); }
+      if (action === "preview-boq") { previewBoqDraft(); toast("BOQ rows parsed."); render(); }
+      if (action === "save-boq-draft") { const result = saveBoqDraft(); toast(`BOQ draft saved with ${result.upload.acceptedRows} accepted row(s).`); render(); }
+      if (action === "save-activate-boq") { const result = saveBoqDraft({ activate: true }); toast(`BOQ baseline v${result.upload.version} activated.`); render(); }
+      if (action === "activate-boq") { activateBoqUpload(id); toast("BOQ baseline activated."); render(); }
+      if (action === "archive-boq") { archiveBoqUpload(id); toast("BOQ version archived."); render(); }
+      if (action === "sync-now") { const result = await syncPendingRecords(); toast(result.offline ? "Still offline. Pending records remain local." : `${result.synced} record(s) synced.`); render(); }
       if (action === "toggle-diagnosis-lang") { const lang = e.target.closest("[data-lang]")?.dataset.lang || "en"; document.querySelectorAll("[data-lang-section]").forEach(el => { el.style.display = el.dataset.langSection === lang ? "" : "none"; }); state.diagnosisLang = lang; }
       if (action === "speak-diagnosis") { const btn = e.target.closest("[data-speak-en]"); const text = state.diagnosisLang === "hi" ? (btn?.dataset.speakHi || btn?.dataset.speakEn || "") : (btn?.dataset.speakEn || ""); if (!window.speechSynthesis) throw new Error("Read-aloud is not supported in this browser."); window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(text); utterance.lang = state.diagnosisLang === "hi" ? "hi-IN" : "en-IN"; window.speechSynthesis.speak(utterance); }
-      if (action === "clear-scan-image") { syncScanDraftFromDom(); state.scanImage = ""; const input = document.querySelector("[data-scan-image]"); if (input) input.value = ""; updateScanImageUi(); toast("Plant image removed."); }
+      if (action === "clear-scan-image") { syncScanDraftFromDom(); state.scanImage = ""; state.scanCaptureSource = ""; state.lastDiagnosis = null; document.querySelectorAll("[data-scan-camera]").forEach(input => { input.value = ""; }); updateScanImageUi(); toast("Plant image removed."); }
       if (action === "clear-client-ticket-image") { state.clientTicketImage = ""; const input = document.querySelector("[data-client-evidence]"); if (input) input.value = ""; updateClientTicketImageUi(); toast("Issue photo removed."); }
       if (action === "apply-qr") { const input = document.querySelector("[data-qr-text]"); applyQr(input?.value || state.qrText); }
       if (action === "demo-qr") { applyQr(e.target.closest("[data-qr]")?.dataset.qr || ""); }
       if (action === "voice-note") { startVoiceNote(); }
+      if (action === "capture-gps") { await captureGpsForDraft(); }
       if (action === "open-camera") { await openCameraCapture(); }
       if (action === "run-diagnosis") { await diagnoseFromState(); }
+      if (action === "submit-service-log") { await submitServiceLog(); }
       if (action === "clear-batch") { state.batchImages = []; state.batchResults = []; render(); toast("Batch cleared."); }
       if (action === "remove-batch-image") { syncScanDraftFromDom(); const index = Number(e.target.closest("[data-index]")?.dataset.index); state.batchImages.splice(index, 1); render(); }
       if (action === "run-batch") { await runBatchDiagnosis(); }
@@ -894,19 +1392,30 @@ function bindEvents() {
   });
   document.addEventListener("change", async e => {
     if (e.target.matches("[data-filter]")) { state.filters[e.target.dataset.filter] = e.target.value; if (["clientId","city"].includes(e.target.dataset.filter)) state.filters.siteId = "all"; render(); }
-    if (e.target.closest("#scanPanel") && e.target.dataset.scanField) state.scanDraft[e.target.dataset.scanField] = e.target.value;
-    if (e.target.matches("[data-scan-image], [data-scan-camera]")) { syncScanDraftFromDom(); const file = e.target.files?.[0]; if (!file) return; state.scanImage = await imageToDataUrl(file, 1600, .82); updateScanImageUi(); toast("Plant image ready for diagnosis."); }
+    if (e.target.matches("[data-boq-site]")) { state.boqDraft.siteId = e.target.value; state.boqDraft.rows = []; state.boqDraft.acceptedRows = []; state.boqDraft.rejectedRows = []; render(); }
+    if (e.target.matches("[data-boq-file]")) { const file = e.target.files?.[0]; if (!file) return; state.boqDraft.fileName = file.name; state.boqDraft.csv = await file.text(); previewBoqDraft(); toast("BOQ CSV loaded."); render(); }
+    if (e.target.matches("[data-entitlement-site]")) { state.entitlementSiteId = e.target.value; render(); }
+    if (e.target.closest("#scanPanel") && e.target.dataset.scanField) {
+      state.scanDraft[e.target.dataset.scanField] = e.target.value;
+      if (e.target.dataset.scanField === "boqLineId") {
+        const line = selectedBoqLineForDraft();
+        if (line) Object.assign(state.scanDraft, { floor: line.floor, placementBucket: line.placementBucket, plantCategory: line.plantCategory, plantType: state.scanDraft.plantType || line.plantSpecies || "" });
+      }
+      if (["siteId", "floor", "boqLineId"].includes(e.target.dataset.scanField)) render();
+    }
+    if (e.target.matches("[data-scan-camera]")) { syncScanDraftFromDom(); const file = e.target.files?.[0]; if (!file) return; state.scanImage = await imageToDataUrl(file, 1600, .82); state.scanCaptureSource = "phone_camera"; state.lastDiagnosis = null; updateScanImageUi(); toast("Plant image ready for diagnosis."); }
     if (e.target.matches("[data-client-evidence]")) { const file = e.target.files?.[0]; if (!file) return; state.clientTicketImage = await imageToDataUrl(file, 900, .7); updateClientTicketImageUi(); toast("Issue photo attached."); }
     if (e.target.matches("[data-batch-images]")) { syncScanDraftFromDom(); const files = [...(e.target.files || [])].slice(0, Math.max(0, 20 - state.batchImages.length)); for (const file of files) state.batchImages.push(await imageToDataUrl(file, 1200, .75)); render(); toast(`${files.length} batch photo(s) added.`); }
     if (e.target.matches("[data-qr-image]")) { const file = e.target.files?.[0]; if (file) await decodeQrImage(file); }
     if (e.target.matches("[data-evidence]")) { const id = e.target.dataset.evidence; const file = e.target.files?.[0]; if (!file) return; const img = await imageToDataUrl(file, 900, .7); await verifyClosureEvidence(id, img); }
   });
-  document.addEventListener("input", e => { if (e.target.closest("#scanPanel") && e.target.dataset.scanField) state.scanDraft[e.target.dataset.scanField] = e.target.value; if (e.target.matches("[data-qr-text]")) state.qrText = e.target.value; if (e.target.closest("#floatingAssistantForm") && e.target.name === "question") state.assistantInput = e.target.value; });
+  document.addEventListener("input", e => { if (e.target.closest("#scanPanel") && e.target.dataset.scanField) state.scanDraft[e.target.dataset.scanField] = e.target.value; if (e.target.matches("[data-boq-csv]")) state.boqDraft.csv = e.target.value; if (e.target.matches("[data-qr-text]")) state.qrText = e.target.value; if (e.target.closest("#floatingAssistantForm") && e.target.name === "question") state.assistantInput = e.target.value; });
   document.addEventListener("submit", async e => {
     e.preventDefault();
     try {
       if (e.target.id === "loginForm") { const fd = new FormData(e.target); const user = authenticate(fd.get("role"), fd.get("identifier"), fd.get("secret")); if (!user) throw new Error("Login failed. Check registered credentials."); setLoggedIn(user); toast(`Welcome, ${user.name}.`); render(); return; }
       if (e.target.id === "floatingAssistantForm") { const fd = new FormData(e.target); await askClientAssistant(fd.get("question")); return; }
+      if (e.target.id === "sustainabilityAccessForm") { saveSustainabilityAccess(e.target); toast("Sustainability access updated."); render(); return; }
       if (e.target.id === "clientTicketForm") { const fd = new FormData(e.target); const siteId = fd.get("siteId"); if (!allowedSiteIds().includes(siteId)) throw new Error("This site is not assigned to your account."); const beforeIds = new Set(getDb().tickets.map(t => t.id)); createClientTicket({ siteId, issue: fd.get("issue"), description: fd.get("description"), clientEvidence: state.clientTicketImage }); const created = getDb().tickets.find(t => !beforeIds.has(t.id)); state.clientTicketImage = ""; toast("Priority 1 ticket created. Supervisor WhatsApp notification triggered."); render(); if (created?.id) dispatchWhatsAppNotifications(created.id); }
     } catch (err) { toast(err.message || "Submit failed"); }
   });
@@ -915,5 +1424,6 @@ function bindEvents() {
 window.addEventListener("beforeunload", stopCameraCapture);
 window.addEventListener("resize", () => drawCharts());
 window.addEventListener("db:changed", () => drawCharts());
+window.addEventListener("online", async () => { await syncPendingRecords(); render(); });
 bindEvents();
 render();
