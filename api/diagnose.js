@@ -67,6 +67,8 @@ Health scoring logic:
 
 Return ONLY valid JSON. No markdown. No commentary.
 {
+  "is_plant_image": true,
+  "reject_reason": "",
   "plant_identified": "Common name (Scientific name if confident, otherwise Common name / Unconfirmed)",
   "plant_identification_confidence": 0.74,
   "requires_manual_confirmation": true,
@@ -98,9 +100,16 @@ Return ONLY valid JSON. No markdown. No commentary.
   "treatment_plan_hi": ["चरण 1", "चरण 2", "चरण 3", "चरण 4"],
   "prevent_recurrence": "One key prevention measure",
   "prevent_recurrence_hi": "रोकथाम का उपाय",
-  "follow_up_days": 5
+  "follow_up_days": 5,
+  "auto_ticket_category": "water_stress | pest | low_light | ac_draft | damaged | dead | other",
+  "work_action_required": "water | prune | clean | replace | monitor | escalate",
+  "service_log_suggestion": {
+    "wateringDone": true,
+    "issueFound": true,
+    "issueCategory": "water_stress"
+  }
 }
-Rules: condition_score and score_breakdown values must be numbers from 1 to 10. plant_identification_confidence must be 0 to 1. severity must be LOW, MEDIUM, HIGH, or CRITICAL. Hindi must be Devanagari.`;
+Rules: If the image is not a plant, planter, green wall, or maintained horticulture asset, set is_plant_image false, set reject_reason, and still return valid JSON with safe defaults. condition_score and score_breakdown values must be numbers from 1 to 10. plant_identification_confidence must be 0 to 1. severity must be LOW, MEDIUM, HIGH, or CRITICAL. Hindi must be Devanagari.`;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -132,12 +141,21 @@ Rules: condition_score and score_breakdown values must be numbers from 1 to 10. 
     const result = JSON.parse(jsonText);
 
     result.condition_score = normalizeHealthScore(result.condition_score, 5);
+    result.is_plant_image = result.is_plant_image !== false;
+    result.reject_reason = String(result.reject_reason || "");
     result.follow_up_days = parseInt(result.follow_up_days, 10) || 7;
     result.plant_identification_confidence = normalizeConfidence(result.plant_identification_confidence, 0.65);
     result.requires_manual_confirmation = Boolean(result.requires_manual_confirmation) || result.plant_identification_confidence < 0.75;
     result.possible_matches = normalizeMatches(result.possible_matches);
     result.score_breakdown = Object.fromEntries(Object.entries(result.score_breakdown || {}).map(([key, value]) => [key, normalizeHealthScore(value, result.condition_score)]));
     result.severity = ["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(result.severity) ? result.severity : "MEDIUM";
+    result.auto_ticket_category = ["water_stress", "pest", "low_light", "ac_draft", "damaged", "dead", "other"].includes(result.auto_ticket_category) ? result.auto_ticket_category : "other";
+    result.work_action_required = ["water", "prune", "clean", "replace", "monitor", "escalate"].includes(result.work_action_required) ? result.work_action_required : "monitor";
+    result.service_log_suggestion = {
+      wateringDone: Boolean(result.service_log_suggestion?.wateringDone),
+      issueFound: Boolean(result.service_log_suggestion?.issueFound),
+      issueCategory: String(result.service_log_suggestion?.issueCategory || result.auto_ticket_category || "other")
+    };
 
     return res.status(200).json(result);
   } catch (error) {
