@@ -24,19 +24,24 @@ function normalizeMatches(value) {
     };
   });
 }
-function parseImageSource(imageBase64) {
-  const raw = String(imageBase64 || "");
+function parseImageDataUrl(imageBase64) {
+  const raw = String(imageBase64 || "").trim();
   const match = raw.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
-  if (match) return { media_type: match[1] === "image/jpg" ? "image/jpeg" : match[1], data: match[2] };
-  return { media_type: "image/jpeg", data: raw };
+  if (match) {
+    const mime = match[1] === "image/jpg" ? "image/jpeg" : match[1];
+    return `data:${mime};base64,${match[2]}`;
+  }
+  return `data:image/jpeg;base64,${raw}`;
 }
 function fallbackDiagnosis(reason = "AI provider timeout", imageStats = {}) {
   const stressRatio = clampNumber(imageStats.stressRatio, 0, 1, 0);
   const brownYellowRatio = clampNumber(imageStats.brownYellowRatio, 0, 1, 0);
   const greenRatio = clampNumber(imageStats.greenRatio, 0, 1, 0);
   const weakImageStats = !Number.isFinite(Number(imageStats.stressRatio));
-  const criticalStress = !weakImageStats && (stressRatio >= 0.45 || brownYellowRatio >= 0.28 || greenRatio < 0.18);
-  const moderateStress = !weakImageStats && !criticalStress && (stressRatio >= 0.25 || brownYellowRatio >= 0.14 || greenRatio < 0.28);
+  const criticalStress = !weakImageStats && greenRatio < 0.22 && stressRatio >= 0.62;
+  const moderateStress = !weakImageStats && !criticalStress && (
+    stressRatio >= 0.24 || brownYellowRatio >= 0.12 || greenRatio < 0.34
+  );
 
   if (criticalStress) {
     return {
@@ -76,11 +81,7 @@ function fallbackDiagnosis(reason = "AI provider timeout", imageStats = {}) {
       follow_up_days: 1,
       auto_ticket_category: "water_stress",
       work_action_required: "escalate",
-      service_log_suggestion: {
-        wateringDone: false,
-        issueFound: true,
-        issueCategory: "water_stress"
-      },
+      service_log_suggestion: { wateringDone: false, issueFound: true, issueCategory: "water_stress" },
       aiFallbackUsed: true,
       aiFallbackReason: reason
     };
@@ -97,18 +98,18 @@ function fallbackDiagnosis(reason = "AI provider timeout", imageStats = {}) {
       possible_matches: [{ name: "Indoor foliage plant", confidence: 0.6 }],
       photo_quality: "Acceptable - plant health symptoms visible",
       plant_identified_hi: "इनडोर पत्तेदार पौधा / पुष्टि आवश्यक",
-      condition_score: 5.4,
-      score_breakdown: { leaf_condition: 5, density_fullness: 5.5, pest_disease_visibility: 7, water_stress: 5, presentation: 5 },
-      issue_detected: "Visible leaf stress and presentation decline; corrective maintenance required.",
+      condition_score: 5.8,
+      score_breakdown: { leaf_condition: 5.6, density_fullness: 6.2, pest_disease_visibility: 7.2, water_stress: 5.4, presentation: 5.6 },
+      issue_detected: "Visible leaf yellowing/wilting and presentation decline; corrective maintenance required.",
       issue_detected_hi: "पत्तों में stress और presentation decline दिख रहा है; corrective maintenance required है।",
-      root_cause: "Likely watering inconsistency, low/high light exposure, or delayed pruning.",
+      root_cause: "Likely watering inconsistency, light exposure stress, AC draft, or natural lower-leaf ageing.",
       root_cause_hi: "संभावित कारण पानी की अनियमितता, light exposure issue या pruning delay है।",
       severity: "MEDIUM",
       symptoms_observed: ["Yellowing/drying leaves", "Reduced presentation quality", "Watering or placement stress likely"],
       symptoms_observed_hi: ["पीले/सूखे पत्ते", "प्रेजेंटेशन कमजोर", "पानी या placement stress संभावित"],
-      immediate_action: "Prune stressed leaves, check moisture, adjust placement, and review in 48 hours.",
+      immediate_action: "Check soil moisture, remove only fully yellow/dry leaves, adjust placement if needed, and review in 48 hours.",
       immediate_action_hi: "stress वाले पत्ते prune करें, moisture check करें, placement adjust करें और 48 घंटे में review करें।",
-      treatment_plan: ["Remove dry/yellowing leaves", "Check soil moisture before watering", "Inspect for AC draft or harsh light", "Review again in 2 days"],
+      treatment_plan: ["Check soil/root-zone moisture", "Remove fully yellow or dry leaves only", "Inspect for AC draft or harsh light", "Review again in 48 hours"],
       treatment_plan_hi: ["सूखे/पीले पत्ते हटाएं", "पानी देने से पहले मिट्टी की नमी जांचें", "AC draft या harsh light inspect करें", "2 दिन बाद review करें"],
       prevent_recurrence: "Track watering and placement stress weekly.",
       prevent_recurrence_hi: "watering और placement stress weekly track करें।",
@@ -155,41 +156,78 @@ function fallbackDiagnosis(reason = "AI provider timeout", imageStats = {}) {
   };
 }
 function normalizeResult(result) {
-  result.condition_score = normalizeHealthScore(result.condition_score, 5);
-  result.is_plant_image = result.is_plant_image !== false;
-  result.reject_reason = String(result.reject_reason || "");
-  result.follow_up_days = parseInt(result.follow_up_days, 10) || 7;
-  result.plant_identification_confidence = normalizeConfidence(result.plant_identification_confidence, 0.65);
-  result.requires_manual_confirmation = Boolean(result.requires_manual_confirmation) || result.plant_identification_confidence < 0.75;
-  result.possible_matches = normalizeMatches(result.possible_matches);
-  const breakdown = result.score_breakdown && typeof result.score_breakdown === "object" ? result.score_breakdown : {};
-  result.score_breakdown = Object.fromEntries(Object.entries(breakdown).map(([key, value]) => [key, normalizeHealthScore(value, result.condition_score)]));
-  result.severity = ["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(result.severity) ? result.severity : "MEDIUM";
-  result.auto_ticket_category = ["water_stress", "pest", "low_light", "ac_draft", "damaged", "dead", "other"].includes(result.auto_ticket_category) ? result.auto_ticket_category : "other";
-  result.work_action_required = ["water", "prune", "clean", "replace", "monitor", "escalate"].includes(result.work_action_required) ? result.work_action_required : "monitor";
-  result.service_log_suggestion = {
-    wateringDone: Boolean(result.service_log_suggestion?.wateringDone),
-    issueFound: Boolean(result.service_log_suggestion?.issueFound),
-    issueCategory: String(result.service_log_suggestion?.issueCategory || result.auto_ticket_category || "other")
-  };
-  return result;
+  const out = result && typeof result === "object" ? result : {};
+  out.condition_score = normalizeHealthScore(out.condition_score ?? out.score, 5);
+  out.plant_identification_confidence = normalizeConfidence(out.plant_identification_confidence ?? out.identification_confidence, 0.65);
+  out.possible_matches = normalizeMatches(out.possible_matches);
+  out.score_breakdown = out.score_breakdown && typeof out.score_breakdown === "object" ? out.score_breakdown : {};
+  for (const key of ["leaf_condition", "density_fullness", "pest_disease_visibility", "water_stress", "presentation"]) {
+    out.score_breakdown[key] = normalizeHealthScore(out.score_breakdown[key], out.condition_score);
+  }
+  out.severity = String(out.severity || (out.condition_score <= 4.5 ? "CRITICAL" : out.condition_score <= 6 ? "HIGH" : out.condition_score <= 7.5 ? "MEDIUM" : "LOW")).toUpperCase();
+  if (!Array.isArray(out.symptoms_observed)) out.symptoms_observed = [];
+  if (!Array.isArray(out.symptoms_observed_hi)) out.symptoms_observed_hi = [];
+  if (!Array.isArray(out.treatment_plan)) out.treatment_plan = out.immediate_action ? [out.immediate_action] : ["Follow maintenance SOP"];
+  if (!Array.isArray(out.treatment_plan_hi)) out.treatment_plan_hi = out.immediate_action_hi ? [out.immediate_action_hi] : [];
+  out.is_plant_image = out.is_plant_image !== false;
+  out.reject_reason ||= "";
+  out.plant_identified ||= "Unconfirmed plant";
+  out.photo_quality ||= "Acceptable";
+  out.issue_detected ||= "Observation captured";
+  out.root_cause ||= "Root cause not specified";
+  out.immediate_action ||= out.treatment_plan[0] || "Follow maintenance SOP";
+  out.follow_up_days = clampNumber(out.follow_up_days, 1, 30, out.condition_score <= 6 ? 2 : 5);
+  out.auto_ticket_category ||= "other";
+  out.work_action_required ||= out.condition_score <= 6 ? "escalate" : "monitor";
+  out.service_log_suggestion ||= { wateringDone: false, issueFound: out.condition_score <= 6, issueCategory: out.auto_ticket_category };
+  return out;
 }
 function extractJson(text) {
-  const cleaned = String(text || "").replace(/```json|```/g, "").trim();
-  try { return JSON.parse(cleaned); } catch {}
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start >= 0 && end > start) return JSON.parse(cleaned.slice(start, end + 1));
-  throw new Error("AI response did not contain valid JSON");
+  const raw = String(text || "").replace(/```json|```/g, "").trim();
+  try { return JSON.parse(raw); } catch {}
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start >= 0 && end > start) return JSON.parse(raw.slice(start, end + 1));
+  throw new Error("AI response was not valid JSON");
 }
-async function fetchWithTimeout(url, options, timeoutMs = 22000) {
+function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+function dedupeModels(models) {
+  return [...new Set(models.filter(Boolean).map(String))];
+}
+async function callOpenAIChat({ apiKey, models, messages, maxTokens = 1400 }) {
+  let lastError = "OpenAI call failed";
+  for (const model of dedupeModels(models)) {
+    const response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: 0,
+        max_completion_tokens: maxTokens
+      })
+    }, 45000);
+    const raw = await response.text();
+    let data = {};
+    try { data = JSON.parse(raw); } catch { data = { raw }; }
+    if (response.ok && !data.error) {
+      const text = data.choices?.[0]?.message?.content || data.output_text || "";
+      if (!text) throw new Error("OpenAI returned empty diagnosis text");
+      return { text, model };
+    }
+    lastError = data.error?.message || raw?.slice?.(0, 400) || `OpenAI failed for ${model}`;
+    const lower = String(lastError).toLowerCase();
+    // Only try the next model for model/access/availability-style failures.
+    if (!lower.includes("model") && !lower.includes("not found") && !lower.includes("unsupported") && !lower.includes("access") && !lower.includes("permission")) break;
   }
+  throw new Error(lastError);
 }
 
 export default async function handler(req, res) {
@@ -200,50 +238,62 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { imageBase64, note = "", site = "", location = "", plantType = "", expectedPlantType = "", imageStats = null } = req.body || {};
+  const { imageBase64, note = "", site = "", location = "", plantType = "", expectedPlantType = "", imageStats = {} } = req.body || {};
   if (!imageBase64) return res.status(400).json({ error: "No image provided" });
 
+  const apiKey = process.env.OPENAI_API_KEY;
   const demoFallbackEnabled = process.env.AI_DEMO_FALLBACK !== "false";
-  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    if (demoFallbackEnabled) return res.status(200).json(normalizeResult(fallbackDiagnosis("ANTHROPIC_API_KEY missing", imageStats)));
-    return res.status(500).json({ error: "ANTHROPIC_API_KEY is missing in Vercel environment variables." });
+    if (demoFallbackEnabled) return res.status(200).json(normalizeResult(fallbackDiagnosis("OPENAI_API_KEY missing", imageStats)));
+    return res.status(500).json({ error: "OPENAI_API_KEY is missing in Vercel environment variables." });
   }
 
-  const expected = String(expectedPlantType || plantType || "").trim();
-  const context = [
-    site && `Site: ${site}`,
-    location && `Location/zone: ${location}`,
-    expected && `Operator expected plant variety: ${expected}`,
-    note && `Technician note: ${note}`
-  ].filter(Boolean).join(". ");
+  const expected = expectedPlantType || plantType || "";
+  const prompt = `You are GreenOps AI Vision, used for enterprise indoor plant maintenance audits.
+Assess the actual plant health from the uploaded image. Prioritise visible plant condition over exact variety identification.
+Site: ${site || "Unknown"}
+Location / placement bucket: ${location || "Unknown"}
+Expected plant type from BOQ: ${expected || "Not provided"}
+Maintenance note: ${note || "None"}
 
-  const prompt = `You are a senior horticulturist and plant pathologist for enterprise facility maintenance in India. Analyse the uploaded plant image for workplace plant maintenance.
-${context ? `Context: ${context}` : ""}
+Critical grading rules:
+- Score 1.0-3.5 only when the plant is mostly collapsed, dead, severely wilted, crispy/brown, or near replacement.
+- Score 4.0-6.0 for visible yellowing, drooping, thinning, water stress, pest signs, dry edges, poor presentation, or corrective work needed.
+- Score 6.1-7.5 for mostly acceptable plant with minor maintenance needed.
+- Score 7.6-10 only for clearly healthy, full, clean, premium presentation.
+- Do not mark a visibly yellowing/drooping plant as healthy.
+- Do not confuse wooden floors, pots, furniture, shadows, or lighting with brown plant damage.
+- If exact variety is uncertain, keep confidence modest and say manual confirmation required. Do not let variety uncertainty affect the health score.
+- If condition_score is 6.0 or below, the app will auto-create an SLA ticket. Be operationally strict.
 
-Return ONLY valid JSON. No markdown. No commentary.
-Critical grading rule: if the plant has drooping, wilted, brown, yellow, crispy, or dried leaves, do NOT mark it healthy. Score 1-4 for severe wilting/drying, 5-6 for moderate stress, 7+ only for genuinely presentable healthy plants. Prioritise health condition over exact species identification.
+Return ONLY valid JSON. No markdown. No commentary. Required schema:
 {
   "is_plant_image": true,
   "reject_reason": "",
-  "plant_identified": "Common name / Unconfirmed if uncertain",
-  "plant_identification_confidence": 0.70,
+  "plant_identified": "Common name or broad category",
+  "plant_identification_confidence": 0.0,
   "requires_manual_confirmation": true,
-  "identification_basis": "Short visual reason",
-  "possible_matches": [{"name":"Possible match","confidence":0.70}],
-  "photo_quality": "Good / Acceptable / Poor - short reason",
-  "plant_identified_hi": "पौधे का हिंदी नाम",
-  "condition_score": 7,
-  "score_breakdown": {"leaf_condition":7,"density_fullness":7,"pest_disease_visibility":8,"water_stress":7,"presentation":7},
-  "issue_detected": "One clear sentence describing the main problem",
-  "issue_detected_hi": "मुख्य समस्या हिंदी में",
-  "root_cause": "Most likely cause in one sentence",
-  "root_cause_hi": "मुख्य कारण हिंदी में",
-  "severity": "LOW",
-  "symptoms_observed": ["Symptom 1", "Symptom 2", "Symptom 3"],
-  "symptoms_observed_hi": ["लक्षण 1", "लक्षण 2", "लक्षण 3"],
-  "immediate_action": "What to do in the next 24 hours",
-  "immediate_action_hi": "अगले 24 घंटों में क्या करें",
+  "identification_basis": "Short reason",
+  "possible_matches": [{"name":"Plant name","confidence":0.0}],
+  "photo_quality": "Good | Acceptable | Poor - reason",
+  "plant_identified_hi": "हिंदी नाम",
+  "condition_score": 1.0,
+  "score_breakdown": {
+    "leaf_condition": 1.0,
+    "density_fullness": 1.0,
+    "pest_disease_visibility": 1.0,
+    "water_stress": 1.0,
+    "presentation": 1.0
+  },
+  "issue_detected": "One clear operational issue sentence",
+  "issue_detected_hi": "हिंदी में समस्या",
+  "root_cause": "Likely root cause",
+  "root_cause_hi": "हिंदी में कारण",
+  "severity": "LOW | MEDIUM | HIGH | CRITICAL",
+  "symptoms_observed": ["Symptom 1", "Symptom 2"],
+  "symptoms_observed_hi": ["लक्षण 1", "लक्षण 2"],
+  "immediate_action": "Immediate field action",
+  "immediate_action_hi": "तुरंत कार्यवाही हिंदी में",
   "treatment_plan": ["Step 1", "Step 2", "Step 3", "Step 4"],
   "treatment_plan_hi": ["चरण 1", "चरण 2", "चरण 3", "चरण 4"],
   "prevent_recurrence": "One key prevention measure",
@@ -253,47 +303,32 @@ Critical grading rule: if the plant has drooping, wilted, brown, yellow, crispy,
   "work_action_required": "water | prune | clean | replace | monitor | escalate",
   "service_log_suggestion": {"wateringDone": true, "issueFound": true, "issueCategory": "water_stress"}
 }
-If the image is not a plant, planter, green wall, or maintained horticulture asset, set is_plant_image false and set reject_reason. condition_score must be 1-10. severity must be LOW, MEDIUM, HIGH, or CRITICAL. Hindi must be Devanagari.`;
+If the image is not a plant, planter, green wall, or maintained horticulture asset, set is_plant_image false and set reject_reason.`;
 
   try {
-    const imageSource = parseImageSource(imageBase64);
-    const response = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
-        max_tokens: 1600,
-        temperature: 0,
-        messages: [{
+    const imageUrl = parseImageDataUrl(imageBase64);
+    const { text, model } = await callOpenAIChat({
+      apiKey,
+      models: [process.env.OPENAI_VISION_MODEL, process.env.OPENAI_MODEL, "gpt-5.5", "gpt-5.4", "gpt-5.4-mini"],
+      maxTokens: 1400,
+      messages: [
+        { role: "system", content: "You are a strict plant-health vision auditor. Return only valid JSON matching the requested schema." },
+        {
           role: "user",
           content: [
-            { type: "image", source: { type: "base64", media_type: imageSource.media_type, data: imageSource.data } },
-            { type: "text", text: prompt }
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: imageUrl, detail: "high" } }
           ]
-        }]
-      })
-    }, 22000);
-
-    const raw = await response.text();
-    let data = {};
-    try { data = JSON.parse(raw); } catch { data = { raw }; }
-    if (!response.ok || data.error) {
-      const message = data.error?.message || raw?.slice?.(0, 300) || "Diagnosis API failed";
-      console.error("Anthropic diagnosis failed:", message);
-      if (demoFallbackEnabled) return res.status(200).json(normalizeResult(fallbackDiagnosis(message, imageStats)));
-      return res.status(response.status || 500).json({ error: message });
-    }
-
-    const text = data.content?.map(block => block.text || "").join("") || "";
+        }
+      ]
+    });
     const result = normalizeResult(extractJson(text));
+    result.aiProvider = "openai";
+    result.aiModel = model;
     return res.status(200).json(result);
   } catch (error) {
-    const message = error?.name === "AbortError" ? "AI diagnosis timed out after 22 seconds" : (error?.message || "Diagnosis failed");
-    console.error("Diagnosis exception:", message);
+    const message = error?.name === "AbortError" ? "OpenAI diagnosis timed out" : (error?.message || "Diagnosis failed");
+    console.error("OpenAI diagnosis exception:", message);
     if (demoFallbackEnabled) return res.status(200).json(normalizeResult(fallbackDiagnosis(message, imageStats)));
     return res.status(500).json({ error: "Diagnosis failed. Please retry with a clear plant image." });
   }
