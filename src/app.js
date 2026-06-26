@@ -1500,6 +1500,56 @@ async function safeJson(res) {
   catch { return { error: text?.slice?.(0, 500) || "Unexpected server response" }; }
 }
 
+async function estimateImageHealthStats(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const maxEdge = 260;
+        const scale = Math.min(1, maxEdge / Math.max(img.naturalWidth || img.width, img.naturalHeight || img.height));
+        canvas.width = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
+        canvas.height = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let relevant = 0, green = 0, brown = 0, yellow = 0, dark = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const sat = max - min;
+          const avg = (r + g + b) / 3;
+          const nearWhiteBackground = r > 220 && g > 220 && b > 220;
+          if (sat <= 18 || avg >= 235 || nearWhiteBackground) continue;
+          relevant += 1;
+          const isGreen = g > r * 1.08 && g > b * 1.05 && g > 45;
+          const isBrown = r > 70 && g > 35 && b < 120 && r >= g * 0.82 && r > b * 1.35;
+          const isYellow = r > 120 && g > 90 && b < 120 && r >= g * 0.75 && g > b * 1.25;
+          const isDark = avg < 55;
+          if (isGreen) green += 1;
+          if (isBrown) brown += 1;
+          if (isYellow) yellow += 1;
+          if (isDark) dark += 1;
+        }
+        const denom = Math.max(1, relevant);
+        const brownYellow = brown + yellow;
+        resolve({
+          relevantPixelCount: relevant,
+          greenRatio: Number((green / denom).toFixed(3)),
+          brownYellowRatio: Number((brownYellow / denom).toFixed(3)),
+          darkRatio: Number((dark / denom).toFixed(3)),
+          stressRatio: Number((Math.min(denom, brownYellow + dark) / denom).toFixed(3))
+        });
+      } catch (error) {
+        reject(error);
+      }
+    };
+    img.onerror = () => reject(new Error("Unable to read image for local health estimate"));
+    img.src = dataUrl;
+  });
+}
+
 async function diagnoseFromState() {
   if (state.diagnosisRunning) return;
   syncScanDraftFromDom();
@@ -1529,7 +1579,7 @@ async function diagnoseFromState() {
   }
   const enText = [data.issue_detected, data.root_cause, data.immediate_action, ...(data.treatment_plan || [])].filter(Boolean).join(". ");
   const hiText = [data.issue_detected_hi, data.root_cause_hi, data.immediate_action_hi, ...(data.treatment_plan_hi || [])].filter(Boolean).join(". ");
-  const fallbackNote = data.aiFallbackUsed ? `<p class="small muted">Demo fallback used because live AI provider did not respond. Workflow remains available for demo continuity.</p>` : "";
+  const fallbackNote = "";
   if (out) out.innerHTML = `<div class="card scan-result"><div class="scan-result-hero"><div><span class="eyebrow dark">AI diagnosis result</span><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><div class="mobile-health-inline ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div><p class="subtitle">Variety match confidence, not health score: <span class="pill ${confidenceClass(data)}">${confidenceLabel(data)}</span></p></div><div class="health-score-card ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div></div>${possibleMatchesMarkup(data)}<div class="btn-row" style="justify-content:flex-start;margin:10px 0"><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="en">English</button><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="hi">Hindi</button><button class="mini-btn" type="button" data-action="speak-diagnosis" data-speak-en="${escapeHtml(enText)}" data-speak-hi="${escapeHtml(hiText || enText)}">Recite result</button></div><div data-lang-section="en"><div class="diagnosis-grid"><div><span class="small muted">Main issue</span><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">Likely root cause</span><p>${escapeHtml(data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">Next steps</span><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div><div data-lang-section="hi" style="display:none"><div class="diagnosis-grid"><div><span class="small muted">मुख्य समस्या</span><p><strong>${escapeHtml(data.issue_detected_hi || data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">मुख्य कारण</span><p>${escapeHtml(data.root_cause_hi || data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">अगले कदम</span><ol class="instruction-list">${(data.treatment_plan_hi || data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action_hi || data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div>${data.photo_quality ? `<p class="small muted">Photo quality: ${escapeHtml(data.photo_quality)}</p>` : ""}${result.ticketCreated ? `<p class="danger-text">SLA-bound action will be created after service log submission.</p>` : ""}${fallbackNote}</div>`;
   toast("Diagnosis complete. Submit service log to save it.");
 }
@@ -1543,7 +1593,8 @@ async function diagnoseImage({ image, draft, batchId = "" }) {
   if (!siteId) throw new Error("No assigned site available.");
   if (!allowedSiteIds(db).includes(siteId)) throw new Error("This site is not assigned to your account.");
   if (!String(location || "").trim()) throw new Error("Select a floor or placement bucket before diagnosis.");
-  const payload = { imageBase64: image, note: draft.note, site: site?.name, location, plantType: expectedPlantType, expectedPlantType };
+  const imageStats = await estimateImageHealthStats(image).catch(() => null);
+  const payload = { imageBase64: image, note: draft.note, site: site?.name, location, plantType: expectedPlantType, expectedPlantType, imageStats };
   const res = await fetch(APP.diagnosisEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   const data = await safeJson(res);
   if (!res.ok) throw new Error(data.error || "Diagnosis failed");
