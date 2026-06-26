@@ -4946,6 +4946,49 @@ button.report-download-btn {
   font-size:12px;
   font-weight:800;
 }
+
+.metric-evidence-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:2px;
+}
+.metric-evidence-grid>div{
+  min-width:0;
+  padding:12px;
+  border:1px solid #dbe9e0;
+  border-radius:8px;
+  background:#f8fbf9;
+}
+.metric-evidence-grid span{
+  display:block;
+  color:#52635b;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.metric-evidence-grid strong{
+  display:block;
+  margin-top:5px;
+  color:#073d2b;
+  font-size:13px;
+  line-height:1.25;
+}
+.metric-evidence-grid p,
+.metric-boundary-line{
+  margin:6px 0 0;
+  color:#52635b;
+  font-size:12px;
+  line-height:1.4;
+}
+.metric-boundary-line{
+  margin:0;
+  padding:8px 10px;
+  border-radius:8px;
+  background:#f3f8f5;
+  border:1px solid #dfebe3;
+}
 .sustainability-chip-row{
   display:flex;
   flex-wrap:wrap;
@@ -5041,7 +5084,7 @@ button.report-download-btn {
 @media(max-width:640px){
   .sustainability-dashboard{padding:0 0 20px}
   .sustainability-hero,.sustainability-toolbar,.sustainability-kpi-card,.sustainability-summary-card{padding:14px}
-  .sustainability-toolbar-fields,.sustainability-summary-grid,.sustainability-kpi-grid{grid-template-columns:1fr}
+  .sustainability-toolbar-fields,.sustainability-summary-grid,.sustainability-kpi-grid,.metric-evidence-grid{grid-template-columns:1fr}
   .sustainability-section-header{display:grid}
   .sustainability-kpi-top{grid-template-columns:34px minmax(0,1fr)}
   .sustainability-kpi-top .coverage-chip{grid-column:1 / -1;justify-self:start}
