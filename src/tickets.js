@@ -60,6 +60,7 @@ function expertFlagFor(score, diagnosis = {}) {
 
 export function createScanRecord(input, diagnosis, image) {
   return tx(d => {
+    if (input.diagnosisKey && (d.scans || []).some(scan => scan.diagnosisKey === input.diagnosisKey)) return d;
     const score = normalizeScanScore(diagnosis.condition_score ?? diagnosis.score ?? 5);
     diagnosis.condition_score = score;
     const category = healthCategory(score);
@@ -105,7 +106,8 @@ export function createScanRecord(input, diagnosis, image) {
       createdBy: input.createdBy || "field-user",
       batchId: input.batchId || "",
       note: input.note || "",
-      raw: diagnosis
+      raw: diagnosis,
+      diagnosisKey: input.diagnosisKey || ""
     };
     d.scans.push(scan);
     const shouldCreateSlaTicket = score <= 6;

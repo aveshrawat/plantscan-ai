@@ -1550,6 +1550,41 @@ async function estimateImageHealthStats(dataUrl) {
   });
 }
 
+
+function imageHashForDiagnosis(dataUrl = "") {
+  let hash = 2166136261;
+  const text = String(dataUrl || "");
+  const step = Math.max(1, Math.floor(text.length / 9000));
+  for (let i = 0; i < text.length; i += step) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+function diagnosisKeyForImage(image, draft = {}, batchId = "") {
+  const siteId = draft.siteId || "site";
+  const location = draft.placementBucket || draft.zone || draft.floor || "location";
+  return ["ai-sla", siteId, location, batchId || "single", imageHashForDiagnosis(image)].join(":");
+}
+function autoCreateSlaTicketFromDiagnosis({ image, draft = {}, data = {}, result = {}, batchId = "" }) {
+  if (!result.ticketCreated) return false;
+  const db = getDb();
+  const siteId = draft.siteId || allowedSites(db)[0]?.id || "";
+  if (!siteId || !allowedSiteIds(db).includes(siteId)) return false;
+  const line = (db.boqLines || []).find(item => item.id === draft.boqLineId) ||
+    baselineForSite(db, siteId).find(item => item.floor === draft.floor && item.placementBucket === draft.placementBucket);
+  createScanRecord({
+    siteId,
+    zone: draft.placementBucket || draft.floor || draft.zone || "AI scan",
+    plantType: draft.plantType || line?.plantSpecies || "",
+    note: draft.note || data.immediate_action || data.issue_detected || "Auto-created from AI health scan",
+    createdBy: currentUser()?.id || "field-user",
+    batchId,
+    diagnosisKey: diagnosisKeyForImage(image, draft, batchId)
+  }, data, image);
+  return true;
+}
+
 async function diagnoseFromState() {
   if (state.diagnosisRunning) return;
   syncScanDraftFromDom();
@@ -1571,7 +1606,9 @@ async function diagnoseFromState() {
     if (diagBtn) { diagBtn.disabled = false; diagBtn.textContent = "Run AI Diagnosis"; }
   }
   const data = result.data;
-  state.lastDiagnosis = { image: state.scanImage, data, result };
+  state.lastDiagnosis = { image: state.scanImage, data, result, diagnosisKey: diagnosisKeyForImage(state.scanImage, draft) };
+  const slaAutoCreated = autoCreateSlaTicketFromDiagnosis({ image: state.scanImage, draft, data, result });
+  result.slaAutoCreated = slaAutoCreated;
   if (data.service_log_suggestion) {
     state.scanDraft.wateringDone = String(Boolean(data.service_log_suggestion.wateringDone));
     state.scanDraft.issueFound = String(Boolean(data.service_log_suggestion.issueFound));
@@ -1580,8 +1617,8 @@ async function diagnoseFromState() {
   const enText = [data.issue_detected, data.root_cause, data.immediate_action, ...(data.treatment_plan || [])].filter(Boolean).join(". ");
   const hiText = [data.issue_detected_hi, data.root_cause_hi, data.immediate_action_hi, ...(data.treatment_plan_hi || [])].filter(Boolean).join(". ");
   const fallbackNote = "";
-  if (out) out.innerHTML = `<div class="card scan-result"><div class="scan-result-hero"><div><span class="eyebrow dark">AI diagnosis result</span><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><div class="mobile-health-inline ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div><p class="subtitle">Variety match confidence, not health score: <span class="pill ${confidenceClass(data)}">${confidenceLabel(data)}</span></p></div><div class="health-score-card ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div></div>${possibleMatchesMarkup(data)}<div class="btn-row" style="justify-content:flex-start;margin:10px 0"><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="en">English</button><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="hi">Hindi</button><button class="mini-btn" type="button" data-action="speak-diagnosis" data-speak-en="${escapeHtml(enText)}" data-speak-hi="${escapeHtml(hiText || enText)}">Recite result</button></div><div data-lang-section="en"><div class="diagnosis-grid"><div><span class="small muted">Main issue</span><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">Likely root cause</span><p>${escapeHtml(data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">Next steps</span><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div><div data-lang-section="hi" style="display:none"><div class="diagnosis-grid"><div><span class="small muted">मुख्य समस्या</span><p><strong>${escapeHtml(data.issue_detected_hi || data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">मुख्य कारण</span><p>${escapeHtml(data.root_cause_hi || data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">अगले कदम</span><ol class="instruction-list">${(data.treatment_plan_hi || data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action_hi || data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div>${data.photo_quality ? `<p class="small muted">Photo quality: ${escapeHtml(data.photo_quality)}</p>` : ""}${result.ticketCreated ? `<p class="danger-text">SLA-bound action will be created after service log submission.</p>` : ""}${fallbackNote}</div>`;
-  toast("Diagnosis complete. Submit service log to save it.");
+  if (out) out.innerHTML = `<div class="card scan-result"><div class="scan-result-hero"><div><span class="eyebrow dark">AI diagnosis result</span><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><div class="mobile-health-inline ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div><p class="subtitle">Variety match confidence, not health score: <span class="pill ${confidenceClass(data)}">${confidenceLabel(data)}</span></p></div><div class="health-score-card ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div></div>${possibleMatchesMarkup(data)}<div class="btn-row" style="justify-content:flex-start;margin:10px 0"><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="en">English</button><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="hi">Hindi</button><button class="mini-btn" type="button" data-action="speak-diagnosis" data-speak-en="${escapeHtml(enText)}" data-speak-hi="${escapeHtml(hiText || enText)}">Recite result</button></div><div data-lang-section="en"><div class="diagnosis-grid"><div><span class="small muted">Main issue</span><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">Likely root cause</span><p>${escapeHtml(data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">Next steps</span><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div><div data-lang-section="hi" style="display:none"><div class="diagnosis-grid"><div><span class="small muted">मुख्य समस्या</span><p><strong>${escapeHtml(data.issue_detected_hi || data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">मुख्य कारण</span><p>${escapeHtml(data.root_cause_hi || data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">अगले कदम</span><ol class="instruction-list">${(data.treatment_plan_hi || data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action_hi || data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div>${data.photo_quality ? `<p class="small muted">Photo quality: ${escapeHtml(data.photo_quality)}</p>` : ""}${result.ticketCreated ? `<p class="danger-text">SLA ticket auto-created from AI scan. Service log can be submitted separately for field notes and closure trail.</p>` : ""}${fallbackNote}</div>`;
+  toast(result.ticketCreated ? "Diagnosis complete. SLA ticket auto-created." : "Diagnosis complete.");
 }
 
 async function diagnoseImage({ image, draft, batchId = "" }) {
@@ -1621,6 +1658,7 @@ async function runBatchDiagnosis() {
     try {
       if (out) out.innerHTML = `<div class="card soft"><strong>Checking batch health...</strong><p class="subtitle">${i + 1} of ${state.batchImages.length} photos in progress.</p></div>`;
       const result = await diagnoseImage({ image: state.batchImages[i], draft, batchId });
+      if (result.ticketCreated) autoCreateSlaTicketFromDiagnosis({ image: state.batchImages[i], draft, data: result.data, result, batchId });
       results.push(result);
     } catch (err) {
       results.push({ category: "Failed", label: err.message || "Scan failed" });
@@ -1734,7 +1772,7 @@ async function submitServiceLog() {
     try {
       const result = await diagnoseImage({ image: state.scanImage, draft: { ...state.scanDraft } });
       aiData = result.data;
-      state.lastDiagnosis = { image: state.scanImage, data: aiData, result };
+      state.lastDiagnosis = { image: state.scanImage, data: aiData, result, diagnosisKey: diagnosisKeyForImage(state.scanImage, state.scanDraft) };
     } catch (error) {
       if (String(error?.message || "").includes("AI rejected")) throw error;
       aiValidationPending = true;
@@ -1757,7 +1795,8 @@ async function submitServiceLog() {
       zone: state.scanDraft.placementBucket || state.scanDraft.floor || "Field service",
       plantType: state.scanDraft.plantType || selectedBoqLineForDraft(db)?.plantSpecies || "",
       note: state.scanDraft.note,
-      createdBy: currentUser()?.id || "field-user"
+      createdBy: currentUser()?.id || "field-user",
+      diagnosisKey: state.lastDiagnosis?.diagnosisKey || diagnosisKeyForImage(state.scanImage, state.scanDraft)
     }, aiData, state.scanImage);
   }
   if (syncStatus !== "synced") queueOfflineRecord("serviceLog", log);
