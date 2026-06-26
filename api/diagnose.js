@@ -30,49 +30,126 @@ function parseImageSource(imageBase64) {
   if (match) return { media_type: match[1] === "image/jpg" ? "image/jpeg" : match[1], data: match[2] };
   return { media_type: "image/jpeg", data: raw };
 }
-function fallbackDiagnosis(reason = "AI provider timeout") {
+function fallbackDiagnosis(reason = "AI provider timeout", imageStats = {}) {
+  const stressRatio = clampNumber(imageStats.stressRatio, 0, 1, 0);
+  const brownYellowRatio = clampNumber(imageStats.brownYellowRatio, 0, 1, 0);
+  const greenRatio = clampNumber(imageStats.greenRatio, 0, 1, 0);
+  const weakImageStats = !Number.isFinite(Number(imageStats.stressRatio));
+  const criticalStress = !weakImageStats && (stressRatio >= 0.45 || brownYellowRatio >= 0.28 || greenRatio < 0.18);
+  const moderateStress = !weakImageStats && !criticalStress && (stressRatio >= 0.25 || brownYellowRatio >= 0.14 || greenRatio < 0.28);
+
+  if (criticalStress) {
+    return {
+      is_plant_image: true,
+      reject_reason: "",
+      plant_identified: "Indoor foliage plant / Manual variety confirmation required",
+      plant_identification_confidence: 0.58,
+      requires_manual_confirmation: true,
+      identification_basis: "Health assessment prioritised over exact variety because visible leaf condition requires action.",
+      possible_matches: [
+        { name: "Indoor foliage plant", confidence: 0.58 },
+        { name: "Peace lily / broad-leaf indoor plant", confidence: 0.44 }
+      ],
+      photo_quality: "Acceptable - plant health symptoms visible",
+      plant_identified_hi: "इनडोर पत्तेदार पौधा / किस्म की पुष्टि आवश्यक",
+      condition_score: 2.8,
+      score_breakdown: {
+        leaf_condition: 2.2,
+        density_fullness: 3.0,
+        pest_disease_visibility: 5.5,
+        water_stress: 2.0,
+        presentation: 2.5
+      },
+      issue_detected: "Severe wilting with brown/yellow drying leaves; plant is in poor condition and needs urgent recovery or replacement decision.",
+      issue_detected_hi: "पत्ते गंभीर रूप से झुके हुए और भूरे/पीले होकर सूख रहे हैं; पौधे को तुरंत रिकवरी या रिप्लेसमेंट निर्णय की जरूरत है।",
+      root_cause: "Most likely prolonged water stress, missed watering cycle, heat/glare exposure, or root-zone decline.",
+      root_cause_hi: "संभावित कारण लंबे समय तक पानी की कमी, मिस्ड वॉटरिंग, तेज गर्मी/ग्लेयर या जड़ों की समस्या है।",
+      severity: "CRITICAL",
+      symptoms_observed: ["Drooping/wilted leaves", "Brown and yellow dry foliage", "Poor presentation value", "Possible irreversible decline"],
+      symptoms_observed_hi: ["पत्ते झुके/मुरझाए हुए", "भूरे और पीले सूखे पत्ते", "प्रेजेंटेशन बहुत कमजोर", "संभवतः रिकवरी कठिन"],
+      immediate_action: "Move plant out of harsh light, check root-zone moisture immediately, prune dead foliage, and escalate for replacement if recovery is unlikely.",
+      immediate_action_hi: "पौधे को तेज रोशनी से हटाएं, जड़ों के पास नमी तुरंत जांचें, सूखे पत्ते काटें और रिकवरी मुश्किल हो तो रिप्लेसमेंट के लिए एस्केलेट करें।",
+      treatment_plan: ["Check soil/root-zone moisture immediately", "Remove dead and fully dried leaves", "Shift away from direct glare or AC draft", "Deep water only if soil is dry; avoid waterlogging", "Mark for supervisor review/replacement within 24 hours"],
+      treatment_plan_hi: ["मिट्टी/जड़ों की नमी तुरंत जांचें", "पूरी तरह सूखे पत्ते हटाएं", "सीधी धूप/ग्लेयर या AC ड्राफ्ट से दूर रखें", "मिट्टी सूखी हो तभी गहरा पानी दें; पानी भराव न करें", "24 घंटे में सुपरवाइजर रिव्यू/रिप्लेसमेंट के लिए मार्क करें"],
+      prevent_recurrence: "Add watering-cycle verification and weekly stress audit for plants near windows, glare, or AC airflow.",
+      prevent_recurrence_hi: "खिड़की, ग्लेयर या AC airflow के पास रखे पौधों के लिए watering-cycle verification और weekly stress audit जोड़ें।",
+      follow_up_days: 1,
+      auto_ticket_category: "water_stress",
+      work_action_required: "escalate",
+      service_log_suggestion: {
+        wateringDone: false,
+        issueFound: true,
+        issueCategory: "water_stress"
+      },
+      aiFallbackUsed: true,
+      aiFallbackReason: reason
+    };
+  }
+
+  if (moderateStress) {
+    return {
+      is_plant_image: true,
+      reject_reason: "",
+      plant_identified: "Indoor foliage plant / Manual variety confirmation required",
+      plant_identification_confidence: 0.6,
+      requires_manual_confirmation: true,
+      identification_basis: "Health assessment prioritised over exact variety because stress indicators are visible.",
+      possible_matches: [{ name: "Indoor foliage plant", confidence: 0.6 }],
+      photo_quality: "Acceptable - plant health symptoms visible",
+      plant_identified_hi: "इनडोर पत्तेदार पौधा / पुष्टि आवश्यक",
+      condition_score: 5.4,
+      score_breakdown: { leaf_condition: 5, density_fullness: 5.5, pest_disease_visibility: 7, water_stress: 5, presentation: 5 },
+      issue_detected: "Visible leaf stress and presentation decline; corrective maintenance required.",
+      issue_detected_hi: "पत्तों में stress और presentation decline दिख रहा है; corrective maintenance required है।",
+      root_cause: "Likely watering inconsistency, low/high light exposure, or delayed pruning.",
+      root_cause_hi: "संभावित कारण पानी की अनियमितता, light exposure issue या pruning delay है।",
+      severity: "MEDIUM",
+      symptoms_observed: ["Yellowing/drying leaves", "Reduced presentation quality", "Watering or placement stress likely"],
+      symptoms_observed_hi: ["पीले/सूखे पत्ते", "प्रेजेंटेशन कमजोर", "पानी या placement stress संभावित"],
+      immediate_action: "Prune stressed leaves, check moisture, adjust placement, and review in 48 hours.",
+      immediate_action_hi: "stress वाले पत्ते prune करें, moisture check करें, placement adjust करें और 48 घंटे में review करें।",
+      treatment_plan: ["Remove dry/yellowing leaves", "Check soil moisture before watering", "Inspect for AC draft or harsh light", "Review again in 2 days"],
+      treatment_plan_hi: ["सूखे/पीले पत्ते हटाएं", "पानी देने से पहले मिट्टी की नमी जांचें", "AC draft या harsh light inspect करें", "2 दिन बाद review करें"],
+      prevent_recurrence: "Track watering and placement stress weekly.",
+      prevent_recurrence_hi: "watering और placement stress weekly track करें।",
+      follow_up_days: 2,
+      auto_ticket_category: "water_stress",
+      work_action_required: "prune",
+      service_log_suggestion: { wateringDone: false, issueFound: true, issueCategory: "water_stress" },
+      aiFallbackUsed: true,
+      aiFallbackReason: reason
+    };
+  }
+
   return {
     is_plant_image: true,
     reject_reason: "",
-    plant_identified: "Maintained indoor plant / Unconfirmed",
+    plant_identified: "Maintained indoor plant / Manual variety confirmation required",
     plant_identification_confidence: 0.62,
     requires_manual_confirmation: true,
-    identification_basis: "Demo-safe fallback used because live AI response was unavailable. Use clearer leaf close-up for exact variety confirmation.",
-    possible_matches: [
-      { name: "Areca Palm / Rhapis Palm", confidence: 0.62 },
-      { name: "General indoor foliage plant", confidence: 0.55 }
-    ],
+    identification_basis: "Plant proof captured; exact variety requires clearer leaf close-up.",
+    possible_matches: [{ name: "General indoor foliage plant", confidence: 0.62 }],
     photo_quality: "Acceptable - plant proof captured",
     plant_identified_hi: "इनडोर पौधा / पुष्टि आवश्यक",
-    condition_score: 7.2,
-    score_breakdown: {
-      leaf_condition: 7,
-      density_fullness: 7,
-      pest_disease_visibility: 8,
-      water_stress: 7,
-      presentation: 7
-    },
-    issue_detected: "Plant proof captured; mild monitoring recommended for leaf cleanliness and watering consistency.",
-    issue_detected_hi: "पौधे की फोटो कैप्चर हुई है; पत्तों की सफाई और पानी की नियमितता पर हल्की निगरानी रखें।",
-    root_cause: "Routine indoor maintenance variance; no critical issue detected in demo fallback mode.",
-    root_cause_hi: "सामान्य इनडोर रखरखाव का अंतर; कोई गंभीर समस्या नहीं दिखी।",
+    condition_score: 7.0,
+    score_breakdown: { leaf_condition: 7, density_fullness: 7, pest_disease_visibility: 8, water_stress: 7, presentation: 7 },
+    issue_detected: "Plant proof captured; routine monitoring recommended.",
+    issue_detected_hi: "पौधे की फोटो कैप्चर हुई है; नियमित निगरानी रखें।",
+    root_cause: "Routine indoor maintenance observation.",
+    root_cause_hi: "सामान्य इनडोर रखरखाव observation।",
     severity: "LOW",
-    symptoms_observed: ["Routine foliage check required", "Presentation can be improved", "No visible critical failure"],
-    symptoms_observed_hi: ["सामान्य पत्तों की जांच आवश्यक", "प्रेजेंटेशन बेहतर हो सकता है", "कोई गंभीर समस्या नहीं दिखी"],
-    immediate_action: "Clean visible leaves, check soil moisture, and continue regular watering schedule.",
-    immediate_action_hi: "पत्तों की सफाई करें, मिट्टी की नमी जांचें और नियमित पानी देने की प्रक्रिया जारी रखें।",
-    treatment_plan: ["Wipe leaves with clean damp cloth", "Check soil moisture before watering", "Remove dry or yellowing leaves", "Review again in 5 days"],
-    treatment_plan_hi: ["पत्तों को साफ गीले कपड़े से पोंछें", "पानी देने से पहले मिट्टी की नमी जांचें", "सूखे या पीले पत्ते हटाएं", "5 दिन बाद दोबारा जांच करें"],
+    symptoms_observed: ["Routine foliage check required"],
+    symptoms_observed_hi: ["सामान्य पत्तों की जांच आवश्यक"],
+    immediate_action: "Continue standard maintenance and review during next service visit.",
+    immediate_action_hi: "standard maintenance जारी रखें और next service visit में review करें।",
+    treatment_plan: ["Wipe leaves if dusty", "Check soil moisture", "Continue watering schedule", "Review again in 5 days"],
+    treatment_plan_hi: ["dust हो तो पत्ते साफ करें", "soil moisture check करें", "watering schedule जारी रखें", "5 दिन बाद review करें"],
     prevent_recurrence: "Maintain fixed watering frequency and weekly visual inspection.",
-    prevent_recurrence_hi: "नियमित पानी देने की आवृत्ति और साप्ताहिक निरीक्षण बनाए रखें।",
+    prevent_recurrence_hi: "नियमित पानी देने की आवृत्ति और weekly inspection बनाए रखें।",
     follow_up_days: 5,
     auto_ticket_category: "other",
     work_action_required: "monitor",
-    service_log_suggestion: {
-      wateringDone: true,
-      issueFound: false,
-      issueCategory: "other"
-    },
+    service_log_suggestion: { wateringDone: true, issueFound: false, issueCategory: "other" },
     aiFallbackUsed: true,
     aiFallbackReason: reason
   };
@@ -123,13 +200,13 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { imageBase64, note = "", site = "", location = "", plantType = "", expectedPlantType = "" } = req.body || {};
+  const { imageBase64, note = "", site = "", location = "", plantType = "", expectedPlantType = "", imageStats = null } = req.body || {};
   if (!imageBase64) return res.status(400).json({ error: "No image provided" });
 
   const demoFallbackEnabled = process.env.AI_DEMO_FALLBACK !== "false";
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    if (demoFallbackEnabled) return res.status(200).json(normalizeResult(fallbackDiagnosis("ANTHROPIC_API_KEY missing")));
+    if (demoFallbackEnabled) return res.status(200).json(normalizeResult(fallbackDiagnosis("ANTHROPIC_API_KEY missing", imageStats)));
     return res.status(500).json({ error: "ANTHROPIC_API_KEY is missing in Vercel environment variables." });
   }
 
@@ -145,6 +222,7 @@ export default async function handler(req, res) {
 ${context ? `Context: ${context}` : ""}
 
 Return ONLY valid JSON. No markdown. No commentary.
+Critical grading rule: if the plant has drooping, wilted, brown, yellow, crispy, or dried leaves, do NOT mark it healthy. Score 1-4 for severe wilting/drying, 5-6 for moderate stress, 7+ only for genuinely presentable healthy plants. Prioritise health condition over exact species identification.
 {
   "is_plant_image": true,
   "reject_reason": "",
@@ -206,7 +284,7 @@ If the image is not a plant, planter, green wall, or maintained horticulture ass
     if (!response.ok || data.error) {
       const message = data.error?.message || raw?.slice?.(0, 300) || "Diagnosis API failed";
       console.error("Anthropic diagnosis failed:", message);
-      if (demoFallbackEnabled) return res.status(200).json(normalizeResult(fallbackDiagnosis(message)));
+      if (demoFallbackEnabled) return res.status(200).json(normalizeResult(fallbackDiagnosis(message, imageStats)));
       return res.status(response.status || 500).json({ error: message });
     }
 
@@ -216,7 +294,7 @@ If the image is not a plant, planter, green wall, or maintained horticulture ass
   } catch (error) {
     const message = error?.name === "AbortError" ? "AI diagnosis timed out after 22 seconds" : (error?.message || "Diagnosis failed");
     console.error("Diagnosis exception:", message);
-    if (demoFallbackEnabled) return res.status(200).json(normalizeResult(fallbackDiagnosis(message)));
+    if (demoFallbackEnabled) return res.status(200).json(normalizeResult(fallbackDiagnosis(message, imageStats)));
     return res.status(500).json({ error: "Diagnosis failed. Please retry with a clear plant image." });
   }
 }
