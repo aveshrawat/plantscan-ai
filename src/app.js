@@ -32,6 +32,8 @@ const state = {
   batchImages: [],
   batchResults: [],
   batchRunning: false,
+  diagnosisRunning: false,
+  serviceLogSubmitting: false,
   scanDraft: {
     siteId: "",
     floor: "",
@@ -1478,12 +1480,12 @@ async function openCameraCapture() {
     const canvas = modal.querySelector("[data-camera-canvas]");
     const sourceW = video.videoWidth || 1280;
     const sourceH = video.videoHeight || 720;
-    const maxEdge = 1600;
+    const maxEdge = 1024;
     const scale = Math.min(1, maxEdge / Math.max(sourceW, sourceH));
     canvas.width = Math.round(sourceW * scale);
     canvas.height = Math.round(sourceH * scale);
     canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-    state.scanImage = canvas.toDataURL("image/jpeg", 0.84);
+    state.scanImage = canvas.toDataURL("image/jpeg", 0.72);
     state.scanCaptureSource = "live_camera";
     state.lastDiagnosis = null;
     updateScanImageUi();
@@ -1492,13 +1494,32 @@ async function openCameraCapture() {
   });
 }
 
+async function safeJson(res) {
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch { return { error: text?.slice?.(0, 500) || "Unexpected server response" }; }
+}
+
 async function diagnoseFromState() {
+  if (state.diagnosisRunning) return;
   syncScanDraftFromDom();
   const draft = { ...state.scanDraft };
   if (!state.scanImage) throw new Error("Capture a plant image before diagnosis.");
   const out = $("#scanOutput");
-  out.innerHTML = `<div class="card soft"><strong>Checking plant health...</strong><p class="subtitle">Please wait. The scan result will appear here.</p></div>`;
-  const result = await diagnoseImage({ image: state.scanImage, draft });
+  const diagBtn = document.querySelector("#runDiagnosisBtn");
+  state.diagnosisRunning = true;
+  if (diagBtn) { diagBtn.disabled = true; diagBtn.textContent = "Analysing..."; }
+  if (out) out.innerHTML = `<div class="card soft"><strong>Checking plant health...</strong><p class="subtitle">Please wait. The scan result will appear here.</p></div>`;
+  let result;
+  try {
+    result = await diagnoseImage({ image: state.scanImage, draft });
+  } catch (err) {
+    if (out) out.innerHTML = `<div class="card soft"><p class="danger-text">${escapeHtml(err.message || "Diagnosis failed. Please retry with a clear plant photo.")}</p></div>`;
+    throw err;
+  } finally {
+    state.diagnosisRunning = false;
+    if (diagBtn) { diagBtn.disabled = false; diagBtn.textContent = "Run AI Diagnosis"; }
+  }
   const data = result.data;
   state.lastDiagnosis = { image: state.scanImage, data, result };
   if (data.service_log_suggestion) {
@@ -1508,8 +1529,9 @@ async function diagnoseFromState() {
   }
   const enText = [data.issue_detected, data.root_cause, data.immediate_action, ...(data.treatment_plan || [])].filter(Boolean).join(". ");
   const hiText = [data.issue_detected_hi, data.root_cause_hi, data.immediate_action_hi, ...(data.treatment_plan_hi || [])].filter(Boolean).join(". ");
-  out.innerHTML = `<div class="card scan-result"><div class="scan-result-hero"><div><span class="eyebrow dark">AI diagnosis result</span><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><div class="mobile-health-inline ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div><p class="subtitle">Variety match confidence, not health score: <span class="pill ${confidenceClass(data)}">${confidenceLabel(data)}</span></p></div><div class="health-score-card ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div></div>${possibleMatchesMarkup(data)}<div class="btn-row" style="justify-content:flex-start;margin:10px 0"><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="en">English</button><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="hi">Hindi</button><button class="mini-btn" type="button" data-action="speak-diagnosis" data-speak-en="${escapeHtml(enText)}" data-speak-hi="${escapeHtml(hiText || enText)}">Recite result</button></div><div data-lang-section="en"><div class="diagnosis-grid"><div><span class="small muted">Main issue</span><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">Likely root cause</span><p>${escapeHtml(data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">Next steps</span><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div><div data-lang-section="hi" style="display:none"><div class="diagnosis-grid"><div><span class="small muted">मुख्य समस्या</span><p><strong>${escapeHtml(data.issue_detected_hi || data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">मुख्य कारण</span><p>${escapeHtml(data.root_cause_hi || data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">अगले कदम</span><ol class="instruction-list">${(data.treatment_plan_hi || data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action_hi || data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div>${data.photo_quality ? `<p class="small muted">Photo quality: ${escapeHtml(data.photo_quality)}</p>` : ""}${result.ticketCreated ? `<p class="danger-text">SLA-bound ticket created for health score ${healthScoreLabel(result.score)}.</p>` : ""}</div>`;
-  toast("Diagnosis saved. Dashboard updated.");
+  const fallbackNote = data.aiFallbackUsed ? `<p class="small muted">Demo fallback used because live AI provider did not respond. Workflow remains available for demo continuity.</p>` : "";
+  if (out) out.innerHTML = `<div class="card scan-result"><div class="scan-result-hero"><div><span class="eyebrow dark">AI diagnosis result</span><h3>${escapeHtml(data.plant_identified || "Plant diagnosed")}</h3><div class="mobile-health-inline ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div><p class="subtitle">Variety match confidence, not health score: <span class="pill ${confidenceClass(data)}">${confidenceLabel(data)}</span></p></div><div class="health-score-card ${healthClass(result.category)}"><span>Plant health score</span><strong>${healthScoreLabel(result.score)}</strong><small>${result.category}</small></div></div>${possibleMatchesMarkup(data)}<div class="btn-row" style="justify-content:flex-start;margin:10px 0"><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="en">English</button><button class="mini-btn" type="button" data-action="toggle-diagnosis-lang" data-lang="hi">Hindi</button><button class="mini-btn" type="button" data-action="speak-diagnosis" data-speak-en="${escapeHtml(enText)}" data-speak-hi="${escapeHtml(hiText || enText)}">Recite result</button></div><div data-lang-section="en"><div class="diagnosis-grid"><div><span class="small muted">Main issue</span><p><strong>${escapeHtml(data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">Likely root cause</span><p>${escapeHtml(data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">Next steps</span><ol class="instruction-list">${(data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div><div data-lang-section="hi" style="display:none"><div class="diagnosis-grid"><div><span class="small muted">मुख्य समस्या</span><p><strong>${escapeHtml(data.issue_detected_hi || data.issue_detected || "Observation captured")}</strong></p></div><div><span class="small muted">मुख्य कारण</span><p>${escapeHtml(data.root_cause_hi || data.root_cause || "Not specified")}</p></div></div><div><span class="small muted">अगले कदम</span><ol class="instruction-list">${(data.treatment_plan_hi || data.treatment_plan || []).map(x => `<li>${escapeHtml(x)}</li>`).join("") || `<li>${escapeHtml(data.immediate_action_hi || data.immediate_action || "Follow maintenance SOP")}</li>`}</ol></div></div>${data.photo_quality ? `<p class="small muted">Photo quality: ${escapeHtml(data.photo_quality)}</p>` : ""}${result.ticketCreated ? `<p class="danger-text">SLA-bound action will be created after service log submission.</p>` : ""}${fallbackNote}</div>`;
+  toast("Diagnosis complete. Submit service log to save it.");
 }
 
 async function diagnoseImage({ image, draft, batchId = "" }) {
@@ -1521,17 +1543,16 @@ async function diagnoseImage({ image, draft, batchId = "" }) {
   if (!siteId) throw new Error("No assigned site available.");
   if (!allowedSiteIds(db).includes(siteId)) throw new Error("This site is not assigned to your account.");
   if (!String(location || "").trim()) throw new Error("Select a floor or placement bucket before diagnosis.");
-  const payload = { imageBase64: dataUrlToBase64(image), note: draft.note, site: site?.name, location, plantType: expectedPlantType, expectedPlantType };
+  const payload = { imageBase64: image, note: draft.note, site: site?.name, location, plantType: expectedPlantType, expectedPlantType };
   const res = await fetch(APP.diagnosisEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  const data = await res.json();
+  const data = await safeJson(res);
   if (!res.ok) throw new Error(data.error || "Diagnosis failed");
   if (data.is_plant_image === false) throw new Error(data.reject_reason || "AI rejected this proof because it does not appear to contain a maintained plant.");
   const score = normalizeHealthScore(data.condition_score ?? data.score ?? 5);
   data.condition_score = score;
-  createScanRecord({ siteId, zone: location, plantType: expectedPlantType, note: draft.note, batchId, createdBy: currentUser()?.id || "field-user" }, data, image);
   const category = score >= 7 ? "Healthy" : score > 6 ? "Monitor" : "Critical";
   const ticketCreated = score <= 6;
-  return { data, score, category, ticketCreated, label: data.plant_identified || data.issue_detected || "Diagnosis saved" };
+  return { data, score, category, ticketCreated, label: data.plant_identified || data.issue_detected || "Diagnosis complete" };
 }
 
 async function runBatchDiagnosis() {
@@ -1564,7 +1585,7 @@ async function runBatchDiagnosis() {
 async function verifyClosureEvidence(id, img) {
   toast("Checking closure photo...", 5000);
   const res = await fetch(APP.verifyEvidenceEndpoint || APP.diagnosisEndpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageBase64: dataUrlToBase64(img) }) });
-  const data = await res.json();
+  const data = await safeJson(res);
   if (!res.ok) throw new Error(data.error || "Closure photo check failed");
   if (!data.accepted) throw new Error(data.reason || "Closure photo not accepted. Upload a clear photo of a healthy/replaced plant.");
   attachEvidence(id, img, data);
@@ -1679,6 +1700,15 @@ async function submitServiceLog() {
     d.serviceLogs.push(log);
     return d;
   });
+  if (aiData && aiData.is_plant_image !== false && syncStatus === "synced") {
+    createScanRecord({
+      siteId,
+      zone: state.scanDraft.placementBucket || state.scanDraft.floor || "Field service",
+      plantType: state.scanDraft.plantType || selectedBoqLineForDraft(db)?.plantSpecies || "",
+      note: state.scanDraft.note,
+      createdBy: currentUser()?.id || "field-user"
+    }, aiData, state.scanImage);
+  }
   if (syncStatus !== "synced") queueOfflineRecord("serviceLog", log);
   const retainedSite = log.siteId;
   state.scanDraft = { ...defaultScanDraft(), siteId: retainedSite };
