@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
-    "start": "vercel dev"
+    "start": "vercel dev",
+    "check": "node --check src/app.js && node --check api/diagnose.js && node --check api/verify-evidence.js && node --check api/client-assistant.js"
   },
   "engines": {
     "node": ">=18"
