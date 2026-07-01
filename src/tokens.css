@@ -1,91 +1,57 @@
+/* 
+ * GreenOps ITSM — Design tokens
+ * Only semantic colour aliases used by the status/pill system.
+ * Layout tokens (--r, --shadow, spacing) live in styles.css :root — do not override here.
+ */
 :root {
-  --color-ink: #0a0a0a;
-  --color-ink-60: #555555;
-  --color-ink-30: #aaaaaa;
-  --color-ink-08: #f0f0f0;
-  --color-surface: #ffffff;
-  --color-accent: #1a3c34;
-  --color-accent-light: #e8f0ee;
-  --color-good: #0d6e3f;
-  --color-good-bg: #e6f4ed;
-  --color-warn: #8a5c00;
-  --color-warn-bg: #fdf3e0;
-  --color-critical: #b91c1c;
-  --color-critical-bg: #fef2f2;
-  --color-neutral: #374151;
-  --color-neutral-bg: #f3f4f6;
+  /* Status semantic colours */
+  --color-good:         #0d6e3f;
+  --color-good-bg:      #e6f4ed;
+  --color-warn:         #8a5c00;
+  --color-warn-bg:      #fdf3e0;
+  --color-critical:     #b91c1c;
+  --color-critical-bg:  #fef2f2;
+  --color-neutral:      #374151;
+  --color-neutral-bg:   #f3f4f6;
 
-  --font-display: 'Inter', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
-  --text-hero: clamp(2.5rem, 5vw, 4rem);
-  --text-h1: clamp(1.75rem, 3vw, 2.5rem);
-  --text-h2: 1.375rem;
-  --text-h3: 1.125rem;
-  --text-body: 0.9375rem;
-  --text-small: 0.8125rem;
-  --text-micro: 0.6875rem;
-  --weight-black: 800;
-  --weight-bold: 700;
-  --weight-semi: 600;
-  --weight-medium: 500;
-  --weight-regular: 400;
-  --leading-tight: 1.15;
-  --leading-snug: 1.35;
-  --leading-normal: 1.6;
-  --tracking-wide: 0.08em;
-  --tracking-wider: 0.12em;
-  --tracking-tight: -0.02em;
+  /* Brand aliases */
+  --color-brand-primary: #063d2f;
+  --color-brand-light:   #e1f7ef;
 
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --space-8: 64px;
-  --space-9: 96px;
-  --section-h: var(--space-8);
-  --card-pad: var(--space-6);
-  --card-gap: var(--space-5);
+  /* Surface aliases — used by Step 2/3 patches */
+  --color-surface-white:  #ffffff;
+  --color-surface-subtle: #f5f8fb;
+  --color-border:         #d9e2ea;
+  --color-border-strong:  #b8c7d4;
+  --color-text-primary:   #07131d;
+  --color-text-secondary: #647587;
+  --color-text-muted:     #647587;
+  --color-text-placeholder: #aaaaaa;
 
-  --color-brand-primary: var(--color-accent);
-  --color-brand-deep: var(--color-ink);
-  --color-brand-mid: var(--color-accent);
-  --color-brand-light: var(--color-accent-light);
-  --color-healthy: var(--color-good);
-  --color-healthy-bg: var(--color-good-bg);
-  --color-monitor: var(--color-warn);
-  --color-monitor-bg: var(--color-warn-bg);
-  --color-bg-body: var(--color-surface);
-  --color-surface-white: var(--color-surface);
-  --color-surface-subtle: var(--color-ink-08);
-  --color-border: var(--color-ink-08);
-  --color-border-strong: var(--color-ink-30);
-  --color-text-primary: var(--color-ink);
-  --color-text-secondary: var(--color-ink-60);
-  --color-text-muted: var(--color-ink-60);
-  --color-text-placeholder: var(--color-ink-30);
-  --font-family: var(--font-body);
-  --font-size-eyebrow: var(--text-micro);
-  --font-size-body: var(--text-body);
-  --font-size-label: var(--text-small);
-  --font-size-metric: 3rem;
-  --font-size-hero: var(--text-h1);
-  --font-size-card-heading: var(--text-h2);
-  --letter-spacing-eyebrow: var(--tracking-wide);
-  --letter-spacing-label: var(--tracking-wide);
-  --space-page-x: var(--section-h);
-  --space-card-pad: var(--card-pad);
-  --space-card-gap: var(--card-gap);
-  --space-metric-gap: var(--space-4);
-  --radius-card: 2px;
-  --radius-button: 0;
-  --radius-input: 0;
-  --radius-pill: 2px;
-  --radius-metric: 2px;
-  --radius-badge: 2px;
-  --shadow-card: none;
-  --shadow-button: none;
+  /* Font */
+  --font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-size-eyebrow: 11px;
+  --font-size-body:    15px;
+  --font-size-label:   13px;
+  --font-size-metric:  3rem;
+  --font-size-hero:    clamp(1.75rem, 3vw, 2.5rem);
+  --font-size-card-heading: 1.375rem;
+  --letter-spacing-eyebrow: 0.12em;
+  --letter-spacing-label:   0.09em;
+
+  /* Spacing used by Step 2/3 patches only */
+  --space-page-x:    22px;
+  --space-card-pad:  22px;
+  --space-card-gap:  18px;
+  --space-metric-gap: 14px;
+
+  /* Radius/shadow: intentionally NOT set here — styles.css owns --r, --rs, --shadow */
+  --radius-pill:   999px;
+  --radius-badge:  999px;
+
+  /* Healthy/monitor aliases for pill system */
+  --color-healthy:    #0f7b63;
+  --color-healthy-bg: #e1f7ef;
+  --color-monitor:    #ad6b05;
+  --color-monitor-bg: #fff1da;
 }
