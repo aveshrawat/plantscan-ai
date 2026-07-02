@@ -5091,3 +5091,301 @@ button.report-download-btn {
   .metric-value strong{font-size:28px}
 }
 
+
+/* ════════════════════════════════════════════════════
+   SIDEBAR LAYOUT — Enterprise Redesign
+   Replaces topbar + hero-banner with left sidebar
+   + compact page header. Zero logic changes.
+════════════════════════════════════════════════════ */
+
+/* App shell: horizontal flex */
+.app-shell {
+  display: flex !important;
+  flex-direction: row !important;
+  min-height: 100vh !important;
+  background: #eef1ee !important;
+}
+
+/* Hide old topbar if ever rendered */
+.topbar { display: none !important; }
+
+/* ── Sidebar ─────────────────────────────── */
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
+  background: #071f14;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 200;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.sidebar::-webkit-scrollbar { display: none; }
+
+/* Brand */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 16px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.sidebar-brand .brand-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  flex: 0 0 32px;
+  object-fit: contain;
+}
+.sidebar-brand h1 {
+  margin: 0 !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.2 !important;
+}
+.sidebar-brand p {
+  margin: 2px 0 0 !important;
+  font-size: 10px !important;
+  color: rgba(255,255,255,0.38) !important;
+  line-height: 1.3 !important;
+}
+
+/* Nav items */
+.sidebar-nav {
+  padding: 10px 8px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.sidebar-nav-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  width: 100% !important;
+  padding: 9px 10px !important;
+  border: none !important;
+  background: transparent !important;
+  color: rgba(255,255,255,0.5) !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: background 0.13s ease, color 0.13s ease !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+.sidebar-nav-item:hover {
+  background: rgba(255,255,255,0.07) !important;
+  color: rgba(255,255,255,0.82) !important;
+}
+.sidebar-nav-item.active {
+  background: rgba(21,147,111,0.22) !important;
+  color: #7de8c4 !important;
+  font-weight: 600 !important;
+}
+.sidebar-nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 18px;
+  opacity: 0.75;
+}
+.sidebar-nav-item.active .sidebar-nav-icon { opacity: 1; }
+.sidebar-nav-label { flex: 1; }
+
+/* Owner mode switcher */
+.sidebar-owner-mode {
+  padding: 8px 8px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.sidebar-owner-mode .owner-mode {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px !important;
+  padding: 4px !important;
+  border-radius: 8px !important;
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+}
+.sidebar-owner-mode .owner-mode button {
+  border: 0 !important;
+  background: transparent !important;
+  color: rgba(255,255,255,0.45) !important;
+  padding: 7px 10px !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition: all 0.13s ease !important;
+  box-shadow: none !important;
+}
+.sidebar-owner-mode .owner-mode button:hover {
+  background: rgba(255,255,255,0.07) !important;
+  color: rgba(255,255,255,0.82) !important;
+}
+.sidebar-owner-mode .owner-mode button.active {
+  background: rgba(21,147,111,0.28) !important;
+  color: #7de8c4 !important;
+  font-weight: 600 !important;
+}
+
+/* Footer */
+.sidebar-footer {
+  padding: 14px 16px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.sidebar-user-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.80);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-user-role {
+  font-size: 10.5px;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.sidebar-logout {
+  width: 100% !important;
+  padding: 7px 12px !important;
+  background: transparent !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  color: rgba(255,255,255,0.45) !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  text-align: center !important;
+  transition: all 0.13s ease !important;
+  box-shadow: none !important;
+}
+.sidebar-logout:hover {
+  background: rgba(255,255,255,0.07) !important;
+  color: rgba(255,255,255,0.80) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+}
+
+/* ── Main body (right of sidebar) ───────── */
+.sidebar-body {
+  margin-left: 220px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Page header (replaces hero banner) */
+.page-header {
+  background: #071f14;
+  padding: 22px 28px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+.page-header .eyebrow {
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.13em !important;
+  text-transform: uppercase !important;
+  color: rgba(125,232,196,0.65) !important;
+  display: block !important;
+  margin-bottom: 5px !important;
+}
+.page-header .page-title {
+  font-size: clamp(1.15rem, 2vw, 1.6rem) !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  margin: 0 0 4px !important;
+  letter-spacing: -0.025em !important;
+  line-height: 1.2 !important;
+}
+.page-header .page-subtitle {
+  font-size: 13px !important;
+  color: rgba(255,255,255,0.45) !important;
+  margin: 0 !important;
+  line-height: 1.5 !important;
+  max-width: 580px !important;
+}
+
+/* Override old hero banner in case any other code references it */
+.hero.hero-banner,
+.hero-banner {
+  display: none !important;
+}
+
+/* Main content area */
+.main {
+  padding: 22px 26px 60px !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+/* ── Card improvements ───────────────────── */
+.card {
+  background: #ffffff !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(0,0,0,0.055) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 14px rgba(0,0,0,0.04) !important;
+  padding: 20px !important;
+}
+
+/* ── KPI metric numbers ──────────────────── */
+.kpi-strip .metric strong,
+.stat-number,
+.kpi-value-large {
+  font-size: 2.5rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.04em !important;
+  line-height: 1 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+/* Snapshot metric cards (the SCANS / AVG SCORE strip) */
+.snapshot-metric,
+.exec-snapshot .metric,
+[class*="snapshot"] .metric {
+  background: #ffffff !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(0,0,0,0.055) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+}
+
+/* ── Responsive: collapse sidebar ────────── */
+@media (max-width: 860px) {
+  .sidebar {
+    width: 58px;
+    min-width: 58px;
+    max-width: 58px;
+  }
+  .sidebar-brand h1,
+  .sidebar-brand p,
+  .sidebar-nav-label,
+  .sidebar-user-name,
+  .sidebar-user-role,
+  .sidebar-logout,
+  .sidebar-owner-mode { display: none !important; }
+  .sidebar-brand { justify-content: center; padding: 14px 8px; }
+  .sidebar-nav-item { justify-content: center !important; padding: 10px !important; }
+  .sidebar-nav-icon { flex: none; }
+  .sidebar-body { margin-left: 58px; }
+  .page-header { padding: 16px 16px 14px; }
+  .main { padding: 16px 14px 60px !important; }
+}
+

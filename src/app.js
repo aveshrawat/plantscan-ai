@@ -261,23 +261,57 @@ function layout(content) {
   if (role === ROLES.CLIENT && !clientSustainabilityTabVisible()) tabs = tabs.filter(t => t !== "sustainability");
   if (!tabs.includes(state.tab)) state.tab = tabs[0];
   const user = currentUser();
+  const tabIcons = {
+    dashboard:    `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`,
+    scan:         `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+    tickets:      `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg>`,
+    reports:      `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>`,
+    sustainability:`<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 22V12m0 0C12 7 7 3 2 3c0 5 4 9 10 9zm0 0c0-5 5-9 10-9 0 5-4 9-10 9z"/></svg>`,
+    "my tickets": `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>`,
+    history:      `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    boq:          `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>`,
+    "boq setup":  `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+    baseline:     `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><polyline points="8 8 3 12 8 16"/><polyline points="16 8 21 12 16 16"/></svg>`,
+    "sla breaches":`<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+    efficiency:   `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+    "sync monitor":`<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.68-8.29"/></svg>`,
+    "raise ticket":`<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+    evidence:     `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
+    invoices:     `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>`,
+    admin:        `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+    "sustainability access":`<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+  };
+  const defaultIcon = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>`;
   return `<div class="app-shell">
-    <header class="topbar"><div class="top-inner">
-      <div class="brand"><img class="brand-icon" src="${productIcon}" alt="GreenOps icon" /><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
-      <div class="user-menu">
-        ${isOwner() ? ownerModeSwitch() : ""}
-        <span class="user-pill">${escapeHtml(user?.name)} · ${title(actualRole())}</span>
-        <button class="logout-btn" data-action="logout">Logout</button>
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img class="brand-icon" src="${productIcon}" alt="GreenOps icon" />
+        <div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div>
       </div>
-    </div></header>
-    <main class="main">
-      <section class="hero hero-banner">
-        <div class="hero-content"><div class="eyebrow">${escapeHtml(roleLabel())}</div><h2>${heroTitle()}</h2><p>${heroSubtitle()}</p></div>
+      <nav class="sidebar-nav" aria-label="Main navigation">
+        ${tabs.map(t => `<button class="sidebar-nav-item${state.tab === t ? " active" : ""}" data-tab="${t}">
+          <span class="sidebar-nav-icon">${tabIcons[t] || defaultIcon}</span>
+          <span class="sidebar-nav-label">${title(t)}</span>
+        </button>`).join("")}
+      </nav>
+      ${isOwner() ? `<div class="sidebar-owner-mode">${ownerModeSwitch()}</div>` : ""}
+      <div class="sidebar-footer">
+        <div class="sidebar-user-name">${escapeHtml(user?.name)}</div>
+        <div class="sidebar-user-role">${title(actualRole())}</div>
+        <button class="sidebar-logout" data-action="logout">Sign out</button>
+      </div>
+    </aside>
+    <div class="sidebar-body">
+      <div class="page-header">
+        <span class="eyebrow">${escapeHtml(roleLabel())}</span>
+        <h2 class="page-title">${heroTitle()}</h2>
+        <p class="page-subtitle">${heroSubtitle()}</p>
+      </div>
+      <main class="main">
         ${isOwner() ? adminQuickActions() : ""}
-        <nav class="tabs tab-bar" aria-label="Section tabs">${tabs.map(t => `<button class="tab-item ${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</nav>
-      </section>
-      <div style="height:16px"></div>${content}
-    </main>
+        ${content}
+      </main>
+    </div>
     ${clientAssistantWidget()}
   </div>`;
 }
