@@ -305,38 +305,38 @@ function layout(content, strap) {
   if (role === ROLES.CLIENT && !clientSustainabilityTabVisible()) tabs = tabs.filter(t => t !== "sustainability");
   if (!tabs.includes(state.tab)) state.tab = tabs[0];
   const user = currentUser();
-  return `<div class="app-shell">
-    <header class="topbar"><div class="top-inner">
-      <div class="brand"><img class="brand-icon" src="${productIcon}" alt="GreenOps icon" /><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
-      <label class="top-search"><span>Search</span><input placeholder="Ticket, site, species, vendor" /></label>
-      <div class="user-menu">
+  return `<div class="go-app-shell">
+    <header class="go-topbar"><div class="go-top-inner">
+      <div class="go-brand"><img class="go-brand-icon" src="${productIcon}" alt="GreenOps icon" /><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
+      <label class="go-search"><span>Search</span><input placeholder="Ticket, site, species, vendor" /></label>
+      <div class="go-user-menu">
         ${isOwner() ? ownerModeSwitch() : ""}
-        <span class="user-pill">Synced 3m ago</span>
-        <span class="user-pill">${escapeHtml(user?.name)} · ${title(actualRole())}</span>
-        <button class="logout-btn" data-action="logout">Logout</button>
+        <span class="go-user-pill">Synced 3m ago</span>
+        <span class="go-user-pill">${escapeHtml(user?.name)} · ${title(actualRole())}</span>
+        <button class="go-logout-btn" data-action="logout">Logout</button>
       </div>
     </div></header>
-    <div class="platform-shell">
+    <div class="go-platform-shell">
       ${workspaceSidebar(tabs)}
-      <main class="main">
-        <div class="page-title-row">
+      <main class="go-main">
+        <div class="go-page-title">
           <div>
-            <div class="eyebrow dark">${escapeHtml(roleLabel())}</div>
+            <div class="go-eyebrow">${escapeHtml(roleLabel())}</div>
             <h2>${escapeHtml(title(state.tab))}</h2>
             <p>${escapeHtml(heroSubtitle())}</p>
           </div>
           ${isOwner() ? adminQuickActions() : ""}
         </div>
-        <nav class="tabs tab-bar" aria-label="Section tabs">${tabs.map(t => `<button class="tab-item ${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</nav>
-        <div class="page-layout">
-          ${strap ? `<aside class="context-strap" aria-label="Page context">
-            <span class="strap-kicker">${escapeHtml(roleLabel())}</span>
+        <nav class="go-tabs" aria-label="Section tabs">${tabs.map(t => `<button class="${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</nav>
+        <div class="go-page-layout">
+          ${strap ? `<aside class="go-context-rail" aria-label="Page context">
+            <span class="go-rail-kicker">${escapeHtml(roleLabel())}</span>
             <h3>${escapeHtml(strap.title)}</h3>
             <p>${escapeHtml(strap.subtitle)}</p>
-            <div class="strap-metrics">${strap.metrics.map(metric => `<div class="strap-metric"><span>${escapeHtml(metric.label)}</span><strong class="${escapeHtml(metric.color)}">${escapeHtml(metric.value)}</strong></div>`).join("")}</div>
-            ${strap.action ? `<button class="btn strap-action" data-tab="${escapeHtml(strap.action.event)}">${escapeHtml(strap.action.label)}</button>` : ""}
+            <div class="go-rail-metrics">${strap.metrics.map(metric => `<div class="go-rail-metric"><span>${escapeHtml(metric.label)}</span><strong class="${escapeHtml(metric.color)}">${escapeHtml(metric.value)}</strong></div>`).join("")}</div>
+            ${strap.action ? `<button class="go-primary go-rail-action" data-tab="${escapeHtml(strap.action.event)}">${escapeHtml(strap.action.label)}</button>` : ""}
           </aside>` : ""}
-          <section class="page-canvas">${content}</section>
+          <section class="go-canvas">${content}</section>
         </div>
       </main>
     </div>
@@ -351,21 +351,21 @@ function workspaceSidebar(tabs = []) {
     (acc[site.city] ||= []).push(site);
     return acc;
   }, {});
-  return `<aside class="workspace-sidebar">
-    <section class="workspace-block workspace-head">
+  return `<aside class="go-sidebar">
+    <section class="go-sidebar-block go-sidebar-head">
       <span>Workspace</span>
       <strong>${escapeHtml(client?.name || "All Clients")}</strong>
       <small>${sites.length} site${sites.length === 1 ? "" : "s"} · ${Object.keys(groupedSites).length} cit${Object.keys(groupedSites).length === 1 ? "y" : "ies"}</small>
     </section>
-    <section class="workspace-block">
+    <section class="go-sidebar-block">
       <span>Modules</span>
-      <nav class="side-nav">${tabs.map(t => `<button class="${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</nav>
+      <nav class="go-side-nav">${tabs.map(t => `<button class="${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</nav>
     </section>
-    <section class="workspace-block">
+    <section class="go-sidebar-block">
       <span>Site Tree</span>
-      <div class="site-tree">${Object.entries(groupedSites).map(([city, citySites]) => `<div class="site-group"><strong>${escapeHtml(city)} · ${citySites.length}</strong>${citySites.map(site => `<button data-filter-site="${escapeHtml(site.id)}">${escapeHtml(site.name)}</button>`).join("")}</div>`).join("") || `<small>No assigned sites</small>`}</div>
+      <div class="go-site-tree">${Object.entries(groupedSites).map(([city, citySites]) => `<div class="go-site-group"><strong>${escapeHtml(city)} · ${citySites.length}</strong>${citySites.map(site => `<button data-filter-site="${escapeHtml(site.id)}">${escapeHtml(site.name)}</button>`).join("")}</div>`).join("") || `<small>No assigned sites</small>`}</div>
     </section>
-    <section class="workspace-block saved-view-list">
+    <section class="go-sidebar-block go-saved-views">
       <span>Saved Views</span>
       <button class="active">Executive Demo View</button>
       <button>Critical SLA Watch</button>
@@ -381,7 +381,7 @@ function ownerModeSwitch() {
   </div>`;
 }
 function adminQuickActions() {
-  return `<div class="hero-actions"><button class="btn secondary" data-action="seed">Seed demo data</button><button class="btn ghost" data-action="reset">Reset local data</button></div>`;
+  return `<div class="go-actions"><button class="go-secondary" data-action="seed">Seed demo data</button><button class="go-ghost" data-action="reset">Reset local data</button></div>`;
 }
 function title(s = "") {
   if (s === ROLES.OWNER) return "Admin";
@@ -456,31 +456,31 @@ function maintenanceView() {
   const healthyDeg = Math.round((hs.healthy / total) * 360);
   const monitorDeg = Math.round((hs.monitor / total) * 360);
   const donutBg = `conic-gradient(#079455 0deg ${healthyDeg}deg, #f79009 ${healthyDeg}deg ${healthyDeg + monitorDeg}deg, #d92d20 ${healthyDeg + monitorDeg}deg 360deg)`;
-  return `<div class="grid grid-2">
-    <section class="card">
-      <div class="card-title"><div><h3>Today&apos;s Field Performance</h3><p class="subtitle">Assigned scans, health status, and SLA work queue.</p></div><button class="btn secondary" data-tab="scan">Start Scan</button></div>
-      <div class="kpi-strip">
-        <div class="metric"><span>Avg Health</span><strong>${hs.avg || "—"}</strong></div>
-        <div class="metric good"><span>Healthy</span><strong>${hs.healthy}</strong></div>
-        <div class="metric monitor"><span>Open Tickets</span><strong>${open.length}</strong></div>
-        <div class="metric critical"><span>Breached SLA</span><strong>${breached.length}</strong></div>
+  return `<div class="go-grid go-grid-2">
+    <section class="go-card">
+      <div class="go-card-title"><div><h3>Today&apos;s Field Performance</h3><p>Assigned scans, health status, and SLA work queue.</p></div><button class="go-secondary" data-tab="scan">Start Scan</button></div>
+      <div class="go-metrics">
+        <div class="go-metric"><span>Avg Health</span><strong>${hs.avg || "—"}</strong></div>
+        <div class="go-metric good"><span>Healthy</span><strong>${hs.healthy}</strong></div>
+        <div class="go-metric monitor"><span>Open Tickets</span><strong>${open.length}</strong></div>
+        <div class="go-metric critical"><span>Breached SLA</span><strong>${breached.length}</strong></div>
       </div>
       <h3>Health trend</h3>
-      <canvas class="chart" data-chart='${JSON.stringify(trend).replaceAll("'", "&#39;")}'></canvas>
+      <canvas class="go-chart" data-chart='${JSON.stringify(trend).replaceAll("'", "&#39;")}'></canvas>
     </section>
-    <section class="card">
-      <div class="card-title"><div><h3>Health Mix</h3><p class="subtitle">Latest scan status across assigned plant records.</p></div><span class="pill ${hs.critical ? "critical" : hs.monitor ? "monitor" : "good"}">${total} records</span></div>
-      <div class="donut-panel">
-        <div class="donut-chart" style="background:${donutBg}"><span>${hs.total || 0}</span></div>
-        <div class="table-wrap compact-table"><table><thead><tr><th>Band</th><th>Count</th></tr></thead><tbody>
+    <section class="go-card">
+      <div class="go-card-title"><div><h3>Health Mix</h3><p>Latest scan status across assigned plant records.</p></div><span class="pill ${hs.critical ? "critical" : hs.monitor ? "monitor" : "good"}">${total} records</span></div>
+      <div class="go-donut-panel">
+        <div class="go-donut" style="background:${donutBg}"><span>${hs.total || 0}</span></div>
+        <div class="go-table-wrap compact-table"><table><thead><tr><th>Band</th><th>Count</th></tr></thead><tbody>
           <tr><td><span class="pill good">Healthy</span></td><td>${hs.healthy}</td></tr>
           <tr><td><span class="pill monitor">Monitor</span></td><td>${hs.monitor}</td></tr>
           <tr><td><span class="pill critical">Critical</span></td><td>${hs.critical}</td></tr>
         </tbody></table></div>
       </div>
     </section>
-    <section class="card full-width">
-      <div class="card-title"><div><h3>Assigned Ticket Queue</h3><p class="subtitle">Operational actions requiring field proof or SLA closure.</p></div><button class="btn secondary" data-tab="my tickets">Open Tasks</button></div>
+    <section class="go-card go-full">
+      <div class="go-card-title"><div><h3>Assigned Ticket Queue</h3><p>Operational actions requiring field proof or SLA closure.</p></div><button class="go-secondary" data-tab="my tickets">Open Tasks</button></div>
       ${ticketBoard(open, { scope: "maintenance" })}
     </section>
   </div>`;
@@ -919,13 +919,32 @@ function sustainabilityFrameworkModal(metrics, framework) {
 function sustainabilityView() {
   const db = getDb();
   const entitlement = sustainabilityEntitlement();
-  if (entitlement.sustainabilityTabVisible === false) return `<section class="sustainability-dashboard"><h3>Sustainability / ESG Insights</h3><div class="empty">This module is not visible for the selected client/site.</div></section>`;
+  if (entitlement.sustainabilityTabVisible === false) return `<section class="go-card"><h3>Sustainability / ESG Insights</h3><div class="empty">This module is not visible for the selected client/site.</div></section>`;
   const showValues = canViewMetricValues(entitlement);
   const showNames = entitlement.metricNamesVisible !== false;
   const framework = canUseFrameworkSwitcher(entitlement) ? state.sustainabilityFramework : "brsr";
   const metricsList = buildSustainabilityMetrics({ db, filters: roleFilter(db), period: { from: state.filters.from, to: state.filters.to } });
   const frameworkMetrics = buildFrameworkView(metricsList, framework).flatMap(group => group.items);
-  return `<section class="sustainability-dashboard"><div class="sustainability-hero"><div><span class="eyebrow dark">Enterprise sustainability cockpit</span><h2>Sustainability / ESG Insights</h2><p>Horticulture contribution view across water, waste, plant health, service governance, vendor activity, and maintained green assets.</p></div><div class="access-status-card"><span>Data: Unlocked</span><span>Framework: ${escapeHtml(selectedFrameworkLabel(framework))}</span><span>Boundary: Horticulture only</span><span>Use case: ESG-lite operations evidence</span></div></div>${filterPanel({ client: false })}${sustainabilityToolbar(entitlement)}${sustainabilityAccessNotice(entitlement)}${sustainabilitySummary(frameworkMetrics, showValues)}<p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p>${sustainabilitySections(frameworkMetrics, showValues, showNames)}${sustainabilityFrameworkModal(frameworkMetrics, framework)}</section>`;
+  return `<section class="go-sustainability">
+    <div class="go-card go-sustainability-head">
+      <div>
+        <span class="go-eyebrow">Enterprise Sustainability Cockpit</span>
+        <h3>Sustainability / ESG Insights</h3>
+        <p>Horticulture contribution view across water, waste, plant health, service governance, vendor activity, and maintained green assets.</p>
+      </div>
+      <div class="go-status-stack">
+        <span><strong>Data</strong>${showValues ? "Unlocked" : "Locked"}</span>
+        <span><strong>Framework</strong>${escapeHtml(selectedFrameworkLabel(framework))}</span>
+        <span><strong>Boundary</strong>Horticulture only</span>
+      </div>
+    </div>
+    ${sustainabilityToolbar(entitlement)}
+    ${sustainabilityAccessNotice(entitlement)}
+    ${sustainabilitySummary(frameworkMetrics, showValues)}
+    <p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p>
+    ${sustainabilitySections(frameworkMetrics, showValues, showNames)}
+    ${sustainabilityFrameworkModal(frameworkMetrics, framework)}
+  </section>`;
 }
 function checked(value) {
   return value ? "checked" : "";
@@ -1270,20 +1289,20 @@ function supervisorView() {
   const trend = trendByDay(scans);
   const slaTrend = trend.map((point, index) => ({ ...point, avg: Math.max(6, Math.min(10, Number((9.2 - breached.length * 0.05 - (index % 3) * 0.18).toFixed(1)))) }));
   const chartData = { series: [{ label: "Health", data: trend }, { label: "SLA Compliance", data: slaTrend }] };
-  return `<section class="card">
-    <div class="card-title"><div><h3>${isOwner() ? "Owner" : "Supervisor"} Portfolio Snapshot</h3><p class="subtitle">Health, SLA exposure, service proof, and city/site execution in one view.</p></div><button class="btn secondary" data-tab="tickets">Open Tickets</button></div>
-    <div class="kpi-strip">
-      <div class="metric"><span>Portfolio Health</span><strong>${hs.avg || "—"}</strong></div>
-      <div class="metric monitor"><span>Open Tickets</span><strong>${open.length}</strong></div>
-      <div class="metric critical"><span>Breached SLA</span><strong>${breached.length}</strong></div>
-      <div class="metric good"><span>Scan Records</span><strong>${scans.length}</strong></div>
+  return `<section class="go-card">
+    <div class="go-card-title"><div><h3>${isOwner() ? "Owner" : "Supervisor"} Portfolio Snapshot</h3><p>Health, SLA exposure, service proof, and city/site execution in one view.</p></div><button class="go-secondary" data-tab="tickets">Open Tickets</button></div>
+    <div class="go-metrics">
+      <div class="go-metric"><span>Portfolio Health</span><strong>${hs.avg || "—"}</strong></div>
+      <div class="go-metric monitor"><span>Open Tickets</span><strong>${open.length}</strong></div>
+      <div class="go-metric critical"><span>Breached SLA</span><strong>${breached.length}</strong></div>
+      <div class="go-metric good"><span>Scan Records</span><strong>${scans.length}</strong></div>
     </div>
     <h3>Health and SLA compliance trend</h3>
-    <canvas class="chart" data-chart='${JSON.stringify(chartData).replaceAll("'", "&#39;")}'></canvas>
+    <canvas class="go-chart" data-chart='${JSON.stringify(chartData).replaceAll("'", "&#39;")}'></canvas>
   </section>
-  <section class="card">
-    <div class="card-title"><div><h3>Site Performance Grid</h3><p class="subtitle">Assigned sites ranked by latest health, open tickets, SLA risk, and scan freshness.</p></div><span class="pill">${allowedSites().length} sites</span></div>
-    <div class="table-wrap"><table><thead><tr><th>Site</th><th>City</th><th>Health</th><th>Open Tickets</th><th>Breached SLA</th><th>Last Scan</th></tr></thead><tbody>
+  <section class="go-card">
+    <div class="go-card-title"><div><h3>Site Performance Grid</h3><p>Assigned sites ranked by latest health, open tickets, SLA risk, and scan freshness.</p></div><span class="pill">${allowedSites().length} sites</span></div>
+    <div class="go-table-wrap"><table><thead><tr><th>Site</th><th>City</th><th>Health</th><th>Open Tickets</th><th>Breached SLA</th><th>Last Scan</th></tr></thead><tbody>
       ${allowedSites().map(site => {
         const siteScans = scans.filter(scan => scan.siteId === site.id);
         const siteTickets = tickets.filter(ticket => ticket.siteId === site.id);
@@ -1313,23 +1332,23 @@ function clientView() {
   const totalTickets = open.length + closed.length || 1;
   const closedDeg = Math.round((closed.length / totalTickets) * 360);
   const donutBg = `conic-gradient(#079455 0deg ${closedDeg}deg, #f79009 ${closedDeg}deg 360deg)`;
-  return `<div class="grid grid-2">
-    <section class="card">
-      <div class="card-title"><div><h3>Client Overview</h3><p class="subtitle">Mapped site health, service assurance, reports, and proof.</p></div><button class="btn secondary" data-tab="raise ticket">Raise Ticket</button></div>
-      <div class="kpi-strip">
-        <div class="metric"><span>Avg Health</span><strong>${hs.avg || "—"}</strong></div>
-        <div class="metric good"><span>Healthy Assets</span><strong>${hs.healthy}</strong></div>
-        <div class="metric monitor"><span>Open Tickets</span><strong>${open.length}</strong></div>
-        <div class="metric good"><span>Closed Tickets</span><strong>${closed.length}</strong></div>
+  return `<div class="go-grid go-grid-2">
+    <section class="go-card">
+      <div class="go-card-title"><div><h3>Client Overview</h3><p>Mapped site health, service assurance, reports, and proof.</p></div><button class="go-secondary" data-tab="raise ticket">Raise Ticket</button></div>
+      <div class="go-metrics">
+        <div class="go-metric"><span>Avg Health</span><strong>${hs.avg || "—"}</strong></div>
+        <div class="go-metric good"><span>Healthy Assets</span><strong>${hs.healthy}</strong></div>
+        <div class="go-metric monitor"><span>Open Tickets</span><strong>${open.length}</strong></div>
+        <div class="go-metric good"><span>Closed Tickets</span><strong>${closed.length}</strong></div>
       </div>
       <h3>Location health trend</h3>
-      <canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas>
+      <canvas class="go-chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas>
     </section>
-    <section class="card">
-      <div class="card-title"><div><h3>Ticket Closure Mix</h3><p class="subtitle">Closed versus open operational items for mapped sites.</p></div><button class="btn secondary" data-tab="invoices">Invoices</button></div>
-      <div class="donut-panel">
-        <div class="donut-chart" style="background:${donutBg}"><span>${closed.length}/${open.length + closed.length}</span></div>
-        <div class="table-wrap compact-table"><table><thead><tr><th>Status</th><th>Tickets</th></tr></thead><tbody>
+    <section class="go-card">
+      <div class="go-card-title"><div><h3>Ticket Closure Mix</h3><p>Closed versus open operational items for mapped sites.</p></div><button class="go-secondary" data-tab="invoices">Invoices</button></div>
+      <div class="go-donut-panel">
+        <div class="go-donut" style="background:${donutBg}"><span>${closed.length}/${open.length + closed.length}</span></div>
+        <div class="go-table-wrap compact-table"><table><thead><tr><th>Status</th><th>Tickets</th></tr></thead><tbody>
           <tr><td><span class="pill good">Closed</span></td><td>${closed.length}</td></tr>
           <tr><td><span class="pill monitor">Open</span></td><td>${open.length}</td></tr>
         </tbody></table></div>
