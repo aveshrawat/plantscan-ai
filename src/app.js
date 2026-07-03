@@ -413,19 +413,12 @@ function render() {
 }
 
 function filterPanel({ client = true } = {}) {
-  const { db } = dbx();
-  const sitesAllowed = allowedSites(db);
-  const clientsAllowed = allowedClients(db);
-  const cities = [...new Set(sitesAllowed.map(s => s.city))].sort();
-  const sites = sitesAllowed.filter(s => (state.filters.city === "all" || s.city === state.filters.city) && (state.filters.clientId === "all" || s.clientId === state.filters.clientId));
-  const showClient = client && effectiveRole() !== ROLES.CLIENT;
-  return `<div class="filters">
-    ${showClient ? `<select class="select" data-filter="clientId">${option("all", "All clients", state.filters.clientId === "all")}${clientsAllowed.map(c => option(c.id, c.name, state.filters.clientId === c.id)).join("")}</select>` : ""}
-    <select class="select" data-filter="city">${option("all", "All cities", state.filters.city === "all")}${cities.map(c => option(c, c, state.filters.city === c)).join("")}</select>
-    <select class="select" data-filter="siteId">${option("all", sitesAllowed.length === 1 ? sitesAllowed[0].name : "All assigned sites", state.filters.siteId === "all")}${sites.map(s => option(s.id, s.name, state.filters.siteId === s.id)).join("")}</select>
-    <input class="input" type="date" data-filter="from" value="${escapeHtml(state.filters.from)}" />
-    <input class="input" type="date" data-filter="to" value="${escapeHtml(state.filters.to)}" />
-  </div>`;
+  // Authenticated pages now use the single enterprise control bar rendered by layout().
+  // Keep this function as a no-op compatibility shim so older view functions do not
+  // create a second, overlapping filter row. The shared filters and data attributes
+  // remain active in enterpriseControlBar().
+  void client;
+  return "";
 }
 
 function metrics(scans, tickets) {
@@ -843,11 +836,7 @@ function sustainabilityAccessNotice(entitlement) {
   return `<div class="btn-row" style="justify-content:flex-start;margin:8px 0 14px"><span class="offline-badge">Sustainability data: Visible</span><span class="offline-badge">Framework switcher: Enabled</span><span class="offline-badge">Boundary: Horticulture operations only</span></div>`;
 }
 function sustainabilityToolbar(entitlement) {
-  const { db } = dbx();
-  const sitesAllowed = allowedSites(db);
-  const cities = [...new Set(sitesAllowed.map(site => site.city))].sort();
-  const sites = sitesAllowed.filter(site => (state.filters.city === "all" || site.city === state.filters.city));
-  return `<div class="sustainability-toolbar"><div class="sustainability-toolbar-fields"><label>City<select class="select" data-filter="city">${option("all", "All cities", state.filters.city === "all")}${cities.map(city => option(city, city, state.filters.city === city)).join("")}</select></label><label>Site<select class="select" data-filter="siteId">${option("all", "All assigned sites", state.filters.siteId === "all")}${sites.map(site => option(site.id, site.name, state.filters.siteId === site.id)).join("")}</select></label><label>From<input class="input" type="date" data-filter="from" value="${escapeHtml(state.filters.from)}" /></label><label>To<input class="input" type="date" data-filter="to" value="${escapeHtml(state.filters.to)}" /></label></div><div class="sustainability-toolbar-actions">${frameworkSwitcher(entitlement)}${canExportSustainabilityReport(entitlement) ? `<button class="mini-btn" data-action="download-sustainability">Export CSV</button><button class="mini-btn" data-action="download-sustainability">Export Report</button>` : `<span class="metric-value-locked">Exports locked</span>`}</div></div>`;
+  return `<div class="sustainability-toolbar sustainability-action-toolbar"><div class="sustainability-toolbar-context"><span class="eyebrow dark">Framework view</span><strong>${escapeHtml(selectedFrameworkLabel(state.sustainabilityFramework))}</strong><small>Filters are controlled by the sticky global control bar above.</small></div><div class="sustainability-toolbar-actions">${frameworkSwitcher(entitlement)}${canExportSustainabilityReport(entitlement) ? `<button class="mini-btn" data-action="download-sustainability">Export CSV</button><button class="mini-btn" data-action="download-sustainability">Export Report</button>` : `<span class="metric-value-locked">Exports locked</span>`}</div></div>`;
 }
 function metricCaption(metric) {
   const text = String(metric?.explanation || "");

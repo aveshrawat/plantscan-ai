@@ -6462,3 +6462,161 @@ tbody tr:hover{background:var(--color-ink-08)!important}
   background:var(--color-surface);
 }
 .metric-meta{margin-top:12px!important;line-height:1.35!important}
+
+/* RCA CLEANUP — stabilize enterprise interior after shell retrofit. */
+.enterprise-shell .top-inner{
+  grid-template-columns:minmax(220px,auto) minmax(240px,440px) minmax(360px,auto)!important;
+  overflow:hidden!important;
+}
+.enterprise-shell .enterprise-search{
+  width:100%!important;
+  min-width:0!important;
+  max-width:440px!important;
+  height:34px!important;
+  min-height:34px!important;
+  overflow:hidden!important;
+}
+.enterprise-shell .enterprise-search input{
+  width:100%!important;
+  height:32px!important;
+  min-height:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  background-image:none!important;
+  box-shadow:none!important;
+  color:var(--color-surface)!important;
+  font-size:13px!important;
+  line-height:32px!important;
+  transform:none!important;
+  appearance:none!important;
+  -webkit-appearance:none!important;
+}
+.enterprise-shell .enterprise-search input::placeholder{color:rgba(255,255,255,.48)!important}
+.enterprise-shell .btn,
+.enterprise-shell .btn.secondary,
+.enterprise-shell .btn.ghost,
+.enterprise-shell .mini-btn{
+  width:auto!important;
+  max-width:max-content!important;
+  white-space:nowrap!important;
+}
+.enterprise-shell .btn-row,
+.enterprise-shell .hero-actions,
+.enterprise-shell .report-actions,
+.enterprise-shell .actions{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  gap:8px!important;
+}
+.enterprise-control-bar{
+  grid-template-columns:repeat(auto-fit,minmax(168px,1fr))!important;
+  grid-auto-rows:auto!important;
+  align-items:end!important;
+  min-height:0!important;
+  height:auto!important;
+  row-gap:12px!important;
+  overflow:visible!important;
+}
+.enterprise-control-bar .control-group,
+.enterprise-control-bar .control-actions,
+.enterprise-control-bar .density-toggle{
+  min-width:0!important;
+}
+.enterprise-control-bar .control-actions{
+  align-self:end!important;
+  min-height:34px!important;
+  display:flex!important;
+  flex-wrap:wrap!important;
+}
+.enterprise-control-bar .dense-select,
+.enterprise-control-bar .input,
+.enterprise-control-bar .select,
+.enterprise-shell input[type="date"].dense-select{
+  width:100%!important;
+  height:34px!important;
+  min-height:34px!important;
+  max-height:34px!important;
+  padding:6px 9px!important;
+  border:1px solid var(--color-ink-30)!important;
+  border-radius:0!important;
+  background-color:var(--color-surface)!important;
+  box-shadow:none!important;
+  color:var(--color-ink)!important;
+  font-size:12px!important;
+  line-height:20px!important;
+  transform:none!important;
+}
+.enterprise-shell .filters{
+  display:none!important;
+}
+.sustainability-action-toolbar{
+  display:grid!important;
+  grid-template-columns:minmax(220px,1fr) minmax(0,auto)!important;
+  align-items:center!important;
+  gap:20px!important;
+  margin:0!important;
+  overflow:visible!important;
+}
+.sustainability-toolbar-context{
+  display:grid!important;
+  gap:4px!important;
+  min-width:0!important;
+}
+.sustainability-toolbar-context strong{
+  color:var(--color-ink)!important;
+  font-size:18px!important;
+  font-weight:800!important;
+  letter-spacing:-.02em!important;
+  line-height:1.2!important;
+}
+.sustainability-toolbar-context small{
+  color:var(--color-ink-60)!important;
+  font-size:12px!important;
+  font-weight:600!important;
+}
+.sustainability-toolbar-actions{
+  min-width:0!important;
+  max-width:100%!important;
+  display:flex!important;
+  flex-wrap:wrap!important;
+  justify-content:flex-end!important;
+  align-items:center!important;
+  gap:8px!important;
+}
+.sustainability-action-toolbar .framework-switcher{
+  max-width:100%!important;
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:0!important;
+  overflow:hidden!important;
+}
+.sustainability-action-toolbar .framework-pill{
+  height:34px!important;
+  min-height:34px!important;
+  white-space:nowrap!important;
+  padding:0 12px!important;
+}
+.sustainability-dashboard .sustainability-summary-grid{
+  margin-top:0!important;
+}
+.enterprise-shell .table-wrap,
+.enterprise-shell .enterprise-table-wrap,
+.enterprise-shell .sustainability-evidence-table{
+  max-width:100%!important;
+  overflow:auto!important;
+}
+.enterprise-shell .row-menu[open] div{
+  max-width:220px!important;
+}
+@media(max-width:1500px){
+  .enterprise-shell .top-inner{grid-template-columns:minmax(220px,auto) minmax(180px,1fr) minmax(320px,auto)!important;gap:16px!important}
+  .enterprise-control-bar{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))!important}
+  .sustainability-action-toolbar{grid-template-columns:1fr!important}
+  .sustainability-toolbar-actions{justify-content:flex-start!important}
+}
+@media(max-width:1180px){
+  .enterprise-shell .top-inner{grid-template-columns:auto minmax(0,1fr)!important}
+}
