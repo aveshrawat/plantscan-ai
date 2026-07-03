@@ -74,9 +74,7 @@ const state = {
   assistantInput: "",
   assistantLoading: false,
   assistantMessages: [],
-  diagnosisLang: "en",
-  uiDensity: sessionStorage.getItem("greenops_ui_density") || "compact",
-  savedView: sessionStorage.getItem("greenops_saved_view") || "critical-sla-watch"
+  diagnosisLang: "en"
 };
 
 let activeCameraStream = null;
@@ -263,77 +261,73 @@ function layout(content) {
   if (role === ROLES.CLIENT && !clientSustainabilityTabVisible()) tabs = tabs.filter(t => t !== "sustainability");
   if (!tabs.includes(state.tab)) state.tab = tabs[0];
   const user = currentUser();
-  return `<div class="app-shell enterprise-shell density-${escapeHtml(state.uiDensity)}">
-    <header class="topbar enterprise-topbar"><div class="top-inner">
-      <div class="brand"><img class="brand-icon" src="${productIcon}" alt="GreenOps icon" /><div><h1>${APP.name}</h1><p>Enterprise plant health service management</p></div></div>
-      <div class="enterprise-search" role="search"><span>Search</span><input aria-label="Global search" placeholder="Ticket, site, species, vendor, supervisor" /></div>
+  return `<div class="app-shell">
+    <header class="topbar"><div class="top-inner">
+      <div class="brand"><img class="brand-icon" src="${productIcon}" alt="GreenOps icon" /><div><h1>${APP.name}</h1><p>Plant Health Service Management</p></div></div>
+      <label class="top-search"><span>Search</span><input placeholder="Ticket, site, species, vendor" /></label>
       <div class="user-menu">
         ${isOwner() ? ownerModeSwitch() : ""}
-        <span class="sync-meta">Synced ${freshnessLabel(visibleRecords())}</span>
+        <span class="user-pill">Synced 3m ago</span>
         <span class="user-pill">${escapeHtml(user?.name)} · ${title(actualRole())}</span>
         <button class="logout-btn" data-action="logout">Logout</button>
       </div>
     </div></header>
-    <div class="enterprise-body">
+    <div class="platform-shell">
       ${workspaceSidebar(tabs)}
-      <main class="main enterprise-main">
-        <section class="hero hero-banner enterprise-page-header">
-          <div class="hero-content"><div class="eyebrow">${escapeHtml(roleLabel())}</div><h2>${heroTitle()}</h2><p>${heroSubtitle()}</p></div>
-          ${isOwner() ? adminQuickActions() : ""}
-          <nav class="tabs tab-bar" aria-label="Section tabs">${tabs.map(t => `<button class="tab-item ${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</nav>
-        </section>
-        ${enterpriseControlBar()}
-        <div class="enterprise-canvas">${content}</div>
+      <main class="main product-main">
+        <div class="platform-page">
+          <aside class="context-strap" aria-label="Page context">
+            <span class="strap-kicker">${escapeHtml(roleLabel())}</span>
+            <strong>${escapeHtml(title(state.tab))}</strong>
+            <small>${escapeHtml(role === ROLES.CLIENT ? "Client portal" : role === ROLES.MAINTENANCE ? "Field desk" : "Ops command")}</small>
+          </aside>
+          <section class="page-canvas">
+            <div class="page-title-row">
+              <div>
+                <div class="eyebrow dark">${escapeHtml(roleLabel())}</div>
+                <h2>${heroTitle()}</h2>
+                <p>${heroSubtitle()}</p>
+              </div>
+              ${isOwner() ? adminQuickActions() : ""}
+            </div>
+            <nav class="tabs tab-bar" aria-label="Section tabs">${tabs.map(t => `<button class="tab-item ${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</nav>
+            ${content}
+          </section>
+        </div>
       </main>
     </div>
     ${clientAssistantWidget()}
   </div>`;
 }
-
 function workspaceSidebar(tabs = []) {
-  const db = getDb();
-  const sites = allowedSites(db);
-  const clients = allowedClients(db);
-  const activeClient = clients.find(c => c.id === state.filters.clientId) || clients[0];
-  const grouped = sites.reduce((acc, site) => { (acc[site.city] ||= []).push(site); return acc; }, {});
-  const totalAssets = (db.plants || []).filter(p => sites.some(site => site.id === p.siteId)).length;
-  return `<aside class="workspace-sidebar" aria-label="Workspace navigation">
-    <div class="workspace-switcher"><span class="eyebrow">Workspace</span><strong>${escapeHtml(activeClient?.name || "GreenOps Portfolio")}</strong><small>${sites.length} sites · ${Object.keys(grouped).length} cities · ${totalAssets.toLocaleString("en-IN")} mapped assets</small></div>
-    <div class="workspace-section"><span class="workspace-label">Modules</span>${tabs.map(t => `<button class="workspace-link ${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</div>
-    <div class="workspace-section workspace-sites"><span class="workspace-label">Site tree</span>${Object.entries(grouped).map(([city, rows]) => `<details open><summary>${escapeHtml(city)} · ${rows.length}</summary>${rows.slice(0, 7).map(site => `<button class="workspace-site ${state.filters.siteId === site.id ? "active" : ""}" data-workspace-site="${site.id}" data-workspace-city="${escapeHtml(site.city)}">${escapeHtml(site.name)}</button>`).join("")}</details>`).join("") || `<div class="empty slim">No sites assigned.</div>`}</div>
-    <div class="workspace-section"><span class="workspace-label">Saved views</span>${savedViewOptions().map(v => `<button class="workspace-link ${state.savedView === v.id ? "active" : ""}" data-saved-view="${v.id}">${escapeHtml(v.label)}</button>`).join("")}</div>
+  const clients = allowedClients();
+  const sites = allowedSites();
+  const client = clients[0];
+  const groupedSites = sites.reduce((acc, site) => {
+    (acc[site.city] ||= []).push(site);
+    return acc;
+  }, {});
+  return `<aside class="workspace-sidebar">
+    <section class="workspace-block workspace-head">
+      <span>Workspace</span>
+      <strong>${escapeHtml(client?.name || "All Clients")}</strong>
+      <small>${sites.length} site${sites.length === 1 ? "" : "s"} · ${Object.keys(groupedSites).length} cit${Object.keys(groupedSites).length === 1 ? "y" : "ies"}</small>
+    </section>
+    <section class="workspace-block">
+      <span>Modules</span>
+      <nav class="side-nav">${tabs.map(t => `<button class="${state.tab === t ? "active" : ""}" data-tab="${t}">${title(t)}</button>`).join("")}</nav>
+    </section>
+    <section class="workspace-block">
+      <span>Site Tree</span>
+      <div class="site-tree">${Object.entries(groupedSites).map(([city, citySites]) => `<div class="site-group"><strong>${escapeHtml(city)} · ${citySites.length}</strong>${citySites.map(site => `<button data-filter-site="${escapeHtml(site.id)}">${escapeHtml(site.name)}</button>`).join("")}</div>`).join("") || `<small>No assigned sites</small>`}</div>
+    </section>
+    <section class="workspace-block saved-view-list">
+      <span>Saved Views</span>
+      <button class="active">Executive Demo View</button>
+      <button>Critical SLA Watch</button>
+      <button>Monthly Evidence Pack</button>
+    </section>
   </aside>`;
-}
-
-function savedViewOptions() {
-  return [
-    { id: "critical-sla-watch", label: "Critical SLA Breach Watch" },
-    { id: "cfo-evidence-pack", label: "CFO Monthly Evidence Pack" },
-    { id: "health-below-82", label: "Sites Below 82 Health Score" },
-    { id: "vendor-variance", label: "Vendor Replacement Variance" },
-    { id: "brsr-evidence", label: "BRSR Water & Waste View" }
-  ];
-}
-
-function enterpriseControlBar() {
-  const { db } = dbx();
-  const sitesAllowed = allowedSites(db);
-  const clientsAllowed = allowedClients(db);
-  const cities = [...new Set(sitesAllowed.map(s => s.city))].sort();
-  const sites = sitesAllowed.filter(s => (state.filters.city === "all" || s.city === state.filters.city) && (state.filters.clientId === "all" || s.clientId === state.filters.clientId));
-  const showClient = effectiveRole() !== ROLES.CLIENT;
-  return `<section class="enterprise-control-bar" aria-label="Global controls">
-    <div class="control-group saved-view-control"><label>Saved view</label><select class="select dense-select" data-saved-view-select>${savedViewOptions().map(v => option(v.id, v.label, state.savedView === v.id)).join("")}</select></div>
-    ${showClient ? `<div class="control-group"><label>Tenant</label><select class="select dense-select" data-filter="clientId">${option("all", "All tenants", state.filters.clientId === "all")}${clientsAllowed.map(c => option(c.id, c.name, state.filters.clientId === c.id)).join("")}</select></div>` : ""}
-    <div class="control-group"><label>Region</label><select class="select dense-select" data-filter="city">${option("all", "All cities", state.filters.city === "all")}${cities.map(c => option(c, c, state.filters.city === c)).join("")}</select></div>
-    <div class="control-group wide"><label>Site</label><select class="select dense-select" data-filter="siteId">${option("all", sitesAllowed.length === 1 ? sitesAllowed[0].name : "All assigned sites", state.filters.siteId === "all")}${sites.map(s => option(s.id, `${s.city} · ${s.name}`, state.filters.siteId === s.id)).join("")}</select></div>
-    <div class="control-group"><label>Time range</label><select class="select dense-select" data-time-range><option>Rolling 30 days vs Last Quarter</option><option>Current month vs Previous month</option><option>Quarter to date vs Previous quarter</option></select></div>
-    <div class="control-group compact-date"><label>From</label><input class="input dense-select" type="date" data-filter="from" value="${escapeHtml(state.filters.from)}" /></div>
-    <div class="control-group compact-date"><label>To</label><input class="input dense-select" type="date" data-filter="to" value="${escapeHtml(state.filters.to)}" /></div>
-    <div class="control-group density-control"><label>Density</label><div class="density-toggle" role="group" aria-label="Density"><button class="${state.uiDensity === "compact" ? "active" : ""}" type="button" data-density="compact">Compact</button><button class="${state.uiDensity === "comfortable" ? "active" : ""}" type="button" data-density="comfortable">Comfortable</button></div></div>
-    <div class="control-actions"><button class="mini-btn" type="button" data-action="sync-now">Refresh</button><span class="control-meta">Last updated ${freshnessLabel(visibleRecords())}</span></div>
-    <div class="control-pill-row"><span>Asset class: Indoor Plants + Outdoor Landscape</span><span>SLA: Breached + Due &lt;4h</span><span>Health band: Critical &lt;60 + Watchlist 60–79</span><span>Framework: Ops / BRSR / TNFD</span></div>
-  </section>`;
 }
 function ownerModeSwitch() {
   return `<div class="owner-mode">
@@ -350,41 +344,6 @@ function title(s = "") {
   return String(s).split(" ").map(w => ["sla", "boq", "esg"].includes(w.toLowerCase()) ? w.toUpperCase() : (w[0]?.toUpperCase() + w.slice(1))).join(" ");
 }
 function roleLabel() { const r = effectiveRole(); return r === ROLES.MAINTENANCE ? "Field execution" : r === ROLES.SUPERVISOR ? "Operations command center" : r === ROLES.CLIENT ? "Client visibility" : "Owner access"; }
-function newestTimestamp(records = visibleRecords()) {
-  const rows = [...(records.scans || []), ...(records.tickets || [])];
-  const latest = rows.map(r => new Date(r.updatedAt || r.closedAt || r.createdAt || 0).getTime()).filter(Boolean).sort((a, b) => b - a)[0];
-  return latest || Date.now();
-}
-function freshnessLabel(records = visibleRecords()) {
-  const diff = Math.max(0, Date.now() - newestTimestamp(records));
-  const mins = Math.round(diff / 60000);
-  if (mins <= 3) return "3m ago";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.round(mins / 60);
-  if (hrs < 48) return `${hrs}h ago`;
-  return `${Math.round(hrs / 24)}d ago`;
-}
-function widgetAuditMeta(source = "scan_events · ticket_sla_events") {
-  return `<div class="widget-meta"><span>Last updated ${freshnessLabel(visibleRecords())}</span><button class="meta-refresh" type="button" data-action="sync-now" aria-label="Refresh data">Refresh</button><span class="meta-source" title="Source: ${escapeHtml(source)}">Source: ${escapeHtml(source)}</span></div>`;
-}
-function sectionOpener(eyebrow, titleText, subtitle = "") {
-  return `<div class="section-opener"><span class="eyebrow dark">${escapeHtml(eyebrow)}</span><h3>${escapeHtml(titleText)}</h3>${subtitle ? `<p class="subtitle">${escapeHtml(subtitle)}</p>` : ""}</div>`;
-}
-function trendWidget(scans = [], tickets = [], titleText = "Portfolio health trajectory") {
-  const hs = healthSummary(scans);
-  const trend = trendByDay(scans);
-  const open = tickets.filter(t => t.status !== STATUS.CLOSED);
-  const breached = open.filter(t => slaState(t).breached).length;
-  const avg = Number(hs.avg || 0);
-  const secondary = open.length ? `${Math.round(((open.length - breached) / Math.max(1, open.length)) * 100)}% SLA in control` : "No open SLA exposure";
-  const variance = avg >= 8 ? "↑ 2.8 pts vs previous rolling 30 days" : avg >= 6 ? "→ Stable vs previous rolling 30 days" : "↓ Watchlist vs previous rolling 30 days";
-  const status = avg >= 8 ? "good" : avg >= 6 ? "monitor" : "critical";
-  return `<section class="analytics-widget">
-    <div class="widget-head"><div><span class="eyebrow dark">SITE HEALTH</span><h3>${escapeHtml(titleText)}</h3>${widgetAuditMeta("scan_events · service_logs · ticket_sla_events")}</div><span class="pill ${status}">${avg >= 8 ? "Healthy" : avg >= 6 ? "Watchlist" : "Critical"}</span></div>
-    <div class="trend-layout"><div class="trend-metric"><strong>${avg ? (avg * 10).toFixed(1) : "—"}<small>/100</small></strong><span class="trend-delta ${status}">${escapeHtml(variance)}</span><small>${escapeHtml(secondary)}</small><small>Records: ${scans.length.toLocaleString("en-IN")} scans · ${tickets.length.toLocaleString("en-IN")} tickets</small></div><canvas class="chart enterprise-chart" data-chart='${JSON.stringify(trend).replaceAll("'", "&#39;")}'></canvas></div>
-  </section>`;
-}
-
 function heroTitle() {
   const r = effectiveRole();
   if (r === ROLES.MAINTENANCE) return "Scan, act, close with proof.";
@@ -413,33 +372,30 @@ function render() {
 }
 
 function filterPanel({ client = true } = {}) {
-  // Authenticated pages now use the single enterprise control bar rendered by layout().
-  // Keep this function as a no-op compatibility shim so older view functions do not
-  // create a second, overlapping filter row. The shared filters and data attributes
-  // remain active in enterpriseControlBar().
-  void client;
-  return "";
+  const { db } = dbx();
+  const sitesAllowed = allowedSites(db);
+  const clientsAllowed = allowedClients(db);
+  const cities = [...new Set(sitesAllowed.map(s => s.city))].sort();
+  const sites = sitesAllowed.filter(s => (state.filters.city === "all" || s.city === state.filters.city) && (state.filters.clientId === "all" || s.clientId === state.filters.clientId));
+  const showClient = client && effectiveRole() !== ROLES.CLIENT;
+  return `<div class="filters scope-bar">
+    <div class="scope-fields">
+      ${showClient ? `<label><span>Client</span><select class="select" data-filter="clientId">${option("all", "All clients", state.filters.clientId === "all")}${clientsAllowed.map(c => option(c.id, c.name, state.filters.clientId === c.id)).join("")}</select></label>` : ""}
+      <label><span>City</span><select class="select" data-filter="city">${option("all", "All cities", state.filters.city === "all")}${cities.map(c => option(c, c, state.filters.city === c)).join("")}</select></label>
+      <label><span>Site</span><select class="select" data-filter="siteId">${option("all", sitesAllowed.length === 1 ? sitesAllowed[0].name : "All assigned sites", state.filters.siteId === "all")}${sites.map(s => option(s.id, s.name, state.filters.siteId === s.id)).join("")}</select></label>
+      <label><span>From</span><input class="input" type="date" data-filter="from" value="${escapeHtml(state.filters.from)}" /></label>
+      <label><span>To</span><input class="input" type="date" data-filter="to" value="${escapeHtml(state.filters.to)}" /></label>
+    </div>
+    <div class="scope-actions"><button class="mini-btn" type="button">Refresh</button><span>Updated 3m ago</span></div>
+  </div>`;
 }
 
 function metrics(scans, tickets) {
   const hs = healthSummary(scans);
   const open = tickets.filter(t => t.status !== STATUS.CLOSED);
   const breached = open.filter(t => slaState(t).breached);
-  const closed = tickets.filter(t => t.status === STATUS.CLOSED);
-  const avg100 = hs.avg ? (Number(hs.avg) * 10).toFixed(1) : "—";
-  const slaControl = open.length ? Math.round(((open.length - breached.length) / Math.max(1, open.length)) * 100) : 100;
-  const evidencePct = tickets.length ? Math.round((closed.filter(t => t.closureEvidence).length / Math.max(1, closed.length || tickets.length)) * 100) : 0;
-  const replacementVariance = Math.max(0, Math.min(9.8, (hs.critical * 1.4 + breached.length * 0.8))).toFixed(1);
-  const wateringCompliance = Math.max(76, Math.min(98, 88 + hs.healthy - hs.critical)).toFixed(1);
-  const cards = [
-    { label: "Portfolio Health Score", value: avg100, suffix: "/100", cls: hs.avg >= 8 ? "good" : hs.avg >= 6 ? "monitor" : "critical", delta: "AI scans · breach adjusted" },
-    { label: "Open SLA Risk", value: breached.length, suffix: "breached", cls: breached.length ? "critical" : "good", delta: `${open.length} open work items` },
-    { label: "Replacement Variance", value: `${replacementVariance}%`, suffix: "", cls: Number(replacementVariance) <= 5 ? "good" : "monitor", delta: "Target ≤5.0%" },
-    { label: "Watering Compliance", value: `${wateringCompliance}%`, suffix: "", cls: Number(wateringCompliance) >= 90 ? "good" : "monitor", delta: "Derived from service logs" },
-    { label: "Evidence Completion", value: `${evidencePct}%`, suffix: "", cls: evidencePct >= 90 ? "good" : "monitor", delta: `${tickets.length.toLocaleString("en-IN")} tickets audited` },
-    { label: "SLA In Control", value: `${slaControl}%`, suffix: "", cls: slaControl >= 90 ? "good" : slaControl >= 75 ? "monitor" : "critical", delta: "Rolling 30 day queue" }
-  ];
-  return `<div class="kpi-strip enterprise-kpi-strip">${cards.map(card => `<div class="metric ${card.cls}"><span>${escapeHtml(card.label)}</span><strong>${escapeHtml(card.value)}${card.suffix ? `<small>${escapeHtml(card.suffix)}</small>` : ""}</strong><em>${escapeHtml(card.delta)}</em><small class="metric-meta">Updated ${freshnessLabel({ scans, tickets })} · scan_events / ticket_sla_events</small></div>`).join("")}</div>`;
+  const avgHealth = hs.avg ? hs.avg : `<span style="font-size: 28px; font-weight: 700; color: var(--color-border-strong); letter-spacing: -1px;">—</span>`;
+  return `<div class="kpi-strip"><div class="metric"><span>Avg Health</span><strong>${avgHealth}</strong></div><div class="metric good"><span>Healthy</span><strong>${hs.healthy}</strong></div><div class="metric monitor"><span>Monitor</span><strong>${hs.monitor}</strong></div><div class="metric critical"><span>Critical / SLA</span><strong>${hs.critical}/${breached.length}</strong></div></div>`;
 }
 
 function maintenanceView() {
@@ -836,7 +792,7 @@ function sustainabilityAccessNotice(entitlement) {
   return `<div class="btn-row" style="justify-content:flex-start;margin:8px 0 14px"><span class="offline-badge">Sustainability data: Visible</span><span class="offline-badge">Framework switcher: Enabled</span><span class="offline-badge">Boundary: Horticulture operations only</span></div>`;
 }
 function sustainabilityToolbar(entitlement) {
-  return `<div class="sustainability-toolbar sustainability-action-toolbar"><div class="sustainability-toolbar-context"><span class="eyebrow dark">Framework view</span><strong>${escapeHtml(selectedFrameworkLabel(state.sustainabilityFramework))}</strong><small>Filters are controlled by the sticky global control bar above.</small></div><div class="sustainability-toolbar-actions">${frameworkSwitcher(entitlement)}${canExportSustainabilityReport(entitlement) ? `<button class="mini-btn" data-action="download-sustainability">Export CSV</button><button class="mini-btn" data-action="download-sustainability">Export Report</button>` : `<span class="metric-value-locked">Exports locked</span>`}</div></div>`;
+  return `<div class="sustainability-toolbar"><div><span class="eyebrow dark">Reporting lens</span><p class="subtitle">Switch the evidence view without changing source data.</p></div><div class="sustainability-toolbar-actions">${frameworkSwitcher(entitlement)}${canExportSustainabilityReport(entitlement) ? `<button class="mini-btn" data-action="download-sustainability">Export CSV</button><button class="mini-btn" data-action="download-sustainability">Export Report</button>` : `<span class="metric-value-locked">Exports locked</span>`}</div></div>`;
 }
 function metricCaption(metric) {
   const text = String(metric?.explanation || "");
@@ -866,20 +822,11 @@ function metricCard(metric, showValues, showNames) {
   const icon = METRIC_ICONS[metric.id] || "ESG";
   return `<article class="sustainability-kpi-card"><div class="sustainability-kpi-top"><span class="sustainability-kpi-icon">${escapeHtml(icon)}</span><h4>${escapeHtml(label)}</h4><span class="coverage-chip">${escapeHtml(metric.coverageStatus)}</span></div><div class="metric-value"><strong>${escapeHtml(metric.formattedValue)}</strong>${metric.unit && metric.unit !== "/100" && !String(metric.formattedValue).includes(metric.unit) ? `<span class="metric-unit">${escapeHtml(metric.unit)}</span>` : ""}</div><p class="metric-subtitle">${escapeHtml(metric.unit === "%" || metric.unit === "/100" ? "Current selected period" : "This selected reporting period")}</p>${pct ? `<div class="progress-bar"><i class="progress-fill" style="width:${pct}%"></i></div>` : `<div class="sustainability-mini-bars"><i></i><i></i><i></i><i></i><i></i></div>`}<p class="metric-subtitle">${escapeHtml(metricCaption(metric))}</p><div class="sustainability-chip-row"><span class="data-quality-chip">${escapeHtml(metric.dataQuality)}</span><span class="data-quality-chip muted">Horticulture contribution only</span></div>${metricEvidenceMarkup(metric)}</article>`;
 }
-function sustainabilityMetricTable(sectionMetrics = [], showValues, showNames) {
-  return `<div class="table-wrap sustainability-evidence-table"><table><thead><tr><th>Metric</th><th>Value</th><th>Framework signal</th><th>Data quality</th><th>Boundary / source</th></tr></thead><tbody>${sectionMetrics.map(metric => {
-    const label = showNames ? (metric.frameworkLabel || metric.name) : metric.name;
-    const popup = metric.frameworkPopup || {};
-    const value = showValues ? metric.formattedValue : "Value hidden";
-    const source = metric.formula || metric.explanation || "BOQ baseline, AI scans, service logs, and ticket activity";
-    return `<tr><td><strong>${escapeHtml(label)}</strong><br><span class="small muted">${escapeHtml(metricCaption(metric))}</span></td><td class="numeric-cell"><strong>${escapeHtml(value)}</strong>${metric.unit && metric.unit !== "/100" && !String(metric.formattedValue).includes(metric.unit) ? `<br><span class="small muted">${escapeHtml(metric.unit)}</span>` : ""}</td><td><span class="pill">${escapeHtml(metric.coverageStatus || popup.coverageStatus || "Supporting evidence")}</span><br><span class="small muted">${escapeHtml(popup.supports || "Operational sustainability signal")}</span></td><td><span class="pill ${String(metric.dataQuality || "").toLowerCase().includes("estimate") ? "monitor" : "good"}">${escapeHtml(metric.dataQuality || "Calculated")}</span></td><td>${escapeHtml(popup.boundary || "Indoor/maintained horticulture assets only")}<br><span class="small muted">Source: ${escapeHtml(source)}</span></td></tr>`;
-  }).join("") || `<tr><td colspan="5"><div class="empty">No sustainability records for this section under the current filters.</div></td></tr>`}</tbody></table></div>`;
-}
 function sustainabilitySections(metrics, showValues, showNames) {
   const byId = Object.fromEntries(metrics.map(metric => [metric.id, metric]));
   return SUSTAINABILITY_SECTIONS.map(section => {
-    const rows = section.metricIds.map(id => byId[id]).filter(Boolean);
-    return `<section class="sustainability-section"><div class="sustainability-section-header"><div><span class="eyebrow dark">SUSTAINABILITY</span><h3>${escapeHtml(section.title)}</h3><p>${escapeHtml(section.subtitle)}</p>${widgetAuditMeta("sustainability_metrics · service_logs · plant_inventory")}</div><span>${rows.length} metrics</span></div>${sustainabilityMetricTable(rows, showValues, showNames)}</section>`;
+    const cards = section.metricIds.map(id => byId[id]).filter(Boolean).map(metric => metricCard(metric, showValues, showNames)).join("");
+    return `<section class="sustainability-section"><div class="sustainability-section-header"><div><h3>${escapeHtml(section.title)}</h3><p>${escapeHtml(section.subtitle)}</p></div><span>${section.metricIds.filter(id => byId[id]).length} metrics</span></div><div class="sustainability-kpi-grid">${cards}</div></section>`;
   }).join("");
 }
 function sustainabilityFrameworkModal(metrics, framework) {
@@ -898,7 +845,7 @@ function sustainabilityView() {
   const framework = canUseFrameworkSwitcher(entitlement) ? state.sustainabilityFramework : "brsr";
   const metricsList = buildSustainabilityMetrics({ db, filters: roleFilter(db), period: { from: state.filters.from, to: state.filters.to } });
   const frameworkMetrics = buildFrameworkView(metricsList, framework).flatMap(group => group.items);
-  return `<section class="sustainability-dashboard"><div class="sustainability-hero"><div><span class="eyebrow dark">Enterprise sustainability cockpit</span><h2>Sustainability / ESG Insights</h2><p>Horticulture contribution view across water, waste, plant health, service governance, vendor activity, and maintained green assets.</p></div><div class="access-status-card"><span>Data: Unlocked</span><span>Framework: ${escapeHtml(selectedFrameworkLabel(framework))}</span><span>Boundary: Horticulture only</span><span>Use case: ESG-lite operations evidence</span></div></div>${sustainabilityToolbar(entitlement)}${sustainabilityAccessNotice(entitlement)}${sustainabilitySummary(frameworkMetrics, showValues)}<p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p>${sustainabilitySections(frameworkMetrics, showValues, showNames)}${sustainabilityFrameworkModal(frameworkMetrics, framework)}</section>`;
+  return `<section class="sustainability-dashboard"><div class="sustainability-hero"><div><span class="eyebrow dark">Enterprise sustainability cockpit</span><h2>Sustainability / ESG Insights</h2><p>Horticulture contribution view across water, waste, plant health, service governance, vendor activity, and maintained green assets.</p></div><div class="access-status-card"><span>Data: Unlocked</span><span>Framework: ${escapeHtml(selectedFrameworkLabel(framework))}</span><span>Boundary: Horticulture only</span><span>Use case: ESG-lite operations evidence</span></div></div>${filterPanel({ client: false })}${sustainabilityToolbar(entitlement)}${sustainabilityAccessNotice(entitlement)}${sustainabilitySummary(frameworkMetrics, showValues)}<p class="footer-note">This view covers horticulture operations and maintained green assets only. It does not represent the client's complete ESG disclosure or full framework compliance.</p>${sustainabilitySections(frameworkMetrics, showValues, showNames)}${sustainabilityFrameworkModal(frameworkMetrics, framework)}</section>`;
 }
 function checked(value) {
   return value ? "checked" : "";
@@ -1237,7 +1184,7 @@ function supervisorView() {
   if (state.tab === "sustainability access" && isOwner()) return sustainabilityAccessView();
   if (state.tab === "reports") return reportsView(true);
   if (state.tab === "admin" && isOwner()) return adminView();
-  return `${executiveSnapshot(scans, tickets, isOwner() ? "Owner" : "Operations")}<section class="card command-card dashboard-command">${sectionOpener("SITE HEALTH", "Portfolio command metrics", "Health score, SLA exposure, service evidence, and replacement risk across the selected operating scope.")}${metrics(scans, tickets)}${proofOutcomeGrid(scans, tickets)}<div class="grid grid-2 enterprise-dashboard-grid"><div>${healthBuckets(scans)}</div><div>${trendWidget(scans, tickets)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><div><h3>Live ticket queue</h3><p class="subtitle">The items below are the operational proof trail behind the dashboard.</p>${widgetAuditMeta("ticket_sla_events · closure_evidence")}</div><button class="btn secondary" data-tab="tickets">Open full board</button></div>${ticketBoard(tickets.slice(0, 8), { scope: "supervisor", compact: true })}</section>`;
+  return `${executiveSnapshot(scans, tickets, isOwner() ? "Owner" : "Operations")}<section class="card command-card">${filterPanel()}${metrics(scans, tickets)}${proofOutcomeGrid(scans, tickets)}<div class="grid grid-2"><div>${healthBuckets(scans)}</div><div><h3>Health trend</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><div><h3>Live ticket queue</h3><p class="subtitle">The items below are the operational proof trail behind the dashboard.</p></div><button class="btn secondary" data-tab="tickets">Open full board</button></div>${ticketBoard(tickets.slice(0, 8), { scope: "supervisor", compact: true })}</section>`;
 }
 function adminView() { return `<section class="card"><div class="card-title"><div><h3>Owner Admin Tools</h3><p class="subtitle">Visible only to the master owner account.</p></div></div><div class="grid grid-2"><button class="btn secondary" data-action="seed">Seed demo data</button><button class="btn ghost" data-action="reset">Reset local data</button></div><p class="footer-note">Normal maintenance, supervisor, and client users cannot see these controls.</p></section>`; }
 
@@ -1248,7 +1195,7 @@ function clientView() {
   if (state.tab === "evidence") return evidenceView(tickets);
   if (state.tab === "invoices") return invoiceView();
   if (state.tab === "sustainability") return sustainabilityView();
-  return `${executiveSnapshot(scans, tickets, "Client")}<section class="card command-card dashboard-command">${sectionOpener("SITE HEALTH", "Client operating evidence", "Priority items, field proof, invoice-linked SLA exposure, and ESG-lite signals for selected sites.")}${metrics(scans, tickets)}${clientServiceAssurance(scans, tickets)}<div class="grid grid-2 enterprise-dashboard-grid"><div>${trendWidget(scans, tickets, "Location health trajectory")}</div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><div><h3>Your open tickets</h3><p class="subtitle">Priority items, closure evidence, and current operational state.</p>${widgetAuditMeta("client_tickets · closure_evidence")}</div><div class="btn-row"><button class="btn secondary" data-tab="invoices">Invoices</button></div></div><button class="btn client-raise-ticket-cta" data-tab="raise ticket">Raise Priority 1 Ticket</button><div style="height:14px"></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
+  return `${executiveSnapshot(scans, tickets, "Client")}<section class="card command-card">${filterPanel({ client: false })}${metrics(scans, tickets)}${clientServiceAssurance(scans, tickets)}<div class="grid grid-2"><div><h3>Location health graph</h3><canvas class="chart" data-chart='${JSON.stringify(trendByDay(scans)).replaceAll("'", "&#39;")}'></canvas></div><div>${healthBuckets(scans)}</div></div></section><div style="height:16px"></div><section class="card"><div class="card-title"><div><h3>Your open tickets</h3><p class="subtitle">Priority items, closure evidence, and current operational state.</p></div><div class="btn-row"><button class="btn secondary" data-tab="invoices">Invoices</button></div></div><button class="btn client-raise-ticket-cta" data-tab="raise ticket">Raise Priority 1 Ticket</button><div style="height:14px"></div>${ticketBoard(tickets, { scope: "client", compact: true })}</section>`;
 }
 function raiseTicketView() {
   const sites = allowedSites();
@@ -1556,31 +1503,7 @@ function bucket(label, value, total, cls) {
 function ticketDisplayId(t) { if (t.ticketNo) return String(t.ticketNo).padStart(6, "0").slice(-6); const raw = String(t.id || ""); let hash = 0; for (let i = 0; i < raw.length; i++) hash = ((hash << 5) - hash + raw.charCodeAt(i)) >>> 0; return String(100000 + (hash % 900000)); }
 function ticketCards(tickets) { if (!tickets.length) return `<div class="empty">No tickets in this queue.</div>`; return `<div class="grid">${tickets.map(t => ticketCard(t)).join("")}</div>`; }
 function ticketCard(t) { const { siteMap, plantMap } = dbx(); const s = slaState(t); const plant = plantMap[t.plantId]; const site = siteMap[t.siteId]; return `<div class="ticket-card"><div class="ticket-head"><strong>${escapeHtml(t.issue)}</strong><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></div><div class="ticket-meta"><span class="pill">#${ticketDisplayId(t)}</span><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : t.status === STATUS.PAUSED ? "monitor" : "open"}">${t.status}</span><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span></div><div class="small muted">${escapeHtml(site?.city)} · ${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</div></div>`; }
-function ticketBoard(tickets, { scope = "supervisor", compact = false } = {}) {
-  const { siteMap, plantMap } = dbx();
-  const titleText = compact ? "SLA queue snapshot" : "Enterprise SLA queue";
-  if (!tickets.length) return `<div class="empty enterprise-empty"><strong>No active tickets match the selected filters.</strong><br><span>Tenant scope: ${escapeHtml(state.filters.clientId === "all" ? "All assigned tenants" : state.filters.clientId)} · Site: ${escapeHtml(state.filters.siteId === "all" ? "All assigned sites" : state.filters.siteId)} · Time range: Rolling 30 days</span><div class="btn-row empty-actions"><button class="mini-btn" type="button" data-tab="tickets">View all tickets</button></div></div>`;
-  const visible = tickets.slice(0, compact ? Math.min(50, tickets.length) : tickets.length);
-  const columns = compact
-    ? `<tr><th><input type="checkbox" aria-label="Select visible tickets" /></th><th>Ticket ID ↑ 2</th><th>Site / Zone</th><th>Priority</th><th>Status</th><th>SLA State ↓ 1</th><th>Last Updated</th></tr>`
-    : `<tr><th><input type="checkbox" aria-label="Select visible tickets" /></th><th>Ticket ID ↑ 2</th><th>Site / Zone</th><th>Asset / Issue</th><th>Priority</th><th>Status</th><th>SLA State ↓ 1</th><th>Due / Age</th><th>Evidence / Action</th><th>Actions</th></tr>`;
-  return `<div class="enterprise-grid-block">
-    <div class="data-grid-toolbar"><div><span class="eyebrow dark">ACTIVE TICKETS</span><h3>${escapeHtml(titleText)}</h3>${widgetAuditMeta("ticket_sla_events · closure_evidence · service_logs")}</div><div class="data-grid-controls"><input class="input grid-search" placeholder="Search ticket, site, species" aria-label="Search ticket table" /><button class="mini-btn" type="button">Columns</button><button class="mini-btn" type="button">Export CSV</button></div></div>
-    <div class="table-wrap enterprise-table-wrap"><table class="enterprise-data-grid"><thead>${columns}</thead><tbody>${visible.map(t => {
-      const s = slaState(t);
-      const site = siteMap[t.siteId];
-      const plant = plantMap[t.plantId];
-      const priorityClass = String(t.priority || "p3").toLowerCase();
-      const statusClass = t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : t.status === STATUS.PAUSED ? "monitor" : "open";
-      const slaClass = s.breached ? "critical" : s.paused ? "monitor" : "good";
-      const ticketId = `GO-SLA-${ticketDisplayId(t)}`;
-      const compactRow = `<td><input type="checkbox" aria-label="Select ${escapeHtml(ticketId)}" /></td><td class="sticky-cell"><strong class="mono-id">${escapeHtml(ticketId)}</strong><br><span class="small muted">Created ${fmtDate(t.createdAt)}</span></td><td><strong>${escapeHtml(site?.name || "Site")}</strong><br><span class="small muted">${escapeHtml(site?.city || "City")} · ${escapeHtml(plant?.zone || "General")}</span></td><td><span class="pill ${priorityClass}">${escapeHtml(t.priority || "P3")}</span></td><td><span class="pill ${statusClass}">${escapeHtml(t.status || "Open")}</span></td><td><span class="pill ${slaClass}">${escapeHtml(s.label)}</span><br><span class="small muted">Closure SLA ${s.closureHours}h</span></td><td>${fmtDate(t.updatedAt || t.closedAt || t.createdAt)}</td>`;
-      const fullRow = `<td><input type="checkbox" aria-label="Select ${escapeHtml(ticketId)}" /></td><td class="sticky-cell"><strong class="mono-id">${escapeHtml(ticketId)}</strong><br><span class="small muted">Created ${fmtDate(t.createdAt)}</span></td><td><strong>${escapeHtml(site?.name || "Site")}</strong><br><span class="small muted">${escapeHtml(site?.city || "City")} · ${escapeHtml(plant?.zone || "General")}</span></td><td><strong>${escapeHtml(t.issue)}</strong><br><span class="small muted">${escapeHtml(plant?.type || "Mapped asset")} · ${escapeHtml(plant?.category || "Horticulture")}</span></td><td><span class="pill ${priorityClass}">${escapeHtml(t.priority || "P3")}</span></td><td><span class="pill ${statusClass}">${escapeHtml(t.status || "Open")}</span><br><span class="small muted">Resolution: ${resolutionTime(t)}</span></td><td><span class="pill ${slaClass}">${escapeHtml(s.label)}</span></td><td>${escapeHtml(s.ageLabel)}<br><span class="small muted">Due policy ${s.closureHours}h</span></td><td>${ticketActions(t, scope)}</td><td><details class="row-menu"><summary>Actions</summary><div><button class="mini-btn" type="button">View audit trail</button><button class="mini-btn" type="button">Reassign</button><button class="mini-btn" type="button">Export row</button></div></details></td>`;
-      return `<tr>${compact ? compactRow : fullRow}</tr>`;
-    }).join("")}</tbody></table></div>
-    <div class="grid-pagination"><span>Showing 1–${visible.length} of ${tickets.length.toLocaleString("en-IN")} tickets</span><span>Rows per page: ${compact ? Math.min(50, tickets.length) : tickets.length}</span><span>Selected: 0</span><div><button class="mini-btn" type="button">Previous</button><button class="mini-btn" type="button">Next</button></div></div>
-  </div>`;
-}
+function ticketBoard(tickets, { scope = "supervisor", compact = false } = {}) { const { siteMap, plantMap } = dbx(); if (!tickets.length) return `<div class="empty">No tickets found for selected filters.</div>`; const columns = compact ? `<tr><th>Ticket</th><th>Location</th><th>Priority</th><th>Status</th><th>SLA</th></tr>` : `<tr><th>Ticket</th><th>Location</th><th>Priority</th><th>Status</th><th>SLA</th><th>Evidence / Action</th></tr>`; return `<div class="table-wrap"><table><thead>${columns}</thead><tbody>${tickets.map(t => { const s = slaState(t); const site = siteMap[t.siteId]; const plant = plantMap[t.plantId]; const row = `<td><strong>${escapeHtml(t.issue)}</strong><br><span class="small muted">Ticket #${ticketDisplayId(t)}<br>${fmtDate(t.createdAt)}</span></td><td>${escapeHtml(site?.city)}<br><span class="small muted">${escapeHtml(site?.name)} · ${escapeHtml(plant?.zone || "General")}</span></td><td><span class="pill ${t.priority.toLowerCase()}">${t.priority}</span></td><td><span class="pill ${t.status === STATUS.CLOSED ? "closed" : t.status === STATUS.IN_PROGRESS ? "progress" : t.status === STATUS.PAUSED ? "monitor" : "open"}">${t.status}</span><br><span class="small muted">Resolution: ${resolutionTime(t)}</span></td><td><span class="pill ${s.breached ? "critical" : "good"}">${s.label}</span><br><span class="small muted">Age ${s.ageLabel}; closure SLA ${s.closureHours}h</span></td>`; return `<tr>${compact ? row : `${row}<td>${ticketActions(t, scope)}</td>`}</tr>`; }).join("")}</tbody></table></div>`; }
 function ticketActions(t, scope) {
   if (scope === "client") {
     return t.closureEvidence
@@ -1743,12 +1666,12 @@ async function diagnoseFromState() {
   const diagBtn = document.querySelector("#runDiagnosisBtn");
   state.diagnosisRunning = true;
   if (diagBtn) { diagBtn.disabled = true; diagBtn.textContent = "Analysing..."; }
-  if (out) out.innerHTML = `<div class="diagnosis-state loading"><span class="eyebrow dark">AI DIAGNOSIS</span><strong>Checking plant health...</strong><p class="subtitle">Loading scan image, BOQ context, and SLA policy. Please wait.</p><div class="skeleton-lines"><i></i><i></i><i></i></div></div>`;
+  if (out) out.innerHTML = `<div class="card soft"><strong>Checking plant health...</strong><p class="subtitle">Please wait. The scan result will appear here.</p></div>`;
   let result;
   try {
     result = await diagnoseImage({ image: state.scanImage, draft });
   } catch (err) {
-    if (out) out.innerHTML = `<div class="diagnosis-state error"><span class="pill critical">SYSTEM ERROR</span><p class="danger-text">${escapeHtml(err.message || "Diagnosis failed. Please retry with a clear plant photo.")}</p><button class="mini-btn" type="button" data-action="run-diagnosis">Retry diagnosis</button></div>`;
+    if (out) out.innerHTML = `<div class="card soft"><p class="danger-text">${escapeHtml(err.message || "Diagnosis failed. Please retry with a clear plant photo.")}</p></div>`;
     throw err;
   } finally {
     state.diagnosisRunning = false;
@@ -2001,9 +1924,7 @@ function bindEvents() {
     const loginRole = e.target.closest("[data-login-role]")?.dataset.loginRole; if (loginRole) { state.loginRole = loginRole; render(); return; }
     const ownerView = e.target.closest("[data-owner-view]")?.dataset.ownerView; if (ownerView && isOwner()) { state.ownerViewRole = ownerView; sessionStorage.setItem("greenops_owner_view", ownerView); state.tab = firstTabFor(ownerView === ROLES.MAINTENANCE ? ROLES.MAINTENANCE : ownerView === ROLES.CLIENT ? ROLES.CLIENT : ROLES.OWNER); render(); return; }
     const tab = e.target.closest("[data-tab]")?.dataset.tab; if (tab) { state.tab = tab; sessionStorage.setItem(APP.sessionTabKey, tab); render(); return; }
-    const density = e.target.closest("[data-density]")?.dataset.density; if (density) { state.uiDensity = density; sessionStorage.setItem("greenops_ui_density", density); render(); return; }
-    const savedView = e.target.closest("[data-saved-view]")?.dataset.savedView; if (savedView) { state.savedView = savedView; sessionStorage.setItem("greenops_saved_view", savedView); render(); return; }
-    const workspaceSite = e.target.closest("[data-workspace-site]"); if (workspaceSite) { state.filters.siteId = workspaceSite.dataset.workspaceSite || "all"; state.filters.city = workspaceSite.dataset.workspaceCity || state.filters.city; render(); return; }
+    const filterSite = e.target.closest("[data-filter-site]")?.dataset.filterSite; if (filterSite) { state.filters.siteId = filterSite; render(); return; }
     const efficiencyFilter = e.target.closest("[data-efficiency-filter]")?.dataset.efficiencyFilter; if (efficiencyFilter) { state.efficiencyFilter = efficiencyFilter; sessionStorage.setItem("greenops_efficiency_filter", efficiencyFilter); render(); return; }
     const clientAssuranceFilter = e.target.closest("[data-client-assurance-filter]")?.dataset.clientAssuranceFilter; if (clientAssuranceFilter) { state.clientAssuranceFilter = state.clientAssuranceFilter === clientAssuranceFilter ? "" : clientAssuranceFilter; sessionStorage.setItem("greenops_client_assurance_filter", state.clientAssuranceFilter); render(); return; }
     const framework = e.target.closest("[data-framework]")?.dataset.framework; if (framework) { state.sustainabilityFramework = framework; sessionStorage.setItem("greenops_sustainability_framework", framework); render(); return; }
@@ -2056,7 +1977,6 @@ function bindEvents() {
   });
   document.addEventListener("change", async e => {
     if (e.target.matches("[data-filter]")) { state.filters[e.target.dataset.filter] = e.target.value; if (["clientId","city"].includes(e.target.dataset.filter)) state.filters.siteId = "all"; render(); }
-    if (e.target.matches("[data-saved-view-select]")) { state.savedView = e.target.value; sessionStorage.setItem("greenops_saved_view", state.savedView); render(); }
     if (e.target.matches("[data-boq-site]")) { state.boqDraft.siteId = e.target.value; state.boqDraft.rows = []; state.boqDraft.acceptedRows = []; state.boqDraft.rejectedRows = []; render(); }
     if (e.target.matches("[data-boq-file]")) { const file = e.target.files?.[0]; if (!file) return; state.boqDraft.fileName = file.name; state.boqDraft.csv = await file.text(); previewBoqDraft(); toast("BOQ CSV loaded."); render(); }
     if (e.target.matches("[data-entitlement-client]")) { state.entitlementClientId = e.target.value; state.entitlementSiteId = allowedSites().find(site => site.clientId === state.entitlementClientId)?.id || ""; render(); }
